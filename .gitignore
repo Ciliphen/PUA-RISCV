@@ -1,0 +1,5 @@
+prj/simulation/icarus/
+user/src/test.v
+user/sim/wave.vcd
+user/sim/testbench.v
+img
