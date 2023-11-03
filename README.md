@@ -1,4 +1,4 @@
-# Digital Circuit - Computer Architecture - System Architecture Lab
+# Digital Circuit - Computer Architecture - System Architecture - Lab
 
 **题目**：
 
