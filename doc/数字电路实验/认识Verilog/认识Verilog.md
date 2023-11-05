@@ -706,9 +706,9 @@ Verilog 的行为建模可以分为两种类型：组合逻辑行为建模和时
            input wire sel,
            output wire y
        );
-   
+
        reg f; // f是寄存器类型的输出信号，在always语句块中只有reg类型可以被赋值
-   
+
        always @( * ) begin
            case (sel)
                1'b0:
@@ -719,11 +719,11 @@ Verilog 的行为建模可以分为两种类型：组合逻辑行为建模和时
                    f = 1'bx; // 默认情况下，输出为未知（高阻态）
            endcase
        end
-   
+
        assign y = f;
-   
+
    endmodule
-   
+
    ```
 
 2. 时序逻辑行为建模：
@@ -738,7 +738,7 @@ Verilog 的行为建模可以分为两种类型：组合逻辑行为建模和时
            input wire data,
            output reg q // 也可以直接将输出定义为reg类型
        );
-   
+
        always @(posedge clk, posedge reset) // 注意此处括号内与组合逻辑行为建模的不同
        begin
            if (reset) // 当时钟信号clk上升沿到来时，如果reset为高电平，则将输出q赋值为低电平；
@@ -746,9 +746,9 @@ Verilog 的行为建模可以分为两种类型：组合逻辑行为建模和时
            else // 否则，将输出q赋值为输入data的值。
                q <= data;
        end
-   
+
    endmodule
-   
+
    ```
 
 通过行为建模，设计人员可以更直观地描述数字电路的功能和操作，不需要关注具体的电路结构和连线细节。行为建模适用于功能验证、仿真和高层次的电路描述。
