@@ -1,0 +1,3 @@
+[submodule "chisel/difftest"]
+	path = chisel/difftest
+	url = https://github.com/OpenXiangShan/difftest.git
