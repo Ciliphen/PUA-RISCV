@@ -7,7 +7,7 @@ import mill.scalalib.TestModule.ScalaTest
 import mill.bsp._
 
 object playground extends ScalaModule with ScalafmtModule { m =>
-  val useChisel5 = true
+  val useChisel5 = false
   override def scalaVersion = "2.13.10"
   override def scalacOptions = Seq(
     "-language:reflectiveCalls",
