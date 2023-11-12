@@ -38,22 +38,6 @@ class Core(implicit val config: CpuConfig) extends Module {
   val memoryUnit     = Module(new MemoryUnit()).io
   val writeBackStage = Module(new WriteBackStage()).io
   val writeBackUnit  = Module(new WriteBackUnit()).io
-  val tlbL1I         = Module(new TlbL1I()).io
-  val tlbL1D         = Module(new TlbL1D()).io
-
-  tlbL1I.addr         := fetchUnit.iCache.pc
-  tlbL1I.fence        := executeUnit.executeStage.inst0.inst_info.tlbfence
-  tlbL1I.cpu_stall    := !ctrl.fetchUnit.allow_to_go
-  tlbL1I.icache_stall := io.inst.icache_stall
-  tlbL1I.cache <> io.inst.tlb
-
-  tlbL1D.addr         := memoryUnit.dataMemory.out.addr
-  tlbL1D.fence        := memoryUnit.memoryStage.inst0.inst_info.tlbfence
-  tlbL1D.cpu_stall    := !ctrl.memoryUnit.allow_to_go
-  tlbL1D.dcache_stall := io.data.dcache_stall
-  tlbL1D.mem_write    := memoryUnit.dataMemory.out.wen.orR
-  tlbL1D.mem_en       := memoryUnit.dataMemory.out.en
-  tlbL1D.cache <> io.data.tlb
 
   ctrl.instFifo.has2insts := !(instFifo.empty || instFifo.almost_empty)
   ctrl.decoderUnit <> decoderUnit.ctrl
@@ -92,16 +76,8 @@ class Core(implicit val config: CpuConfig) extends Module {
   decoderUnit.bpu.branch_target := bpu.decoder.branch_target
 
   instFifo.do_flush         := ctrl.decoderUnit.do_flush
-  instFifo.flush_delay_slot := ctrl.instFifo.delay_slot_do_flush
   instFifo.icache_stall     := io.inst.icache_stall
   instFifo.jump_branch_inst := decoderUnit.instFifo.jump_branch_inst
-  instFifo.delay_sel_flush := Mux(
-    ctrl.executeUnit.branch,
-    !(executeUnit.memoryStage.inst1.ex.bd || decoderUnit.executeStage.inst0.ex.bd),
-    Mux(ctrl.decoderUnit.branch, !decoderUnit.instFifo.allow_to_go(1), false.B),
-  )
-  instFifo.decoder_delay_flush := ctrl.decoderUnit.branch
-  instFifo.execute_delay_flush := ctrl.executeUnit.branch
   instFifo.ren <> decoderUnit.instFifo.allow_to_go
   decoderUnit.instFifo.inst <> instFifo.read
 
@@ -109,15 +85,12 @@ class Core(implicit val config: CpuConfig) extends Module {
     instFifo.write(i).pht_index   := bpu.instBuffer.pht_index(i)
     bpu.instBuffer.pc(i)          := instFifo.write(i).pc
     instFifo.wen(i)               := io.inst.inst_valid(i)
-    instFifo.write(i).tlb.refill  := tlbL1I.tlb1.refill
-    instFifo.write(i).tlb.invalid := tlbL1I.tlb1.invalid
     instFifo.write(i).pc          := io.inst.addr(0) + (i * 4).U
     instFifo.write(i).inst        := io.inst.inst(i)
   }
 
   decoderUnit.instFifo.info.empty                 := instFifo.empty
   decoderUnit.instFifo.info.almost_empty          := instFifo.almost_empty
-  decoderUnit.instFifo.info.inst0_is_in_delayslot := instFifo.inst0_is_in_delayslot
   decoderUnit.regfile <> regfile.read
   for (i <- 0 until (config.fuNum)) {
     decoderUnit.forward(i).exe      := executeUnit.decoderUnit.forward(i).exe
@@ -142,13 +115,8 @@ class Core(implicit val config: CpuConfig) extends Module {
 
   cp0.ctrl.exe_stall := !ctrl.executeUnit.allow_to_go
   cp0.ctrl.mem_stall := !ctrl.memoryUnit.allow_to_go
-  cp0.tlb(0).vpn2    := tlbL1I.tlb2.vpn2
-  cp0.tlb(1).vpn2    := tlbL1D.tlb2.vpn2
   cp0.ext_int        := io.ext_int
-  tlbL1I.tlb2.found  := cp0.tlb(0).found
-  tlbL1D.tlb2.found  := cp0.tlb(1).found
-  tlbL1I.tlb2.entry  := cp0.tlb(0).info
-  tlbL1D.tlb2.entry  := cp0.tlb(1).info
+
 
   memoryStage.ctrl.allow_to_go := ctrl.memoryUnit.allow_to_go
   memoryStage.ctrl.clear       := ctrl.memoryUnit.do_flush
@@ -157,7 +125,6 @@ class Core(implicit val config: CpuConfig) extends Module {
   memoryUnit.cp0 <> cp0.memoryUnit
   memoryUnit.writeBackStage <> writeBackStage.memoryUnit
 
-  memoryUnit.dataMemory.in.tlb <> tlbL1D.tlb1
   memoryUnit.dataMemory.in.rdata := io.data.rdata
   io.data.en                     := memoryUnit.dataMemory.out.en
   io.data.rlen                   := memoryUnit.dataMemory.out.rlen

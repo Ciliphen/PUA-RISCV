@@ -18,7 +18,6 @@ class Issue(implicit val config: CpuConfig) extends Module {
     val execute    = Input(Vec(config.fuNum, new MemRead()))
     // 输出
     val inst1 = Output(new Bundle {
-      val is_in_delayslot = Bool()
       val allow_to_go     = Bool()
     })
   })
@@ -49,8 +48,6 @@ class Issue(implicit val config: CpuConfig) extends Module {
     inst0.op === EXE_MTC0 && inst1.op === EXE_MFC0 && inst0.cp0_addr === inst1.cp0_addr
   val data_conflict = raw_reg || raw_hilo || raw_cp0 || load_stall
 
-  // 指令1是否在延迟槽中
-  io.inst1.is_in_delayslot := inst0.fusel === FU_BR && io.inst1.allow_to_go
   // 指令1是否允许执行
   io.inst1.allow_to_go := io.allow_to_go &&
     !instFifo_invalid &&

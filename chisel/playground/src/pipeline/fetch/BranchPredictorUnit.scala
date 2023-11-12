@@ -8,7 +8,7 @@ import cpu.pipeline.decoder.Src12Read
 
 class ExecuteUnitBranchPredictor extends Bundle {
   val bpuConfig        = new BranchPredictorConfig()
-  val pc               = Output(UInt(DATA_ADDR_WID.W))
+  val pc               = Output(UInt(PC_WID.W))
   val update_pht_index = Output(UInt(bpuConfig.phtDepth.W))
   val branch_inst      = Output(Bool())
   val branch           = Output(Bool())
@@ -20,8 +20,8 @@ class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
     val inst      = Input(UInt(INST_WID.W))
     val op        = Input(UInt(OP_WID.W))
     val ena       = Input(Bool())
-    val pc        = Input(UInt(DATA_ADDR_WID.W))
-    val pc_plus4  = Input(UInt(DATA_ADDR_WID.W))
+    val pc        = Input(UInt(PC_WID.W))
+    val pc_plus4  = Input(UInt(PC_WID.W))
     val pht_index = Input(UInt(bpuConfig.phtDepth.W))
 
     val rs1 = Input(UInt(REG_ADDR_WID.W))
@@ -29,7 +29,7 @@ class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
 
     val branch_inst      = Output(Bool())
     val pred_branch      = Output(Bool())
-    val branch_target    = Output(UInt(DATA_ADDR_WID.W))
+    val branch_target    = Output(UInt(PC_WID.W))
     val update_pht_index = Output(UInt(bpuConfig.phtDepth.W))
   }
 

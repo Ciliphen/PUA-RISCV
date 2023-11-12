@@ -12,7 +12,6 @@ class InstFifoDecoderUnit(implicit val config: CpuConfig) extends Bundle {
   val allow_to_go = Output(Vec(config.decoderNum, Bool()))
   val inst        = Input(Vec(config.decoderNum, new BufferUnit()))
   val info = Input(new Bundle {
-    val inst0_is_in_delayslot = Bool()
     val empty                 = Bool()
     val almost_empty          = Bool()
   })
@@ -108,8 +107,6 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module {
   val pc          = io.instFifo.inst.map(_.pc)
   val inst        = io.instFifo.inst.map(_.inst)
   val inst_info   = decoder.map(_.io.out)
-  val tlb_refill  = io.instFifo.inst.map(_.tlb.refill)
-  val tlb_invalid = io.instFifo.inst.map(_.tlb.invalid)
   val interrupt   = io.cp0.intterupt_allowed && (io.cp0.cause_ip & io.cp0.status_im).orR && !io.instFifo.info.empty
 
   for (i <- 0 until (config.decoderNum)) {
@@ -141,12 +138,9 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module {
   )
   io.executeStage.inst0.ex.flush_req :=
     io.executeStage.inst0.ex.excode =/= EX_NO ||
-      io.executeStage.inst0.ex.tlb_refill ||
       io.executeStage.inst0.ex.eret
-  io.executeStage.inst0.ex.tlb_refill := tlb_refill(0)
   io.executeStage.inst0.ex.eret       := inst_info(0).op === EXE_ERET
   io.executeStage.inst0.ex.badvaddr   := pc(0)
-  io.executeStage.inst0.ex.bd         := io.instFifo.info.inst0_is_in_delayslot
   val inst0_ex_cpu =
     !io.cp0.access_allowed && VecInit(EXE_MFC0, EXE_MTC0, EXE_TLBR, EXE_TLBWI, EXE_TLBWR, EXE_TLBP, EXE_ERET, EXE_WAIT)
       .contains(inst_info(0).op)
@@ -154,7 +148,6 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module {
     EX_NO,
     Seq(
       interrupt -> EX_INT,
-      (tlb_refill(0) || tlb_invalid(0)) -> EX_TLBL,
       (pc(0)(1, 0).orR || (pc(0)(31) && !io.cp0.kernel_mode)) -> EX_ADEL,
       (inst_info(0).inst_valid === INST_INVALID) -> EX_RI,
       (inst_info(0).op === EXE_SYSCALL) -> EX_SYS,
@@ -189,18 +182,15 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module {
     forwardCtrl.out.inst(1).src2.rdata,
     decoder(1).io.out.imm32
   )
-  io.executeStage.inst1.ex.flush_req  := io.executeStage.inst1.ex.excode =/= EX_NO || io.executeStage.inst1.ex.tlb_refill
-  io.executeStage.inst1.ex.tlb_refill := tlb_refill(1)
+  io.executeStage.inst1.ex.flush_req  := io.executeStage.inst1.ex.excode =/= EX_NO
   io.executeStage.inst1.ex.eret       := inst_info(1).op === EXE_ERET
   io.executeStage.inst1.ex.badvaddr   := pc(1)
-  io.executeStage.inst1.ex.bd         := issue.inst1.is_in_delayslot
   val inst1_ex_cpu =
     !io.cp0.access_allowed && VecInit(EXE_MFC0, EXE_MTC0, EXE_TLBR, EXE_TLBWI, EXE_TLBWR, EXE_TLBP, EXE_ERET, EXE_WAIT)
       .contains(inst_info(1).op)
   io.executeStage.inst1.ex.excode := MuxCase(
     EX_NO,
     Seq(
-      (tlb_refill(1) || tlb_invalid(1)) -> EX_TLBL,
       (pc(1)(1, 0).orR || (pc(1)(31) && !io.cp0.kernel_mode)) -> EX_ADEL,
       (inst_info(1).inst_valid === INST_INVALID) -> EX_RI,
       (inst_info(1).op === EXE_SYSCALL) -> EX_SYS,

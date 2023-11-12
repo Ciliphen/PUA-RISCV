@@ -31,7 +31,7 @@ class FetchUnit(implicit
     }
 
   })
-  val pc = RegNext(io.iCache.pc_next, "h_bfc00000".U(32.W))
+  val pc = RegNext(io.iCache.pc_next, PC_INIT)
   io.iCache.pc := pc
 
   // when inst_valid(1) is true, inst_valid(0) must be true

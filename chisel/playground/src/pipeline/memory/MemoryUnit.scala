@@ -22,11 +22,6 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     val writeBackStage = Output(new MemoryUnitWriteBackUnit())
     val dataMemory = new Bundle {
       val in = Input(new Bundle {
-        val tlb = new Bundle {
-          val invalid = Bool()
-          val refill  = Bool()
-          val modify  = Bool()
-        }
         val rdata = UInt(DATA_WID.W)
       })
       val out = Output(new Bundle {
@@ -66,20 +61,13 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     io.memoryStage.inst0.rd_info.wdata,
   )
   io.writeBackStage.inst0.ex := io.memoryStage.inst0.ex
-  val inst0_access_mem =
-    (io.dataMemory.out.en && (io.dataMemory.in.tlb.invalid || io.dataMemory.in.tlb.refill) && io.memoryStage.inst0.inst_info.fusel === FU_MEM)
-  val inst0_tlbmod =
-    (io.dataMemory.in.tlb.modify && io.dataMemory.out.wen.orR && io.memoryStage.inst0.inst_info.fusel === FU_MEM)
   io.writeBackStage.inst0.ex.excode := MuxCase(
     io.memoryStage.inst0.ex.excode,
     Seq(
       (io.memoryStage.inst0.ex.excode =/= EX_NO) -> io.memoryStage.inst0.ex.excode,
-      inst0_access_mem                           -> Mux(io.dataMemory.out.wen.orR, EX_TLBS, EX_TLBL),
-      inst0_tlbmod                               -> EX_MOD,
     ),
   )
-  io.writeBackStage.inst0.ex.tlb_refill := io.memoryStage.inst0.ex.tlb_refill && io.memoryStage.inst0.ex.excode === EX_TLBL || io.dataMemory.in.tlb.refill && io.memoryStage.inst0.inst_info.fusel === FU_MEM
-  io.writeBackStage.inst0.ex.flush_req := io.memoryStage.inst0.ex.flush_req || io.writeBackStage.inst0.ex.excode =/= EX_NO || io.writeBackStage.inst0.ex.tlb_refill
+  io.writeBackStage.inst0.ex.flush_req := io.memoryStage.inst0.ex.flush_req || io.writeBackStage.inst0.ex.excode =/= EX_NO
   io.writeBackStage.inst0.cp0 := io.memoryStage.inst0.cp0
 
   io.writeBackStage.inst1.pc        := io.memoryStage.inst1.pc
@@ -90,20 +78,13 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     io.memoryStage.inst1.rd_info.wdata,
   )
   io.writeBackStage.inst1.ex := io.memoryStage.inst1.ex
-  val inst1_access_mem =
-    (io.dataMemory.out.en && (io.dataMemory.in.tlb.invalid || io.dataMemory.in.tlb.refill) && io.memoryStage.inst1.inst_info.fusel === FU_MEM)
-  val inst1_tlbmod =
-    (io.dataMemory.in.tlb.modify && io.dataMemory.out.wen.orR && io.memoryStage.inst1.inst_info.fusel === FU_MEM)
   io.writeBackStage.inst1.ex.excode := MuxCase(
     io.memoryStage.inst1.ex.excode,
     Seq(
       (io.memoryStage.inst1.ex.excode =/= EX_NO) -> io.memoryStage.inst1.ex.excode,
-      inst1_access_mem                           -> Mux(io.dataMemory.out.wen.orR, EX_TLBS, EX_TLBL),
-      inst1_tlbmod                               -> EX_MOD,
     ),
   )
-  io.writeBackStage.inst1.ex.tlb_refill := io.memoryStage.inst1.ex.tlb_refill && io.memoryStage.inst1.ex.excode === EX_TLBL || io.dataMemory.in.tlb.refill && io.memoryStage.inst1.inst_info.fusel === FU_MEM
-  io.writeBackStage.inst1.ex.flush_req := io.memoryStage.inst1.ex.flush_req || io.writeBackStage.inst1.ex.excode =/= EX_NO || io.writeBackStage.inst1.ex.tlb_refill
+  io.writeBackStage.inst1.ex.flush_req := io.memoryStage.inst1.ex.flush_req || io.writeBackStage.inst1.ex.excode =/= EX_NO
 
   io.cp0.in.inst(0).pc := io.writeBackStage.inst0.pc
   io.cp0.in.inst(0).ex := io.writeBackStage.inst0.ex

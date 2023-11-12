@@ -8,8 +8,8 @@ import cpu.CpuConfig
 trait Constants {
   val config = new CpuConfig
   // 全局
-  val PC_WID  = 32
-  val PC_INIT = "hbfc00000".U(PC_WID.W)
+  val PC_WID  = 64
+  val PC_INIT = "h60000000".U(PC_WID.W)
 
   val EXT_INT_WID = 6
 
@@ -142,7 +142,8 @@ trait Constants {
   val DIV_STOP             = false.B
 
   // inst rom
-  val INST_WID = 32
+  val INST_WID      = 32
+  val INST_ADDR_WID = PC_WID
 
   // data ram
   val DATA_ADDR_WID = 32
@@ -197,16 +198,16 @@ trait Constants {
   // 例外类型
   val EXCODE_WID = 5
 
-  val EX_NO   = 0.U(EXCODE_WID.W)  // 无异常
-  val EX_INT  = 1.U(EXCODE_WID.W)  // 中断异常
-  val EX_MOD  = 2.U(EXCODE_WID.W)  // TLB 条目修改异常
-  val EX_TLBL = 3.U(EXCODE_WID.W)  // TLB 非法取指令或访问异常
-  val EX_TLBS = 4.U(EXCODE_WID.W)  // TLB 非法存储访问异常
-  val EX_ADEL = 5.U(EXCODE_WID.W)  // 地址未对齐异常（取指令或访问异常）
-  val EX_ADES = 6.U(EXCODE_WID.W)  // 地址未对齐异常（存储访问异常）
-  val EX_SYS  = 7.U(EXCODE_WID.W)  // 系统调用异常
-  val EX_BP   = 8.U(EXCODE_WID.W)  // 断点异常
-  val EX_RI   = 9.U(EXCODE_WID.W)  // 保留指令异常
+  val EX_NO   = 0.U(EXCODE_WID.W) // 无异常
+  val EX_INT  = 1.U(EXCODE_WID.W) // 中断异常
+  val EX_MOD  = 2.U(EXCODE_WID.W) // TLB 条目修改异常
+  val EX_TLBL = 3.U(EXCODE_WID.W) // TLB 非法取指令或访问异常
+  val EX_TLBS = 4.U(EXCODE_WID.W) // TLB 非法存储访问异常
+  val EX_ADEL = 5.U(EXCODE_WID.W) // 地址未对齐异常（取指令或访问异常）
+  val EX_ADES = 6.U(EXCODE_WID.W) // 地址未对齐异常（存储访问异常）
+  val EX_SYS  = 7.U(EXCODE_WID.W) // 系统调用异常
+  val EX_BP   = 8.U(EXCODE_WID.W) // 断点异常
+  val EX_RI   = 9.U(EXCODE_WID.W) // 保留指令异常
   val EX_CPU  = 10.U(EXCODE_WID.W) // 协处理器不可用异常
   val EX_OV   = 11.U(EXCODE_WID.W) // 算术溢出异常
 
@@ -232,6 +233,17 @@ trait Constants {
   val C_WID    = 3
   val ASID_WID = 8
   val VPN2_WID = 19
+
+  // AXI
+  val BURST_FIXED    = 0
+  val BURST_INCR     = 1
+  val BURST_WRAP     = 2
+  val BURST_RESERVED = 3
+
+  val RESP_OKEY   = 0
+  val RESP_EXOKEY = 1
+  val RESP_SLVERR = 2
+  val RESP_DECERR = 3
 }
 trait OptionConst {
 
