@@ -20,6 +20,7 @@ class ICache(implicit config: CpuConfig) extends Module {
   io.cpu.valid := status === s_finishwait
   val addr_err = io.cpu.addr.orR
 
+  // default
   io.axi.ar.addr  := 0.U
   io.axi.ar.len   := 0.U
   io.axi.ar.size  := 2.U
@@ -32,12 +33,14 @@ class ICache(implicit config: CpuConfig) extends Module {
   switch(status) {
     is(s_idle) {
       when(io.cpu.en) {
-        io.cpu.acc_err := true.B
-        status         := s_finishwait
-      }.otherwise {
-        io.axi.ar.addr  := Cat(io.cpu.addr(31, 2), 0.U(2.W))
-        io.axi.ar.valid := true.B
-        status          := s_read
+        when(addr_err) {
+          io.cpu.acc_err := true.B
+          status         := s_finishwait
+        }.otherwise {
+          io.axi.ar.addr  := Cat(io.cpu.addr(31, 2), 0.U(2.W))
+          io.axi.ar.valid := true.B
+          status          := s_read
+        }
       }
     }
     is(s_read) {

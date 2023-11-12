@@ -146,13 +146,12 @@ trait Constants {
   val INST_ADDR_WID = PC_WID
 
   // data ram
-  val DATA_ADDR_WID = 32
+  val DATA_ADDR_WID = PC_WID
 
   // GPR RegFile
   val AREG_NUM     = 32
   val REG_ADDR_WID = 5
-  val DATA_WID     = 32
-  val HILO_WID     = 64
+  val DATA_WID     = 64
 
   // CP0寄存器
   // CP0 Register (5.w), Select (3.w)

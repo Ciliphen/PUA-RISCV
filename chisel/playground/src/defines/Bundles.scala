@@ -116,10 +116,10 @@ class WriteBackCtrl extends Bundle {
 // cpu to icache
 class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   // read inst request from cpu
-  val en    = Output(Bool())
-  val ready = Output(Bool())
-  val addr  = Output(UInt(INST_ADDR_WID.W)) // virtual address and next virtual address
-  val fence = Output(Bool())
+  val en      = Output(Bool())
+  val ready   = Output(Bool())
+  val addr    = Output(UInt(INST_ADDR_WID.W)) // virtual address and next virtual address
+  val fence_i = Output(Bool())
 
   // read inst result
   val rdata   = Input(UInt(INST_WID.W))
@@ -129,20 +129,17 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
 
 // cpu to dcache
 class Cache_DCache extends Bundle {
-  val cpu_stall    = Output(Bool())
-  val dcache_stall = Input(Bool())
+  val addr    = Output(UInt(DATA_ADDR_WID.W))
+  val size    = Output(UInt(2.W))
+  val en      = Output(Bool())
+  val write   = Output(Bool())
+  val wdata   = Output(UInt(DATA_WID.W))
+  val ready   = Output(Bool())
+  val fence_i = Output(Bool())
 
-  val execute_addr = Output(UInt(32.W))
-  // 连接 mem unit
-  val rdata = Input(UInt(32.W))
-  val en    = Output(Bool())
-  val wen   = Output(UInt(4.W))
-  val rlen  = Output(UInt(2.W))
-  val wdata = Output(UInt(32.W))
-  val addr  = Output(UInt(32.W))
-
-  val fence      = Output(Bool())
-  val fence_addr = Output(UInt(32.W))
+  val rdata   = Input(UInt(DATA_WID.W))
+  val valid   = Input(Bool())
+  val acc_err = Input(Bool())
 }
 
 // axi
@@ -210,11 +207,11 @@ class ICache_AXIInterface extends Bundle {
 }
 
 class DCache_AXIInterface extends ICache_AXIInterface {
-  val aw = Decoupled(new AW())
-
-  val w = Decoupled(new W())
-
-  val b = Flipped(Decoupled())
+  val aw = new AW()
+  val w  = new W()
+  val b  = new B()
+  val ar = new AR()
+  val r  = new R()
 }
 
 class Cache_AXIInterface extends Bundle {
