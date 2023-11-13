@@ -4,7 +4,7 @@ import cache._
 import cpu._
 import cpu.defines._
 
-class PuaMips extends Module {
+class PuaCpu extends Module {
   implicit val config = new CpuConfig()
   val io = IO(new Bundle {
     val ext_int   = Input(UInt(6.W))
