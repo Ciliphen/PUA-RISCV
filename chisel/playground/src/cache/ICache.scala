@@ -21,11 +21,16 @@ class ICache(implicit config: CpuConfig) extends Module {
   val addr_err = io.cpu.addr.orR
 
   // default
+  io.axi.ar.id    := 0.U
   io.axi.ar.addr  := 0.U
   io.axi.ar.len   := 0.U
   io.axi.ar.size  := 2.U
+  io.axi.ar.lock  := 0.U
   io.axi.ar.burst := BURST_FIXED.U
-  io.axi.ar.valid := false.B
+  val arvalid = RegInit(false.B)
+  io.axi.ar.valid := arvalid
+  io.axi.ar.prot  := 0.U
+  io.axi.ar.cache := 0.U
   io.axi.r.ready  := true.B
   io.cpu.rdata    := 0.U
   io.cpu.acc_err  := false.B
@@ -37,15 +42,15 @@ class ICache(implicit config: CpuConfig) extends Module {
           io.cpu.acc_err := true.B
           status         := s_finishwait
         }.otherwise {
-          io.axi.ar.addr  := Cat(io.cpu.addr(31, 2), 0.U(2.W))
-          io.axi.ar.valid := true.B
-          status          := s_read
+          io.axi.ar.addr := Cat(io.cpu.addr(31, 2), 0.U(2.W))
+          arvalid        := true.B
+          status         := s_read
         }
       }
     }
     is(s_read) {
       when(io.axi.ar.ready) {
-        io.axi.ar.valid := false.B
+        arvalid := false.B
       }
       when(io.axi.r.valid) {
         io.cpu.rdata   := Mux(io.axi.ar.addr(2), io.axi.r.data(63, 32), io.axi.r.data(31, 0))
@@ -61,9 +66,9 @@ class ICache(implicit config: CpuConfig) extends Module {
             io.cpu.acc_err := true.B
             status         := s_finishwait
           }.otherwise {
-            io.axi.ar.addr  := Cat(io.cpu.addr(31, 2), 0.U(2.W))
-            io.axi.ar.valid := true.B
-            status          := s_read
+            io.axi.ar.addr := Cat(io.cpu.addr(31, 2), 0.U(2.W))
+            arvalid        := true.B
+            status         := s_read
           }
         }
       }

@@ -7,11 +7,13 @@ import cpu.CpuConfig
 
 trait Constants {
   val config = new CpuConfig
+  val XLEN   = 64
   // 全局
-  val PC_WID  = 64
+  val PC_WID  = XLEN
   val PC_INIT = "h60000000".U(PC_WID.W)
 
   val EXT_INT_WID = 6
+  val HILO_WID    = 64
 
   val WRITE_ENABLE  = true.B
   val WRITE_DISABLE = false.B
@@ -151,7 +153,7 @@ trait Constants {
   // GPR RegFile
   val AREG_NUM     = 32
   val REG_ADDR_WID = 5
-  val DATA_WID     = 64
+  val DATA_WID     = XLEN
 
   // CP0寄存器
   // CP0 Register (5.w), Select (3.w)

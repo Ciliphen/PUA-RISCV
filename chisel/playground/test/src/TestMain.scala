@@ -1,10 +1,10 @@
 import cpu._
 import circt.stage._
-import cache.CacheAXIInterface
+import cache.Cache
 
 object TestMain extends App {
   implicit val config = new CpuConfig()
-  def top             = new CacheAXIInterface()
+  def top             = new Cache()
   val useMFC          = false // use MLIR-based firrtl compiler
   val generator       = Seq(chisel3.stage.ChiselGeneratorAnnotation(() => top))
   if (useMFC) {

@@ -44,7 +44,7 @@ class CacheAXIInterface extends Module {
   // we need to lock ar to avoid signals change during handshake
   val ar_sel_lock = RegInit(false.B)
   val ar_sel_val  = RegInit(false.B)
-  val ar_sel      = Mux(ar_sel_lock, ar_sel_val, io.dcache.ar.valid)
+  val ar_sel      = Mux(ar_sel_lock, ar_sel_val, !io.icache.ar.valid && io.dcache.ar.valid)
 
   when(io.axi.ar.valid) {
     when(io.axi.ar.ready) {
