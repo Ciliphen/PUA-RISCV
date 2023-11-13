@@ -2,13 +2,14 @@ BUILD_DIR = ./build
 
 export PATH := $(PATH):$(abspath ./utils)
 
-test:
-	mill -i __.test
-
 verilog:
 	$(MAKE) clean
 	mkdir -p $(BUILD_DIR)
 	mill -i __.test.runMain Elaborate -td $(BUILD_DIR)
+
+test:
+	@echo "make test"
+	mill -i __.test.runMain TestMain -td $(BUILD_DIR)
 
 help:
 	mill -i __.test.runMain Elaborate --help
