@@ -5,7 +5,7 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
-import cpu.pipeline.memory.Cp0Info
+import cpu.pipeline.memory.CsrInfo
 
 class MemWbInst1 extends Bundle {
   val pc        = UInt(PC_WID.W)
@@ -14,7 +14,7 @@ class MemWbInst1 extends Bundle {
   val ex        = new ExceptionInfo()
 }
 class MemWbInst0 extends MemWbInst1 {
-  val cp0 = new Cp0Info()
+  val csr = new CsrInfo()
 }
 
 class MemoryUnitWriteBackUnit extends Bundle {

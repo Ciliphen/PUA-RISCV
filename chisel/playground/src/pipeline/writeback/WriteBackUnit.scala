@@ -69,9 +69,9 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
   // statistic
   // ===----------------------------------------------------------------===
   if (!config.build) {
-    io.statistic.get.cp0_cause  := io.writeBackStage.inst0.cp0.cp0_cause
-    io.statistic.get.cp0_count  := io.writeBackStage.inst0.cp0.cp0_count
-    io.statistic.get.cp0_random := io.writeBackStage.inst0.cp0.cp0_random
+    io.statistic.get.csr_cause  := io.writeBackStage.inst0.csr.csr_cause
+    io.statistic.get.csr_count  := io.writeBackStage.inst0.csr.csr_count
+    io.statistic.get.csr_random := io.writeBackStage.inst0.csr.csr_random
     io.statistic.get.int        := io.writeBackStage.inst0.ex.excode === EX_INT
     io.statistic.get.commit     := io.ctrl.allow_to_go
   }

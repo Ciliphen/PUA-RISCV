@@ -6,10 +6,10 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class Cp0Info extends Bundle {
-  val cp0_count  = UInt(DATA_WID.W)
-  val cp0_random = UInt(DATA_WID.W)
-  val cp0_cause  = UInt(DATA_WID.W)
+class CsrInfo extends Bundle {
+  val csr_count  = UInt(DATA_WID.W)
+  val csr_random = UInt(DATA_WID.W)
+  val csr_cause  = UInt(DATA_WID.W)
 }
 
 class ExeMemInst1 extends Bundle {
@@ -20,7 +20,7 @@ class ExeMemInst1 extends Bundle {
 }
 
 class ExeMemInst0(implicit val config: CpuConfig) extends ExeMemInst1 {
-  val cp0 = new Cp0Info()
+  val csr = new CsrInfo()
   val mem = new Bundle {
     val en        = Bool()
     val ren       = Bool()

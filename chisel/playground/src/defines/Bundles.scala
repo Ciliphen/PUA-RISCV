@@ -33,7 +33,7 @@ class InstInfo extends Bundle {
   val reg_wen     = Bool()
   val reg_waddr   = UInt(REG_ADDR_WID.W)
   val imm32       = UInt(DATA_WID.W)
-  val cp0_addr    = UInt(CP0_ADDR_WID.W)
+  val csr_addr    = UInt(CSR_ADDR_WID.W)
   val dual_issue  = Bool()
   val whilo       = Bool()
   val rmem        = Bool()
@@ -125,6 +125,7 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   val rdata   = Input(UInt(INST_WID.W))
   val valid   = Input(Bool())
   val acc_err = Input(Bool())
+  val stall   = Input(Bool())
 }
 
 // cpu to dcache
@@ -140,6 +141,7 @@ class Cache_DCache extends Bundle {
   val rdata   = Input(UInt(DATA_WID.W))
   val valid   = Input(Bool())
   val acc_err = Input(Bool())
+  val stall   = Input(Bool())
 }
 
 // axi

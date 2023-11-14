@@ -16,7 +16,6 @@ class InstFifo(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val do_flush              = Input(Bool())
     val icache_stall          = Input(Bool())
-    val jump_branch_inst      = Input(Bool()) // 译码阶段的inst0是否为跳转指令
 
     val ren  = Input(Vec(config.decoderNum, Bool()))
     val read = Output(Vec(config.decoderNum, new BufferUnit()))

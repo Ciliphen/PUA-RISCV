@@ -6,7 +6,7 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 import cpu.pipeline.decoder.RegWrite
-import cpu.pipeline.execute.Cp0MemoryUnit
+import cpu.pipeline.execute.CsrMemoryUnit
 import cpu.pipeline.writeback.MemoryUnitWriteBackUnit
 
 class MemoryUnit(implicit val config: CpuConfig) extends Module {
@@ -18,7 +18,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
       val flush_pc = UInt(PC_WID.W)
     })
     val decoderUnit    = Output(Vec(config.fuNum, new RegWrite()))
-    val cp0            = Flipped(new Cp0MemoryUnit())
+    val csr            = Flipped(new CsrMemoryUnit())
     val writeBackStage = Output(new MemoryUnitWriteBackUnit())
     val dataMemory = new Bundle {
       val in = Input(new Bundle {
@@ -68,7 +68,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     ),
   )
   io.writeBackStage.inst0.ex.flush_req := io.memoryStage.inst0.ex.flush_req || io.writeBackStage.inst0.ex.excode =/= EX_NO
-  io.writeBackStage.inst0.cp0 := io.memoryStage.inst0.cp0
+  io.writeBackStage.inst0.csr := io.memoryStage.inst0.csr
 
   io.writeBackStage.inst1.pc        := io.memoryStage.inst1.pc
   io.writeBackStage.inst1.inst_info := io.memoryStage.inst1.inst_info
@@ -86,17 +86,17 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   )
   io.writeBackStage.inst1.ex.flush_req := io.memoryStage.inst1.ex.flush_req || io.writeBackStage.inst1.ex.excode =/= EX_NO
 
-  io.cp0.in.inst(0).pc := io.writeBackStage.inst0.pc
-  io.cp0.in.inst(0).ex := io.writeBackStage.inst0.ex
-  io.cp0.in.inst(1).pc := io.writeBackStage.inst1.pc
-  io.cp0.in.inst(1).ex := io.writeBackStage.inst1.ex
+  io.csr.in.inst(0).pc := io.writeBackStage.inst0.pc
+  io.csr.in.inst(0).ex := io.writeBackStage.inst0.ex
+  io.csr.in.inst(1).pc := io.writeBackStage.inst1.pc
+  io.csr.in.inst(1).ex := io.writeBackStage.inst1.ex
 
   io.fetchUnit.flush := Mux(
-    io.cp0.out.flush,
-    io.cp0.out.flush,
+    io.csr.out.flush,
+    io.csr.out.flush,
     io.writeBackStage.inst0.inst_info.op === EXE_MTC0 && io.ctrl.allow_to_go,
   )
-  io.fetchUnit.flush_pc := Mux(io.cp0.out.flush, io.cp0.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)
+  io.fetchUnit.flush_pc := Mux(io.csr.out.flush, io.csr.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)
 
   io.ctrl.flush_req := io.fetchUnit.flush
   io.ctrl.eret      := io.writeBackStage.inst0.ex.eret

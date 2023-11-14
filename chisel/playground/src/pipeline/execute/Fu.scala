@@ -25,7 +25,7 @@
 //         val result = Output(UInt(DATA_WID.W))
 //       },
 //     )
-//     val cp0_rdata = Input(Vec(config.fuNum, UInt(DATA_WID.W)))
+//     val csr_rdata = Input(Vec(config.fuNum, UInt(DATA_WID.W)))
 //     val stall_req = Output(Bool())
 //     val branch = new Bundle {
 //       val pred_branch = Input(Bool())
@@ -58,7 +58,7 @@
 //     alu(i).io.mul.ready         := mul.ready
 //     alu(i).io.div.ready         := div.ready
 //     alu(i).io.div.result        := div.result
-//     alu(i).io.cp0_rdata         := io.cp0_rdata(i)
+//     alu(i).io.csr_rdata         := io.csr_rdata(i)
 //     alu(i).io.llbit             := io.llbit
 //     io.inst(i).ex.out           := io.inst(i).ex.in
 //     io.inst(i).ex.out.flush_req := io.inst(i).ex.in.flush_req || alu(i).io.overflow

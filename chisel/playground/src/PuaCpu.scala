@@ -10,7 +10,6 @@ class PuaCpu extends Module {
     val ext_int   = Input(UInt(6.W))
     val axi       = new AXI()
     val debug     = new DEBUG()
-    val statistic = if (!config.build) Some(new GlobalStatistic()) else None
   })
   val core  = Module(new Core())
   val cache = Module(new Cache())

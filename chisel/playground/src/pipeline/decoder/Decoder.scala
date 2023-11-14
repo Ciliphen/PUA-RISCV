@@ -177,7 +177,7 @@
 //       IMM_HZE -> Cat(imm16, Fill(16, 0.U))
 //     )
 //   )
-//   io.out.cp0_addr    := Cat(inst(15, 11), inst(2, 0))
+//   io.out.csr_addr    := Cat(inst(15, 11), inst(2, 0))
 //   io.out.dual_issue  := dual_issue
 //   io.out.whilo       := VecInit(FU_MUL, FU_DIV, FU_MTHILO).contains(fusel) && op =/= EXE_MUL // MUL不写HILO
 //   io.out.inst        := inst

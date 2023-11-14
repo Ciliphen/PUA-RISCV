@@ -34,6 +34,7 @@ class ICache(implicit config: CpuConfig) extends Module {
   io.axi.r.ready  := true.B
   io.cpu.rdata    := 0.U
   io.cpu.acc_err  := false.B
+  io.cpu.stall    := false.B
 
   switch(status) {
     is(s_idle) {

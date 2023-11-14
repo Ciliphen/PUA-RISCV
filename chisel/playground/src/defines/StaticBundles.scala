@@ -6,9 +6,9 @@ import cpu.defines.Const._
 import cpu.CpuConfig
 
 class SocStatistic extends Bundle {
-  val cp0_count  = Output(UInt(32.W))
-  val cp0_random = Output(UInt(32.W))
-  val cp0_cause  = Output(UInt(32.W))
+  val csr_count  = Output(UInt(32.W))
+  val csr_random = Output(UInt(32.W))
+  val csr_cause  = Output(UInt(32.W))
   val int        = Output(Bool())
   val commit     = Output(Bool())
 }

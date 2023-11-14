@@ -6,14 +6,14 @@ import cpu.CpuConfig
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.pipeline.decoder.RegWrite
-import cpu.pipeline.memory.{ExecuteUnitMemoryUnit, Cp0Info}
+import cpu.pipeline.memory.{ExecuteUnitMemoryUnit, CsrInfo}
 import cpu.pipeline.fetch.ExecuteUnitBranchPredictor
 
 class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl         = new ExecuteCtrl()
     val executeStage = Input(new DecoderUnitExecuteUnit())
-    val cp0          = Flipped(new Cp0ExecuteUnit())
+    val csr          = Flipped(new CsrExecuteUnit())
     val bpu          = new ExecuteUnitBranchPredictor()
     val fetchUnit = Output(new Bundle {
       val branch = Bool()
@@ -46,13 +46,13 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.ctrl.branch := io.ctrl.allow_to_go &&
     (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail)
 
-  io.cp0.in.mtc0_wdata := io.executeStage.inst0.src_info.src2_data
-  io.cp0.in.inst_info(0) := Mux(
+  io.csr.in.mtc0_wdata := io.executeStage.inst0.src_info.src2_data
+  io.csr.in.inst_info(0) := Mux(
     !io.executeStage.inst0.ex.flush_req,
     io.executeStage.inst0.inst_info,
     0.U.asTypeOf(new InstInfo()),
   )
-  io.cp0.in.inst_info(1) := io.executeStage.inst1.inst_info
+  io.csr.in.inst_info(1) := io.executeStage.inst1.inst_info
 
   // input accessMemCtrl
   accessMemCtrl.inst(0).inst_info := io.executeStage.inst0.inst_info
@@ -79,7 +79,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   fu.inst(1).inst_info  := io.executeStage.inst1.inst_info
   fu.inst(1).src_info   := io.executeStage.inst1.src_info
   fu.inst(1).ex.in      := io.executeStage.inst1.ex
-  fu.cp0_rdata          := io.cp0.out.cp0_rdata
+  fu.csr_rdata          := io.csr.out.csr_rdata
   fu.branch.pred_branch := io.executeStage.inst0.jb_info.pred_branch
 
   io.bpu.pc               := io.executeStage.inst0.pc
@@ -121,7 +121,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     accessMemCtrl.inst(0).ex.out,
     fu.inst(0).ex.out,
   )
-  io.memoryStage.inst0.cp0 := io.cp0.out.debug
+  io.memoryStage.inst0.csr := io.csr.out.debug
 
   io.memoryStage.inst1.pc            := io.executeStage.inst1.pc
   io.memoryStage.inst1.inst_info     := io.executeStage.inst1.inst_info

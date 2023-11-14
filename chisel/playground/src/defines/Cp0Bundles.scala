@@ -4,18 +4,18 @@ import chisel3._
 import chisel3.util._
 import cpu.defines.Const._
 
-class Cp0Index extends Bundle {
+class CsrIndex extends Bundle {
   val p     = Bool()
   val blank = UInt((32 - 1 - log2Ceil(TLB_NUM)).W)
   val index = UInt(log2Ceil(TLB_NUM).W)
 }
 
-class Cp0Random extends Bundle {
+class CsrRandom extends Bundle {
   val blank  = UInt((32 - log2Ceil(TLB_NUM)).W)
   val random = UInt(log2Ceil(TLB_NUM).W)
 }
 
-class Cp0EntryLo extends Bundle {
+class CsrEntryLo extends Bundle {
   val fill = UInt((32 - PFN_WID - C_WID - 3).W)
   val pfn  = UInt(PFN_WID.W)
   val c    = UInt(C_WID.W)
@@ -24,36 +24,36 @@ class Cp0EntryLo extends Bundle {
   val g    = Bool()
 }
 
-class Cp0Context extends Bundle {
+class CsrContext extends Bundle {
   val ptebase = UInt(PTEBASE_WID.W)
   val badvpn2 = UInt(VPN2_WID.W)
   val blank   = UInt((32 - PTEBASE_WID - VPN2_WID).W)
 }
 
-class Cp0Wired extends Bundle {
+class CsrWired extends Bundle {
   val blank = UInt((31 - log2Ceil(TLB_NUM)).W)
   val wired = UInt(log2Ceil(TLB_NUM).W)
 }
 
-class Cp0BadVAddr extends Bundle {
+class CsrBadVAddr extends Bundle {
   val badvaddr = UInt(PC_WID.W)
 }
 
-class Cp0Count extends Bundle {
+class CsrCount extends Bundle {
   val count = UInt(DATA_WID.W)
 }
 
-class Cp0EntryHi extends Bundle {
+class CsrEntryHi extends Bundle {
   val vpn2  = UInt(VPN2_WID.W)
   val blank = UInt((32 - VPN2_WID - ASID_WID).W)
   val asid  = UInt(ASID_WID.W)
 }
 
-class Cp0Compare extends Bundle {
+class CsrCompare extends Bundle {
   val compare = UInt(DATA_WID.W)
 }
 
-class Cp0Status extends Bundle {
+class CsrStatus extends Bundle {
   val blank3 = UInt(3.W)
   val cu0    = Bool()
   val blank2 = UInt(5.W)
@@ -68,7 +68,7 @@ class Cp0Status extends Bundle {
   val ie     = Bool()
 }
 
-class Cp0Cause extends Bundle {
+class CsrCause extends Bundle {
   val bd     = Bool()
   val blank3 = UInt(7.W)
   val iv     = Bool()
@@ -79,11 +79,11 @@ class Cp0Cause extends Bundle {
   val blank0 = UInt(2.W)
 }
 
-class Cp0Epc extends Bundle {
+class CsrEpc extends Bundle {
   val epc = UInt(PC_WID.W)
 }
 
-class Cp0Ebase extends Bundle {
+class CsrEbase extends Bundle {
   val fill   = Bool()
   val blank1 = Bool()
   val ebase  = UInt(18.W)
@@ -91,7 +91,7 @@ class Cp0Ebase extends Bundle {
   val cpuNum = UInt(10.W)
 }
 
-class Cp0Config extends Bundle {
+class CsrConfig extends Bundle {
   val m     = Bool()
   val k23   = UInt(3.W)
   val ku    = UInt(3.W)
@@ -105,7 +105,7 @@ class Cp0Config extends Bundle {
   val k0    = UInt(3.W)
 }
 
-class Cp0Config1 extends Bundle {
+class CsrConfig1 extends Bundle {
   val m  = Bool()
   val ms = UInt(6.W)
   val is = UInt(3.W)
@@ -123,6 +123,6 @@ class Cp0Config1 extends Bundle {
   val fp = Bool()
 }
 
-class Cp0ErrorEpc extends Bundle {
+class CsrErrorEpc extends Bundle {
   val errorEpc = UInt(PC_WID.W)
 }

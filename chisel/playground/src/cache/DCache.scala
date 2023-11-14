@@ -4,7 +4,6 @@ package cache
 import chisel3._
 import chisel3.util._
 import memory._
-import cpu.CacheConfig
 import cpu.defines._
 import cpu.CpuConfig
 import cpu.defines.Const._
@@ -61,6 +60,7 @@ class DCache(implicit config: CpuConfig) extends Module {
   io.axi.ar.lock  := 0.U
   io.axi.r.ready  := true.B
   io.cpu.rdata    := 0.U
+  io.cpu.stall    := false.B
 
   io.cpu.acc_err := false.B
 

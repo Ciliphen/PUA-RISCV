@@ -23,7 +23,7 @@ class Alu extends Module {
   val io = IO(new Bundle {
     val inst_info = Input(new InstInfo())
     val src_info  = Input(new SrcInfo())
-    val cp0_rdata = Input(UInt(DATA_WID.W))
+    val csr_rdata = Input(UInt(DATA_WID.W))
     val llbit     = Input(Bool())
     val hilo = new Bundle {
       val rdata = Input(UInt(HILO_WID.W))
@@ -100,7 +100,7 @@ class Alu extends Module {
       // 数据移动指令
       EXE_MFHI -> io.hilo.rdata(63, 32),
       EXE_MFLO -> io.hilo.rdata(31, 0),
-      EXE_MFC0 -> io.cp0_rdata,
+      EXE_MFC0 -> io.csr_rdata,
       EXE_MOVN -> src1,
       EXE_MOVZ -> src1,
       // 前导记数指令
