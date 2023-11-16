@@ -2,266 +2,229 @@ package cpu.defines
 
 import chisel3._
 import chisel3.util._
-import cpu.defines.Instructions
 import cpu.CpuConfig
 
-trait Constants {
-  val config = new CpuConfig
-  val XLEN   = 64
+trait CoreParameter {
+  def config = new CpuConfig
+  val XLEN   = if (config.isRV32) 32 else 64
+}
+
+trait Constants extends CoreParameter {
+  def config = new CpuConfig
   // 全局
-  val PC_WID  = XLEN
-  val PC_INIT = "h60000000".U(PC_WID.W)
+  def PC_WID  = XLEN
+  def PC_INIT = "h60000000".U(PC_WID.W)
 
-  val EXT_INT_WID = 6
-  val HILO_WID    = 64
+  def EXT_INT_WID = 6
+  def HILO_WID    = 64
 
-  val WRITE_ENABLE  = true.B
-  val WRITE_DISABLE = false.B
-  val READ_ENABLE   = true.B
-  val READ_DISABLE  = false.B
-  val INST_VALID    = false.B
-  val INST_INVALID  = true.B
-  val SINGLE_ISSUE  = false.B
-  val DUAL_ISSUE    = true.B
-
-  // AluOp
-  private val OP_NUM = 77
-  val OP_WID         = log2Ceil(OP_NUM)
-  // NOP
-  val EXE_NOP = 0.U(OP_WID.W)
-  // 位操作
-  val EXE_AND = 1.U(OP_WID.W)
-  val EXE_OR  = 2.U(OP_WID.W)
-  val EXE_XOR = 3.U(OP_WID.W)
-  val EXE_NOR = 4.U(OP_WID.W)
-  // 移位
-  val EXE_SLL  = 5.U(OP_WID.W)
-  val EXE_SLLV = 6.U(OP_WID.W)
-  val EXE_SRL  = 7.U(OP_WID.W)
-  val EXE_SRLV = 8.U(OP_WID.W)
-  val EXE_SRA  = 9.U(OP_WID.W)
-  val EXE_SRAV = 10.U(OP_WID.W)
-  // Move
-  val EXE_MOVZ = 11.U(OP_WID.W)
-  val EXE_MOVN = 12.U(OP_WID.W)
-  // HILO
-  val EXE_MFHI = 13.U(OP_WID.W)
-  val EXE_MTHI = 14.U(OP_WID.W)
-  val EXE_MFLO = 15.U(OP_WID.W)
-  val EXE_MTLO = 16.U(OP_WID.W)
-  // CSR Move
-  val EXE_MFC0 = 17.U(OP_WID.W)
-  val EXE_MTC0 = 18.U(OP_WID.W)
-  // 比较
-  val EXE_SLT  = 19.U(OP_WID.W)
-  val EXE_SLTU = 20.U(OP_WID.W)
-  // 算数
-  val EXE_ADD   = 21.U(OP_WID.W)
-  val EXE_ADDU  = 22.U(OP_WID.W)
-  val EXE_SUB   = 23.U(OP_WID.W)
-  val EXE_SUBU  = 24.U(OP_WID.W)
-  val EXE_CLZ   = 25.U(OP_WID.W)
-  val EXE_CLO   = 26.U(OP_WID.W)
-  val EXE_MULT  = 27.U(OP_WID.W)
-  val EXE_MULTU = 28.U(OP_WID.W)
-  val EXE_MUL   = 29.U(OP_WID.W)
-  val EXE_MADD  = 30.U(OP_WID.W)
-  val EXE_MADDU = 31.U(OP_WID.W)
-  val EXE_MSUB  = 32.U(OP_WID.W)
-  val EXE_MSUBU = 33.U(OP_WID.W)
-  val EXE_DIV   = 34.U(OP_WID.W)
-  val EXE_DIVU  = 35.U(OP_WID.W)
-  // 跳转
-  val EXE_J      = 36.U(OP_WID.W)
-  val EXE_JAL    = 37.U(OP_WID.W)
-  val EXE_JALR   = 38.U(OP_WID.W)
-  val EXE_JR     = 39.U(OP_WID.W)
-  val EXE_BEQ    = 40.U(OP_WID.W)
-  val EXE_BGEZ   = 41.U(OP_WID.W)
-  val EXE_BGEZAL = 42.U(OP_WID.W)
-  val EXE_BGTZ   = 43.U(OP_WID.W)
-  val EXE_BLEZ   = 44.U(OP_WID.W)
-  val EXE_BLTZ   = 45.U(OP_WID.W)
-  val EXE_BLTZAL = 46.U(OP_WID.W)
-  val EXE_BNE    = 47.U(OP_WID.W)
-  // 访存
-  val EXE_LB  = 48.U(OP_WID.W)
-  val EXE_LBU = 49.U(OP_WID.W)
-  val EXE_LH  = 50.U(OP_WID.W)
-  val EXE_LHU = 51.U(OP_WID.W)
-  val EXE_LL  = 52.U(OP_WID.W)
-  val EXE_LW  = 53.U(OP_WID.W)
-  val EXE_LWL = 54.U(OP_WID.W)
-  val EXE_LWR = 55.U(OP_WID.W)
-  val EXE_SB  = 56.U(OP_WID.W)
-  val EXE_SC  = 57.U(OP_WID.W)
-  val EXE_SH  = 58.U(OP_WID.W)
-  val EXE_SW  = 59.U(OP_WID.W)
-  val EXE_SWL = 60.U(OP_WID.W)
-  val EXE_SWR = 61.U(OP_WID.W)
-  // Trap
-  val EXE_TEQ  = 62.U(OP_WID.W)
-  val EXE_TGE  = 63.U(OP_WID.W)
-  val EXE_TGEU = 64.U(OP_WID.W)
-  val EXE_TLT  = 65.U(OP_WID.W)
-  val EXE_TLTU = 66.U(OP_WID.W)
-  val EXE_TNE  = 67.U(OP_WID.W)
-  // 例外
-  val EXE_SYSCALL = 68.U(OP_WID.W)
-  val EXE_BREAK   = 69.U(OP_WID.W)
-  val EXE_ERET    = 70.U(OP_WID.W)
-  val EXE_WAIT    = 71.U(OP_WID.W)
-  // tlb
-  val EXE_TLBP  = 72.U(OP_WID.W)
-  val EXE_TLBR  = 73.U(OP_WID.W)
-  val EXE_TLBWI = 74.U(OP_WID.W)
-  val EXE_TLBWR = 75.U(OP_WID.W)
-  // cache
-  val EXE_CACHE = 76.U(OP_WID.W)
-
-  // FUSel
-  val FU_SEL_NUM = 8
-  val FU_SEL_WID = log2Ceil(FU_SEL_NUM)
-
-  val FU_ALU    = 0.U(FU_SEL_WID.W)
-  val FU_MEM    = 1.U(FU_SEL_WID.W)
-  val FU_BR     = 2.U(FU_SEL_WID.W)
-  val FU_EX     = 3.U(FU_SEL_WID.W)
-  val FU_MTHILO = 4.U(FU_SEL_WID.W)
-  val FU_MFHILO = 5.U(FU_SEL_WID.W)
-  val FU_MUL    = 6.U(FU_SEL_WID.W)
-  val FU_DIV    = 7.U(FU_SEL_WID.W)
+  def WRITE_ENABLE  = true.B
+  def WRITE_DISABLE = false.B
+  def READ_ENABLE   = true.B
+  def READ_DISABLE  = false.B
+  def INST_defID    = false.B
+  def INST_INdefID  = true.B
+  def SINGLE_ISSUE  = false.B
+  def DUAL_ISSUE    = true.B
 
   // div
-  val DIV_CTRL_WID         = 2
-  val DIV_FREE             = 0.U(DIV_CTRL_WID.W)
-  val DIV_BY_ZERO          = 1.U(DIV_CTRL_WID.W)
-  val DIV_ON               = 2.U(DIV_CTRL_WID.W)
-  val DIV_END              = 3.U(DIV_CTRL_WID.W)
-  val DIV_RESULT_READY     = true.B
-  val DIV_RESULT_NOT_READY = false.B
-  val DIV_START            = true.B
-  val DIV_STOP             = false.B
+  def DIV_CTRL_WID         = 2
+  def DIV_FREE             = 0.U(DIV_CTRL_WID.W)
+  def DIV_BY_ZERO          = 1.U(DIV_CTRL_WID.W)
+  def DIV_ON               = 2.U(DIV_CTRL_WID.W)
+  def DIV_END              = 3.U(DIV_CTRL_WID.W)
+  def DIV_RESULT_READY     = true.B
+  def DIV_RESULT_NOT_READY = false.B
+  def DIV_START            = true.B
+  def DIV_STOP             = false.B
 
   // inst rom
-  val INST_WID      = 32
-  val INST_ADDR_WID = PC_WID
+  def INST_WID      = 32
+  def INST_ADDR_WID = PC_WID
 
   // data ram
-  val DATA_ADDR_WID = PC_WID
+  def DATA_ADDR_WID = PC_WID
 
   // GPR RegFile
-  val AREG_NUM     = 32
-  val REG_ADDR_WID = 5
-  val DATA_WID     = XLEN
+  def AREG_NUM     = 32
+  def REG_ADDR_WID = 5
+  def DATA_WID     = XLEN
 
   // CSR寄存器
   // CSR Register (5.w), Select (3.w)
-  val CSR_INDEX_ADDR    = "b00000_000".U(8.W) // 0,0
-  val CSR_RANDOM_ADDR   = "b00001_000".U(8.W) // 1,0
-  val CSR_ENTRYLO0_ADDR = "b00010_000".U(8.W) // 2,0
-  val CSR_ENTRYLO1_ADDR = "b00011_000".U(8.W) // 3,0
-  val CSR_CONTEXT_ADDR  = "b00100_000".U(8.W) // 4,0
-  // val CSR_CONTEXT_CONFIG_ADDR = "b00100_001".U(8.W) // 4,1
-  // val CSR_USER_LOCAL_ADDR     = "b00100_010".U(8.W) // 4,2
-  val CSR_PAGE_MASK_ADDR = "b00101_000".U(8.W) // 5,0
-  // val CSR_PAGE_GRAIN_ADDR     = "b00101_001".U(8.W) // 5,1
-  val CSR_WIRED_ADDR = "b00110_000".U(8.W) // 6,0
-  // val CSR_HWRENA_ADDR         = "b00111_000".U(8.W) // 7,0
-  val CSR_BADV_ADDR    = "b01000_000".U(8.W) // 8,0
-  val CSR_COUNT_ADDR   = "b01001_000".U(8.W) // 9,0  (sel保留 6or7)
-  val CSR_ENTRYHI_ADDR = "b01010_000".U(8.W) // 10,0
-  val CSR_COMPARE_ADDR = "b01011_000".U(8.W) // 11,0 (sel保留 6or7)
-  val CSR_STATUS_ADDR  = "b01100_000".U(8.W) // 12,0
-  // val CSR_INTCTL_ADDR         = "b01100_001".U(8.W) // 12,1
-  // val CSR_SRSCTL_ADDR         = "b01100_010".U(8.W) // 12,2
-  // val CSR_SRSMAP_ADDR         = "b01100_011".U(8.W) // 12,3
-  val CSR_CAUSE_ADDR = "b01101_000".U(8.W) // 13,0
-  val CSR_EPC_ADDR   = "b01110_000".U(8.W) // 14,0
-  val CSR_PRID_ADDR  = "b01111_000".U(8.W) // 15,0
-  val CSR_EBASE_ADDR = "b01111_001".U(8.W) // 15,1
-  // val CSR_CDMMBASE_ADDR    = "b01111_010".U(8.W) // 15,2
-  // val CSR_CMGCRBASE_ADDR   = "b01111_011".U(8.W) // 15,3
-  val CSR_CONFIG_ADDR  = "b10000_000".U(8.W) // 16,0
-  val CSR_CONFIG1_ADDR = "b10000_001".U(8.W) // 16,1
-  // val CSR_CONFIG2_ADDR     = "b10000_010".U(8.W) // 16,2
-  // val CSR_CONFIG3_ADDR     = "b10000_011".U(8.W) // 16,3
-  // val CSR_CONFIG4_ADDR     = "b10000_100".U(8.W) // 16,4 (sel保留 6or7)
-  // val CSR_LOAD_LINKED_ADDR = "b10001_000".U(8.W) // 17,0
-  val CSR_TAGLO_ADDR     = "b11100_000".U(8.W) // 28,0
-  val CSR_TAGHI_ADDR     = "b11101_000".U(8.W) // 29,0
-  val CSR_ERROR_EPC_ADDR = "b11110_000".U(8.W) // 30,0
+  def CSR_INDEX_ADDR    = "b00000_000".U(8.W) // 0,0
+  def CSR_RANDOM_ADDR   = "b00001_000".U(8.W) // 1,0
+  def CSR_ENTRYLO0_ADDR = "b00010_000".U(8.W) // 2,0
+  def CSR_ENTRYLO1_ADDR = "b00011_000".U(8.W) // 3,0
+  def CSR_CONTEXT_ADDR  = "b00100_000".U(8.W) // 4,0
+  // def CSR_CONTEXT_CONFIG_ADDR = "b00100_001".U(8.W) // 4,1
+  // def CSR_USER_LOCAL_ADDR     = "b00100_010".U(8.W) // 4,2
+  def CSR_PAGE_MASK_ADDR = "b00101_000".U(8.W) // 5,0
+  // def CSR_PAGE_GRAIN_ADDR     = "b00101_001".U(8.W) // 5,1
+  def CSR_WIRED_ADDR = "b00110_000".U(8.W) // 6,0
+  // def CSR_HWRENA_ADDR         = "b00111_000".U(8.W) // 7,0
+  def CSR_BADV_ADDR    = "b01000_000".U(8.W) // 8,0
+  def CSR_COUNT_ADDR   = "b01001_000".U(8.W) // 9,0  (sel保留 6or7)
+  def CSR_ENTRYHI_ADDR = "b01010_000".U(8.W) // 10,0
+  def CSR_COMPARE_ADDR = "b01011_000".U(8.W) // 11,0 (sel保留 6or7)
+  def CSR_STATUS_ADDR  = "b01100_000".U(8.W) // 12,0
+  // def CSR_INTCTL_ADDR         = "b01100_001".U(8.W) // 12,1
+  // def CSR_SRSCTL_ADDR         = "b01100_010".U(8.W) // 12,2
+  // def CSR_SRSMAP_ADDR         = "b01100_011".U(8.W) // 12,3
+  def CSR_CAUSE_ADDR = "b01101_000".U(8.W) // 13,0
+  def CSR_EPC_ADDR   = "b01110_000".U(8.W) // 14,0
+  def CSR_PRID_ADDR  = "b01111_000".U(8.W) // 15,0
+  def CSR_EBASE_ADDR = "b01111_001".U(8.W) // 15,1
+  // def CSR_CDMMBASE_ADDR    = "b01111_010".U(8.W) // 15,2
+  // def CSR_CMGCRBASE_ADDR   = "b01111_011".U(8.W) // 15,3
+  def CSR_CONFIG_ADDR  = "b10000_000".U(8.W) // 16,0
+  def CSR_CONFIG1_ADDR = "b10000_001".U(8.W) // 16,1
+  // def CSR_CONFIG2_ADDR     = "b10000_010".U(8.W) // 16,2
+  // def CSR_CONFIG3_ADDR     = "b10000_011".U(8.W) // 16,3
+  // def CSR_CONFIG4_ADDR     = "b10000_100".U(8.W) // 16,4 (sel保留 6or7)
+  // def CSR_LOAD_LINKED_ADDR = "b10001_000".U(8.W) // 17,0
+  def CSR_TAGLO_ADDR     = "b11100_000".U(8.W) // 28,0
+  def CSR_TAGHI_ADDR     = "b11101_000".U(8.W) // 29,0
+  def CSR_ERROR_EPC_ADDR = "b11110_000".U(8.W) // 30,0
 
-  val CSR_ADDR_WID = 8
+  def CSR_ADDR_WID = 8
 
-  val PTEBASE_WID = 9
+  def PTEBASE_WID = 9
+}
 
-  // 例外类型
-  val EXCODE_WID = 5
+object FuType {
+  def num     = 5
+  def alu     = "b000".U
+  def lsu     = "b001".U
+  def mdu     = "b010".U
+  def csr     = "b011".U
+  def mou     = "b100".U
+  def bru     = alu
+  def apply() = UInt(log2Up(num).W)
+}
 
-  val EX_NO   = 0.U(EXCODE_WID.W) // 无异常
-  val EX_INT  = 1.U(EXCODE_WID.W) // 中断异常
-  val EX_MOD  = 2.U(EXCODE_WID.W) // TLB 条目修改异常
-  val EX_TLBL = 3.U(EXCODE_WID.W) // TLB 非法取指令或访问异常
-  val EX_TLBS = 4.U(EXCODE_WID.W) // TLB 非法存储访问异常
-  val EX_ADEL = 5.U(EXCODE_WID.W) // 地址未对齐异常（取指令或访问异常）
-  val EX_ADES = 6.U(EXCODE_WID.W) // 地址未对齐异常（存储访问异常）
-  val EX_SYS  = 7.U(EXCODE_WID.W) // 系统调用异常
-  val EX_BP   = 8.U(EXCODE_WID.W) // 断点异常
-  val EX_RI   = 9.U(EXCODE_WID.W) // 保留指令异常
-  val EX_CPU  = 10.U(EXCODE_WID.W) // 协处理器不可用异常
-  val EX_OV   = 11.U(EXCODE_WID.W) // 算术溢出异常
+object BTBtype {
+  def B = "b00".U // branch
+  def J = "b01".U // jump
+  def I = "b10".U // indirect
+  def R = "b11".U // return
 
-  val EXC_INT  = "h00".U(EXCODE_WID.W) // 中断异常
-  val EXC_MOD  = "h01".U(EXCODE_WID.W) // TLB 条目修改异常
-  val EXC_TLBL = "h02".U(EXCODE_WID.W) // TLB 非法取指令或访问异常
-  val EXC_TLBS = "h03".U(EXCODE_WID.W) // TLB 非法存储访问异常
-  val EXC_ADEL = "h04".U(EXCODE_WID.W) // 地址未对齐异常（取指令或访问异常）
-  val EXC_ADES = "h05".U(EXCODE_WID.W) // 地址未对齐异常（存储访问异常）
-  val EXC_SYS  = "h08".U(EXCODE_WID.W) // 系统调用异常
-  val EXC_BP   = "h09".U(EXCODE_WID.W) // 断点异常
-  val EXC_RI   = "h0a".U(EXCODE_WID.W) // 保留指令异常
-  val EXC_CPU  = "h0b".U(EXCODE_WID.W) // 协处理器不可用异常
-  val EXC_OV   = "h0c".U(EXCODE_WID.W) // 算术溢出异常
-  val EXC_NO   = "h1f".U(EXCODE_WID.W) // 无异常
+  def apply() = UInt(2.W)
+}
 
-  val EX_ENTRY            = "h_bfc00380".U(32.W)
-  val EX_TLB_REFILL_ENTRY = "h_bfc00200".U(32.W)
+object ALUOpType {
+  def add  = "b1000000".U
+  def sll  = "b0000001".U
+  def slt  = "b0000010".U
+  def sltu = "b0000011".U
+  def xor  = "b0000100".U
+  def srl  = "b0000101".U
+  def or   = "b0000110".U
+  def and  = "b0000111".U
+  def sub  = "b0001000".U
+  def sra  = "b0001101".U
 
-  // TLB MMU
-  val TLB_NUM  = if (config.build) 8 else 32 // for sys 32, other 8
-  val PFN_WID  = 20
-  val C_WID    = 3
-  val ASID_WID = 8
-  val VPN2_WID = 19
+  def addw = "b1100000".U
+  def subw = "b0101000".U
+  def sllw = "b0100001".U
+  def srlw = "b0100101".U
+  def sraw = "b0101101".U
 
+  def isWordOp(func: UInt) = func(5)
+
+  def jal  = "b1011000".U
+  def jalr = "b1011010".U
+  def beq  = "b0010000".U
+  def bne  = "b0010001".U
+  def blt  = "b0010100".U
+  def bge  = "b0010101".U
+  def bltu = "b0010110".U
+  def bgeu = "b0010111".U
+
+  // for RAS
+  def call = "b1011100".U
+  def ret  = "b1011110".U
+
+  def isAdd(func:          UInt) = func(6)
+  def pcPlus2(func:        UInt) = func(5)
+  def isBru(func:          UInt) = func(4)
+  def isBranch(func:       UInt) = !func(3)
+  def isJump(func:         UInt) = isBru(func) && !isBranch(func)
+  def getBranchType(func:  UInt) = func(2, 1)
+  def isBranchInvert(func: UInt) = func(0)
+}
+
+object LSUOpType { //TODO: refactor LSU fuop
+  def lb  = "b0000000".U
+  def lh  = "b0000001".U
+  def lw  = "b0000010".U
+  def ld  = "b0000011".U
+  def lbu = "b0000100".U
+  def lhu = "b0000101".U
+  def lwu = "b0000110".U
+  def sb  = "b0001000".U
+  def sh  = "b0001001".U
+  def sw  = "b0001010".U
+  def sd  = "b0001011".U
+
+  def lr      = "b0100000".U
+  def sc      = "b0100001".U
+  def amoswap = "b0100010".U
+  def amoadd  = "b1100011".U
+  def amoxor  = "b0100100".U
+  def amoand  = "b0100101".U
+  def amoor   = "b0100110".U
+  def amomin  = "b0110111".U
+  def amomax  = "b0110000".U
+  def amominu = "b0110001".U
+  def amomaxu = "b0110010".U
+
+  def isAdd(func:   UInt) = func(6)
+  def isAtom(func:  UInt): Bool = func(5)
+  def isStore(func: UInt): Bool = func(3)
+  def isLoad(func:  UInt): Bool = !isStore(func) & !isAtom(func)
+  def isLR(func:    UInt): Bool = func === lr
+  def isSC(func:    UInt): Bool = func === sc
+  def isAMO(func:   UInt): Bool = isAtom(func) && !isLR(func) && !isSC(func)
+
+  def needMemRead(func:  UInt): Bool = isLoad(func) || isAMO(func) || isLR(func)
+  def needMemWrite(func: UInt): Bool = isStore(func) || isAMO(func) || isSC(func)
+
+  def atomW = "010".U
+  def atomD = "011".U
+}
+
+object MDUOpType {
+  def mul    = "b0000".U
+  def mulh   = "b0001".U
+  def mulhsu = "b0010".U
+  def mulhu  = "b0011".U
+  def div    = "b0100".U
+  def divu   = "b0101".U
+  def rem    = "b0110".U
+  def remu   = "b0111".U
+
+  def mulw  = "b1000".U
+  def divw  = "b1100".U
+  def divuw = "b1101".U
+  def remw  = "b1110".U
+  def remuw = "b1111".U
+
+  def isDiv(op:     UInt) = op(2)
+  def isDivSign(op: UInt) = isDiv(op) && !op(0)
+  def isW(op:       UInt) = op(3)
+}
+
+trait AXIConst {
   // AXI
-  val BURST_FIXED    = 0
-  val BURST_INCR     = 1
-  val BURST_WRAP     = 2
-  val BURST_RESERVED = 3
+  def BURST_FIXED    = 0
+  def BURST_INCR     = 1
+  def BURST_WRAP     = 2
+  def BURST_RESERVED = 3
 
-  val RESP_OKEY   = 0
-  val RESP_EXOKEY = 1
-  val RESP_SLVERR = 2
-  val RESP_DECERR = 3
+  def RESP_OKEY   = 0
+  def RESP_EXOKEY = 1
+  def RESP_SLVERR = 2
+  def RESP_DECERR = 3
 }
-trait OptionConst {
-
-  // 写寄存器目标 Write Register Address type
-  val WRA_T1  = 0.U(2.W) // 取inst(15,11)
-  val WRA_T2  = 1.U(2.W) // 取inst(20,16)
-  val WRA_T3  = 2.U(2.W) // 取"b11111", 即31号寄存器
-  val WRA_X   = 0.U(2.W) // not care
-  val AREG_31 = "b11111".U(5.W)
-
-  // 立即数类型
-  private val IL = 3
-  val IMM_N      = 0.U(IL.W)
-  val IMM_LSE    = 1.U(IL.W) // 立即数取inst(15,0)作为低16位，符号扩展，适用于ADDI，ADDIU，SLTI，和SLTIU
-  val IMM_LZE    = 2.U(IL.W) // 立即数取inst(15,0)作为低16位，零扩展，适用于位操作指令
-  val IMM_HZE    = 3.U(IL.W) // 立即数取inst(15,0)作为高16位，零扩展，适用于LUI （是否有必要？）
-  val IMM_SHT    = 4.U(IL.W) // 立即数取inst(10,6)作为低5位，不关心扩展，适用于SLL，SRL，SRA
-}
-
-object Const extends Constants with Instructions with OptionConst
+object Const extends Constants with AXIConst
