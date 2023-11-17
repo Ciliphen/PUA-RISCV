@@ -10,13 +10,12 @@ trait CoreParameter {
 }
 
 trait Constants extends CoreParameter {
-  def config = new CpuConfig
   // 全局
   def PC_WID  = XLEN
   def PC_INIT = "h60000000".U(PC_WID.W)
 
-  def SINGLE_ISSUE  = false.B
-  def DUAL_ISSUE    = true.B
+  def SINGLE_ISSUE = false.B
+  def DUAL_ISSUE   = true.B
 
   // div
   def DIV_CTRL_WID         = 2

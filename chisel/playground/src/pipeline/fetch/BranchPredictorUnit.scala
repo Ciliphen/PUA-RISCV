@@ -1,199 +1,199 @@
-package cpu.pipeline.fetch
+// package cpu.pipeline.fetch
 
-import chisel3._
-import chisel3.util._
-import cpu.defines.Const._
-import cpu._
-import cpu.pipeline.decoder.Src12Read
+// import chisel3._
+// import chisel3.util._
+// import cpu.defines.Const._
+// import cpu._
+// import cpu.pipeline.decoder.Src12Read
 
-class ExecuteUnitBranchPredictor extends Bundle {
-  val bpuConfig        = new BranchPredictorConfig()
-  val pc               = Output(UInt(PC_WID.W))
-  val update_pht_index = Output(UInt(bpuConfig.phtDepth.W))
-  val branch_inst      = Output(Bool())
-  val branch           = Output(Bool())
-}
+// class ExecuteUnitBranchPredictor extends Bundle {
+//   val bpuConfig        = new BranchPredictorConfig()
+//   val pc               = Output(UInt(PC_WID.W))
+//   val update_pht_index = Output(UInt(bpuConfig.phtDepth.W))
+//   val branch_inst      = Output(Bool())
+//   val branch           = Output(Bool())
+// }
 
-class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
-  val bpuConfig = new BranchPredictorConfig()
-  val decoder = new Bundle {
-    val inst      = Input(UInt(INST_WID.W))
-    val op        = Input(UInt(OP_WID.W))
-    val ena       = Input(Bool())
-    val pc        = Input(UInt(PC_WID.W))
-    val pc_plus4  = Input(UInt(PC_WID.W))
-    val pht_index = Input(UInt(bpuConfig.phtDepth.W))
+// class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
+//   val bpuConfig = new BranchPredictorConfig()
+//   val decoder = new Bundle {
+//     val inst      = Input(UInt(INST_WID.W))
+//     val op        = Input(UInt(OP_WID.W))
+//     val ena       = Input(Bool())
+//     val pc        = Input(UInt(PC_WID.W))
+//     val pc_plus4  = Input(UInt(PC_WID.W))
+//     val pht_index = Input(UInt(bpuConfig.phtDepth.W))
 
-    val rs1 = Input(UInt(REG_ADDR_WID.W))
-    val rs2 = Input(UInt(REG_ADDR_WID.W))
+//     val rs1 = Input(UInt(REG_ADDR_WID.W))
+//     val rs2 = Input(UInt(REG_ADDR_WID.W))
 
-    val branch_inst      = Output(Bool())
-    val pred_branch      = Output(Bool())
-    val branch_target    = Output(UInt(PC_WID.W))
-    val update_pht_index = Output(UInt(bpuConfig.phtDepth.W))
-  }
+//     val branch_inst      = Output(Bool())
+//     val pred_branch      = Output(Bool())
+//     val branch_target    = Output(UInt(PC_WID.W))
+//     val update_pht_index = Output(UInt(bpuConfig.phtDepth.W))
+//   }
 
-  val instBuffer = new Bundle {
-    val pc        = Input(Vec(config.instFetchNum, UInt(PC_WID.W)))
-    val pht_index = Output(Vec(config.instFetchNum, UInt(bpuConfig.phtDepth.W)))
-  }
+//   val instBuffer = new Bundle {
+//     val pc        = Input(Vec(config.instFetchNum, UInt(PC_WID.W)))
+//     val pht_index = Output(Vec(config.instFetchNum, UInt(bpuConfig.phtDepth.W)))
+//   }
 
-  val execute = Flipped(new ExecuteUnitBranchPredictor())
+//   val execute = Flipped(new ExecuteUnitBranchPredictor())
 
-  val regfile = if (config.branchPredictor == "pesudo") Some(new Src12Read()) else None
-}
+//   val regfile = if (config.branchPredictor == "pesudo") Some(new Src12Read()) else None
+// }
 
-class BranchPredictorUnit(implicit config: CpuConfig) extends Module {
-  val io = IO(new BranchPredictorIO())
+// class BranchPredictorUnit(implicit config: CpuConfig) extends Module {
+//   val io = IO(new BranchPredictorIO())
 
-  if (config.branchPredictor == "adaptive") {
-    val adaptive_predictor = Module(new AdaptiveTwoLevelPredictor())
-    io <> adaptive_predictor.io
-  }
+//   if (config.branchPredictor == "adaptive") {
+//     val adaptive_predictor = Module(new AdaptiveTwoLevelPredictor())
+//     io <> adaptive_predictor.io
+//   }
 
-  if (config.branchPredictor == "pesudo") {
-    val pesudo_predictor = Module(new PesudoBranchPredictor())
-    io <> pesudo_predictor.io
-  }
+//   if (config.branchPredictor == "pesudo") {
+//     val pesudo_predictor = Module(new PesudoBranchPredictor())
+//     io <> pesudo_predictor.io
+//   }
 
-  if (config.branchPredictor == "global") {
-    val global_predictor = Module(new GlobalBranchPredictor())
-    io <> global_predictor.io
-  }
-}
+//   if (config.branchPredictor == "global") {
+//     val global_predictor = Module(new GlobalBranchPredictor())
+//     io <> global_predictor.io
+//   }
+// }
 
-class PesudoBranchPredictor(implicit config: CpuConfig) extends Module {
-  val io = IO(new BranchPredictorIO())
-  io.decoder.branch_inst := VecInit(EXE_BEQ, EXE_BNE, EXE_BGTZ, EXE_BLEZ, EXE_BGEZ, EXE_BGEZAL, EXE_BLTZ, EXE_BLTZAL)
-    .contains(io.decoder.op)
-  io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
-    Fill(14, io.decoder.inst(15)),
-    io.decoder.inst(15, 0),
-    0.U(2.W)
-  )
+// class PesudoBranchPredictor(implicit config: CpuConfig) extends Module {
+//   val io = IO(new BranchPredictorIO())
+//   io.decoder.branch_inst := VecInit(EXE_BEQ, EXE_BNE, EXE_BGTZ, EXE_BLEZ, EXE_BGEZ, EXE_BGEZAL, EXE_BLTZ, EXE_BLTZAL)
+//     .contains(io.decoder.op)
+//   io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
+//     Fill(14, io.decoder.inst(15)),
+//     io.decoder.inst(15, 0),
+//     0.U(2.W)
+//   )
 
-  io.regfile.get.src1.raddr := io.decoder.rs1
-  io.regfile.get.src2.raddr := io.decoder.rs2
-  val (src1, src2) = (io.regfile.get.src1.rdata, io.regfile.get.src2.rdata)
-  val pred_branch = MuxLookup(io.decoder.op, false.B)(
-    Seq(
-      EXE_BEQ -> (src1 === src2),
-      EXE_BNE -> (src1 =/= src2),
-      EXE_BGTZ -> (!src1(31) && (src1 =/= 0.U)),
-      EXE_BLEZ -> (src1(31) || src1 === 0.U),
-      EXE_BGEZ -> (!src1(31)),
-      EXE_BGEZAL -> (!src1(31)),
-      EXE_BLTZ -> (src1(31)),
-      EXE_BLTZAL -> (src1(31))
-    )
-  )
+//   io.regfile.get.src1.raddr := io.decoder.rs1
+//   io.regfile.get.src2.raddr := io.decoder.rs2
+//   val (src1, src2) = (io.regfile.get.src1.rdata, io.regfile.get.src2.rdata)
+//   val pred_branch = MuxLookup(io.decoder.op, false.B)(
+//     Seq(
+//       EXE_BEQ -> (src1 === src2),
+//       EXE_BNE -> (src1 =/= src2),
+//       EXE_BGTZ -> (!src1(31) && (src1 =/= 0.U)),
+//       EXE_BLEZ -> (src1(31) || src1 === 0.U),
+//       EXE_BGEZ -> (!src1(31)),
+//       EXE_BGEZAL -> (!src1(31)),
+//       EXE_BLTZ -> (src1(31)),
+//       EXE_BLTZAL -> (src1(31))
+//     )
+//   )
 
-  io.decoder.pred_branch := io.decoder.ena && io.decoder.branch_inst && pred_branch
-}
+//   io.decoder.pred_branch := io.decoder.ena && io.decoder.branch_inst && pred_branch
+// }
 
-class GlobalBranchPredictor(
-  GHR_DEPTH:   Int = 4, // 可以记录的历史记录个数
-  PC_HASH_WID: Int = 4, // 取得PC的宽度
-  PHT_DEPTH:   Int = 6, // 可以记录的历史个数
-  BHT_DEPTH:   Int = 4 // 取得PC的宽度
-)(
-  implicit
-  config: CpuConfig)
-    extends Module {
-  val io = IO(new BranchPredictorIO())
+// class GlobalBranchPredictor(
+//   GHR_DEPTH:   Int = 4, // 可以记录的历史记录个数
+//   PC_HASH_WID: Int = 4, // 取得PC的宽度
+//   PHT_DEPTH:   Int = 6, // 可以记录的历史个数
+//   BHT_DEPTH:   Int = 4 // 取得PC的宽度
+// )(
+//   implicit
+//   config: CpuConfig)
+//     extends Module {
+//   val io = IO(new BranchPredictorIO())
 
-  val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
+//   val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
 
-  io.decoder.branch_inst := VecInit(EXE_BEQ, EXE_BNE, EXE_BGTZ, EXE_BLEZ, EXE_BGEZ, EXE_BGEZAL, EXE_BLTZ, EXE_BLTZAL)
-    .contains(io.decoder.op)
-  io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
-    Fill(14, io.decoder.inst(15)),
-    io.decoder.inst(15, 0),
-    0.U(2.W)
-  )
-  // 局部预测模式
+//   io.decoder.branch_inst := VecInit(EXE_BEQ, EXE_BNE, EXE_BGTZ, EXE_BLEZ, EXE_BGEZ, EXE_BGEZAL, EXE_BLTZ, EXE_BLTZAL)
+//     .contains(io.decoder.op)
+//   io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
+//     Fill(14, io.decoder.inst(15)),
+//     io.decoder.inst(15, 0),
+//     0.U(2.W)
+//   )
+//   // 局部预测模式
 
-  val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
-  val pht       = RegInit(VecInit(Seq.fill(1 << PHT_DEPTH)(strongly_taken)))
-  val bht_index = io.decoder.pc(1 + BHT_DEPTH, 2)
-  val pht_index = bht(bht_index)
+//   val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
+//   val pht       = RegInit(VecInit(Seq.fill(1 << PHT_DEPTH)(strongly_taken)))
+//   val bht_index = io.decoder.pc(1 + BHT_DEPTH, 2)
+//   val pht_index = bht(bht_index)
 
-  io.decoder.pred_branch :=
-    io.decoder.ena && io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
-  val update_bht_index = io.execute.pc(1 + BHT_DEPTH, 2)
-  val update_pht_index = bht(update_bht_index)
+//   io.decoder.pred_branch :=
+//     io.decoder.ena && io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
+//   val update_bht_index = io.execute.pc(1 + BHT_DEPTH, 2)
+//   val update_pht_index = bht(update_bht_index)
 
-  when(io.execute.branch_inst) {
-    bht(update_bht_index) := Cat(bht(update_bht_index)(PHT_DEPTH - 2, 0), io.execute.branch)
-    switch(pht(update_pht_index)) {
-      is(strongly_not_taken) {
-        pht(update_pht_index) := Mux(io.execute.branch, weakly_not_taken, strongly_not_taken)
-      }
-      is(weakly_not_taken) {
-        pht(update_pht_index) := Mux(io.execute.branch, weakly_taken, strongly_not_taken)
-      }
-      is(weakly_taken) {
-        pht(update_pht_index) := Mux(io.execute.branch, strongly_taken, weakly_not_taken)
-      }
-      is(strongly_taken) {
-        pht(update_pht_index) := Mux(io.execute.branch, strongly_taken, weakly_taken)
-      }
-    }
-  }
+//   when(io.execute.branch_inst) {
+//     bht(update_bht_index) := Cat(bht(update_bht_index)(PHT_DEPTH - 2, 0), io.execute.branch)
+//     switch(pht(update_pht_index)) {
+//       is(strongly_not_taken) {
+//         pht(update_pht_index) := Mux(io.execute.branch, weakly_not_taken, strongly_not_taken)
+//       }
+//       is(weakly_not_taken) {
+//         pht(update_pht_index) := Mux(io.execute.branch, weakly_taken, strongly_not_taken)
+//       }
+//       is(weakly_taken) {
+//         pht(update_pht_index) := Mux(io.execute.branch, strongly_taken, weakly_not_taken)
+//       }
+//       is(strongly_taken) {
+//         pht(update_pht_index) := Mux(io.execute.branch, strongly_taken, weakly_taken)
+//       }
+//     }
+//   }
 
-}
+// }
 
-class AdaptiveTwoLevelPredictor(
-)(
-  implicit
-  config: CpuConfig)
-    extends Module {
-  val bpuConfig = new BranchPredictorConfig()
-  val PHT_DEPTH = bpuConfig.phtDepth
-  val BHT_DEPTH = bpuConfig.bhtDepth
-  val io        = IO(new BranchPredictorIO())
+// class AdaptiveTwoLevelPredictor(
+// )(
+//   implicit
+//   config: CpuConfig)
+//     extends Module {
+//   val bpuConfig = new BranchPredictorConfig()
+//   val PHT_DEPTH = bpuConfig.phtDepth
+//   val BHT_DEPTH = bpuConfig.bhtDepth
+//   val io        = IO(new BranchPredictorIO())
 
-  val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
+//   val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
 
-  io.decoder.branch_inst :=
-    VecInit(EXE_BEQ, EXE_BNE, EXE_BGTZ, EXE_BLEZ, EXE_BGEZ, EXE_BGEZAL, EXE_BLTZ, EXE_BLTZAL).contains(io.decoder.op)
-  io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
-    Fill(14, io.decoder.inst(15)),
-    io.decoder.inst(15, 0),
-    0.U(2.W)
-  )
+//   io.decoder.branch_inst :=
+//     VecInit(EXE_BEQ, EXE_BNE, EXE_BGTZ, EXE_BLEZ, EXE_BGEZ, EXE_BGEZAL, EXE_BLTZ, EXE_BLTZAL).contains(io.decoder.op)
+//   io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
+//     Fill(14, io.decoder.inst(15)),
+//     io.decoder.inst(15, 0),
+//     0.U(2.W)
+//   )
 
-  val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
-  val pht       = RegInit(VecInit(Seq.fill(1 << PHT_DEPTH)(strongly_taken)))
-  val pht_index = io.decoder.pht_index
+//   val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
+//   val pht       = RegInit(VecInit(Seq.fill(1 << PHT_DEPTH)(strongly_taken)))
+//   val pht_index = io.decoder.pht_index
 
-  for (i <- 0 until config.instFetchNum) {
-    io.instBuffer.pht_index(i) := bht(io.instBuffer.pc(i)(1 + BHT_DEPTH, 2))
-  }
+//   for (i <- 0 until config.instFetchNum) {
+//     io.instBuffer.pht_index(i) := bht(io.instBuffer.pc(i)(1 + BHT_DEPTH, 2))
+//   }
 
-  io.decoder.pred_branch :=
-    io.decoder.ena && io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
-  io.decoder.update_pht_index := bht(io.decoder.pc(1 + BHT_DEPTH, 2))
+//   io.decoder.pred_branch :=
+//     io.decoder.ena && io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
+//   io.decoder.update_pht_index := bht(io.decoder.pc(1 + BHT_DEPTH, 2))
 
-  val update_bht_index = io.execute.pc(1 + BHT_DEPTH, 2)
-  val update_pht_index = io.execute.update_pht_index
+//   val update_bht_index = io.execute.pc(1 + BHT_DEPTH, 2)
+//   val update_pht_index = io.execute.update_pht_index
 
-  when(io.execute.branch_inst) {
-    bht(update_bht_index) := Cat(bht(update_bht_index)(PHT_DEPTH - 2, 0), io.execute.branch)
-    switch(pht(update_pht_index)) {
-      is(strongly_not_taken) {
-        pht(update_pht_index) := Mux(io.execute.branch, weakly_not_taken, strongly_not_taken)
-      }
-      is(weakly_not_taken) {
-        pht(update_pht_index) := Mux(io.execute.branch, weakly_taken, strongly_not_taken)
-      }
-      is(weakly_taken) {
-        pht(update_pht_index) := Mux(io.execute.branch, strongly_taken, weakly_not_taken)
-      }
-      is(strongly_taken) {
-        pht(update_pht_index) := Mux(io.execute.branch, strongly_taken, weakly_taken)
-      }
-    }
-  }
+//   when(io.execute.branch_inst) {
+//     bht(update_bht_index) := Cat(bht(update_bht_index)(PHT_DEPTH - 2, 0), io.execute.branch)
+//     switch(pht(update_pht_index)) {
+//       is(strongly_not_taken) {
+//         pht(update_pht_index) := Mux(io.execute.branch, weakly_not_taken, strongly_not_taken)
+//       }
+//       is(weakly_not_taken) {
+//         pht(update_pht_index) := Mux(io.execute.branch, weakly_taken, strongly_not_taken)
+//       }
+//       is(weakly_taken) {
+//         pht(update_pht_index) := Mux(io.execute.branch, strongly_taken, weakly_not_taken)
+//       }
+//       is(strongly_taken) {
+//         pht(update_pht_index) := Mux(io.execute.branch, strongly_taken, weakly_taken)
+//       }
+//     }
+//   }
 
-}
+// }

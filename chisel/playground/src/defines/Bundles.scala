@@ -2,6 +2,7 @@ package cpu.defines
 
 import chisel3._
 import chisel3.util._
+import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
@@ -10,16 +11,16 @@ class ExceptionInfo extends Bundle {
   val eret      = Bool()
   val badvaddr  = UInt(PC_WID.W)
   val bd        = Bool()
-  val excode    = UInt(EXCODE_WID.W)
+  // val excode    = UInt(EXCODE_WID.W)
 }
 
 class SrcInfo extends Bundle {
-  val src1_data = UInt(DATA_WID.W)
-  val src2_data = UInt(DATA_WID.W)
+  val src1_data = UInt(XLEN.W)
+  val src2_data = UInt(XLEN.W)
 }
 
 class RdInfo extends Bundle {
-  val wdata = UInt(DATA_WID.W)
+  val wdata = UInt(XLEN.W)
 }
 
 class InstInfo extends Bundle {
@@ -28,23 +29,14 @@ class InstInfo extends Bundle {
   val reg1_raddr  = UInt(REG_ADDR_WID.W)
   val reg2_ren    = Bool()
   val reg2_raddr  = UInt(REG_ADDR_WID.W)
-  val fusel       = UInt(FU_SEL_WID.W)
-  val op          = UInt(OP_WID.W)
+  val fusel       = FuType()
+  val op          = FuOpType()
   val reg_wen     = Bool()
   val reg_waddr   = UInt(REG_ADDR_WID.W)
-  val imm32       = UInt(DATA_WID.W)
-  val csr_addr    = UInt(CSR_ADDR_WID.W)
+  val imm         = UInt(XLEN.W)
   val dual_issue  = Bool()
-  val whilo       = Bool()
-  val rmem        = Bool()
-  val wmem        = Bool()
-  val mul         = Bool()
-  val div         = Bool()
   val branch_link = Bool()
-  val ifence      = Bool()
-  val dfence      = Bool()
   val mem_addr    = UInt(DATA_ADDR_WID.W)
-  val mem_wreg    = Bool()
   val inst        = UInt(INST_WID.W)
 }
 
@@ -134,11 +126,11 @@ class Cache_DCache extends Bundle {
   val size    = Output(UInt(2.W))
   val en      = Output(Bool())
   val write   = Output(Bool())
-  val wdata   = Output(UInt(DATA_WID.W))
+  val wdata   = Output(UInt(XLEN.W))
   val ready   = Output(Bool())
   val fence_i = Output(Bool())
 
-  val rdata   = Input(UInt(DATA_WID.W))
+  val rdata   = Input(UInt(XLEN.W))
   val valid   = Input(Bool())
   val acc_err = Input(Bool())
   val stall   = Input(Bool())
@@ -165,7 +157,7 @@ class R extends Bundle {
   val ready = Output(Bool())
 
   val id    = Input(UInt(4.W))
-  val data  = Input(UInt(DATA_WID.W))
+  val data  = Input(UInt(XLEN.W))
   val resp  = Input(UInt(2.W))
   val last  = Input(Bool())
   val valid = Input(Bool())
@@ -187,7 +179,7 @@ class AW extends Bundle {
 
 class W extends Bundle {
   val id    = Output(UInt(4.W))
-  val data  = Output(UInt(DATA_WID.W))
+  val data  = Output(UInt(XLEN.W))
   val strb  = Output(UInt(4.W))
   val last  = Output(Bool())
   val valid = Output(Bool())
