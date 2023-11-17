@@ -10,10 +10,10 @@ object Util {
   }
 
   def subwordModify(source: UInt, tuple: (Int, Int), md: UInt): UInt = {
-    val ws = source.getWidth
-    val ms = md.getWidth
+    val ws    = source.getWidth
+    val ms    = md.getWidth
     val start = tuple._1
-    val end = tuple._2
+    val end   = tuple._2
     require(
       ws > start && start >= end && end >= 0,
       s"ws: $ws, start: $start, end: $end"
@@ -53,4 +53,15 @@ object Util {
     require(to > from && from >= 1)
     Cat(Fill(to - from, 0.U), raw)
   }
+
+  object LookupTree {
+    def apply[T <: Data](key: UInt, mapping: Iterable[(UInt, T)]): T =
+      Mux1H(mapping.map(p => (p._1 === key, p._2)))
+  }
+
+  object LookupTreeDefault {
+    def apply[T <: Data](key: UInt, default: T, mapping: Iterable[(UInt, T)]): T =
+      MuxLookup(key, default, mapping.toSeq)
+  }
+
 }

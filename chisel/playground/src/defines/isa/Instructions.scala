@@ -17,6 +17,13 @@ trait HasInstrType {
   def isrfWen(instrType: UInt): Bool = instrType(2)
 }
 
+object SrcType {
+  def reg     = "b0".U
+  def pc      = "b1".U
+  def imm     = "b1".U
+  def apply() = UInt(1.W)
+}
+
 object FuType {
   def num     = 5
   def alu     = "b000".U
@@ -26,6 +33,10 @@ object FuType {
   def mou     = "b100".U
   def bru     = alu
   def apply() = UInt(log2Up(num).W)
+}
+
+object FuOpType {
+  def apply() = UInt(7.W)
 }
 
 // BTB

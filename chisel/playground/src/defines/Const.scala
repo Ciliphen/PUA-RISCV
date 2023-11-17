@@ -15,13 +15,6 @@ trait Constants extends CoreParameter {
   def PC_WID  = XLEN
   def PC_INIT = "h60000000".U(PC_WID.W)
 
-  def EXT_INT_WID = 6
-  def HILO_WID    = 64
-
-  def WRITE_ENABLE  = true.B
-  def WRITE_DISABLE = false.B
-  def READ_ENABLE   = true.B
-  def READ_DISABLE  = false.B
   def SINGLE_ISSUE  = false.B
   def DUAL_ISSUE    = true.B
 
@@ -108,5 +101,7 @@ object Instructions extends HasInstrType with CoreParameter {
   def NOP           = 0x00000013.U
   val DecodeDefault = List(InstrN, FuType.csr, CSROpType.jmp)
   def DecodeTable = RVIInstr.table ++ (if (config.hasMExtension) RVMInstr.table else Array.empty) ++
-    Priviledged.table
+    Priviledged.table ++
+    RVAInstr.table ++
+    RVZicsrInstr.table ++ RVZifenceiInstr.table
 }
