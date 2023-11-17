@@ -3,20 +3,6 @@ package cpu.defines
 import chisel3._
 import chisel3.util._
 
-trait HasInstrType {
-  def InstrN  = "b0000".U
-  def InstrI  = "b0100".U
-  def InstrR  = "b0101".U
-  def InstrS  = "b0010".U
-  def InstrB  = "b0001".U
-  def InstrU  = "b0110".U
-  def InstrJ  = "b0111".U
-  def InstrA  = "b1110".U
-  def InstrSA = "b1111".U // Atom Inst: SC
-
-  def isrfWen(instrType: UInt): Bool = instrType(2)
-}
-
 object RV32I_ALUInstr extends HasInstrType with CoreParameter {
   def ADDI = BitPat("b????????????_?????_000_?????_0010011")
   def SLLI = if (XLEN == 32) BitPat("b0000000?????_?????_001_?????_0010011")
@@ -46,27 +32,27 @@ object RV32I_ALUInstr extends HasInstrType with CoreParameter {
   def LUI   = BitPat("b????????????????????_?????_0110111")
 
   val table = Array(
-    ADDI -> List(InstrI, FuType.alu, ALUOpType.add),
-    SLLI -> List(InstrI, FuType.alu, ALUOpType.sll),
-    SLTI -> List(InstrI, FuType.alu, ALUOpType.slt),
+    ADDI  -> List(InstrI, FuType.alu, ALUOpType.add),
+    SLLI  -> List(InstrI, FuType.alu, ALUOpType.sll),
+    SLTI  -> List(InstrI, FuType.alu, ALUOpType.slt),
     SLTIU -> List(InstrI, FuType.alu, ALUOpType.sltu),
-    XORI -> List(InstrI, FuType.alu, ALUOpType.xor),
-    SRLI -> List(InstrI, FuType.alu, ALUOpType.srl),
-    ORI -> List(InstrI, FuType.alu, ALUOpType.or),
-    ANDI -> List(InstrI, FuType.alu, ALUOpType.and),
-    SRAI -> List(InstrI, FuType.alu, ALUOpType.sra),
-    ADD -> List(InstrR, FuType.alu, ALUOpType.add),
-    SLL -> List(InstrR, FuType.alu, ALUOpType.sll),
-    SLT -> List(InstrR, FuType.alu, ALUOpType.slt),
-    SLTU -> List(InstrR, FuType.alu, ALUOpType.sltu),
-    XOR -> List(InstrR, FuType.alu, ALUOpType.xor),
-    SRL -> List(InstrR, FuType.alu, ALUOpType.srl),
-    OR -> List(InstrR, FuType.alu, ALUOpType.or),
-    AND -> List(InstrR, FuType.alu, ALUOpType.and),
-    SUB -> List(InstrR, FuType.alu, ALUOpType.sub),
-    SRA -> List(InstrR, FuType.alu, ALUOpType.sra),
+    XORI  -> List(InstrI, FuType.alu, ALUOpType.xor),
+    SRLI  -> List(InstrI, FuType.alu, ALUOpType.srl),
+    ORI   -> List(InstrI, FuType.alu, ALUOpType.or),
+    ANDI  -> List(InstrI, FuType.alu, ALUOpType.and),
+    SRAI  -> List(InstrI, FuType.alu, ALUOpType.sra),
+    ADD   -> List(InstrR, FuType.alu, ALUOpType.add),
+    SLL   -> List(InstrR, FuType.alu, ALUOpType.sll),
+    SLT   -> List(InstrR, FuType.alu, ALUOpType.slt),
+    SLTU  -> List(InstrR, FuType.alu, ALUOpType.sltu),
+    XOR   -> List(InstrR, FuType.alu, ALUOpType.xor),
+    SRL   -> List(InstrR, FuType.alu, ALUOpType.srl),
+    OR    -> List(InstrR, FuType.alu, ALUOpType.or),
+    AND   -> List(InstrR, FuType.alu, ALUOpType.and),
+    SUB   -> List(InstrR, FuType.alu, ALUOpType.sub),
+    SRA   -> List(InstrR, FuType.alu, ALUOpType.sra),
     AUIPC -> List(InstrU, FuType.alu, ALUOpType.add),
-    LUI -> List(InstrU, FuType.alu, ALUOpType.add)
+    LUI   -> List(InstrU, FuType.alu, ALUOpType.add)
   )
 }
 
@@ -82,26 +68,26 @@ object RV32I_BRUInstr extends HasInstrType {
   def BGEU = BitPat("b???????_?????_?????_111_?????_1100011")
 
   val table = Array(
-    JAL -> List(InstrJ, FuType.bru, ALUOpType.jal),
+    JAL  -> List(InstrJ, FuType.bru, ALUOpType.jal),
     JALR -> List(InstrI, FuType.bru, ALUOpType.jalr),
-    BEQ -> List(InstrB, FuType.bru, ALUOpType.beq),
-    BNE -> List(InstrB, FuType.bru, ALUOpType.bne),
-    BLT -> List(InstrB, FuType.bru, ALUOpType.blt),
-    BGE -> List(InstrB, FuType.bru, ALUOpType.bge),
+    BEQ  -> List(InstrB, FuType.bru, ALUOpType.beq),
+    BNE  -> List(InstrB, FuType.bru, ALUOpType.bne),
+    BLT  -> List(InstrB, FuType.bru, ALUOpType.blt),
+    BGE  -> List(InstrB, FuType.bru, ALUOpType.bge),
     BLTU -> List(InstrB, FuType.bru, ALUOpType.bltu),
     BGEU -> List(InstrB, FuType.bru, ALUOpType.bgeu)
   )
 
   val bruFuncTobtbTypeTable = List(
-    ALUOpType.beq -> BTBtype.B,
-    ALUOpType.bne -> BTBtype.B,
-    ALUOpType.blt -> BTBtype.B,
-    ALUOpType.bge -> BTBtype.B,
+    ALUOpType.beq  -> BTBtype.B,
+    ALUOpType.bne  -> BTBtype.B,
+    ALUOpType.blt  -> BTBtype.B,
+    ALUOpType.bge  -> BTBtype.B,
     ALUOpType.bltu -> BTBtype.B,
     ALUOpType.bgeu -> BTBtype.B,
     ALUOpType.call -> BTBtype.J,
-    ALUOpType.ret -> BTBtype.R,
-    ALUOpType.jal -> BTBtype.J,
+    ALUOpType.ret  -> BTBtype.R,
+    ALUOpType.jal  -> BTBtype.J,
     ALUOpType.jalr -> BTBtype.I
   )
 }
@@ -117,14 +103,14 @@ object RV32I_LSUInstr extends HasInstrType {
   def SW  = BitPat("b???????_?????_?????_010_?????_0100011")
 
   val table = Array(
-    LB -> List(InstrI, FuType.lsu, LSUOpType.lb),
-    LH -> List(InstrI, FuType.lsu, LSUOpType.lh),
-    LW -> List(InstrI, FuType.lsu, LSUOpType.lw),
+    LB  -> List(InstrI, FuType.lsu, LSUOpType.lb),
+    LH  -> List(InstrI, FuType.lsu, LSUOpType.lh),
+    LW  -> List(InstrI, FuType.lsu, LSUOpType.lw),
     LBU -> List(InstrI, FuType.lsu, LSUOpType.lbu),
     LHU -> List(InstrI, FuType.lsu, LSUOpType.lhu),
-    SB -> List(InstrS, FuType.lsu, LSUOpType.sb),
-    SH -> List(InstrS, FuType.lsu, LSUOpType.sh),
-    SW -> List(InstrS, FuType.lsu, LSUOpType.sw)
+    SB  -> List(InstrS, FuType.lsu, LSUOpType.sb),
+    SH  -> List(InstrS, FuType.lsu, LSUOpType.sh),
+    SW  -> List(InstrS, FuType.lsu, LSUOpType.sw)
   )
 }
 
@@ -148,14 +134,14 @@ object RV64IInstr extends HasInstrType {
     SLLIW -> List(InstrI, FuType.alu, ALUOpType.sllw),
     SRLIW -> List(InstrI, FuType.alu, ALUOpType.srlw),
     SRAIW -> List(InstrI, FuType.alu, ALUOpType.sraw),
-    SLLW -> List(InstrR, FuType.alu, ALUOpType.sllw),
-    SRLW -> List(InstrR, FuType.alu, ALUOpType.srlw),
-    SRAW -> List(InstrR, FuType.alu, ALUOpType.sraw),
-    ADDW -> List(InstrR, FuType.alu, ALUOpType.addw),
-    SUBW -> List(InstrR, FuType.alu, ALUOpType.subw),
-    LWU -> List(InstrI, FuType.lsu, LSUOpType.lwu),
-    LD -> List(InstrI, FuType.lsu, LSUOpType.ld),
-    SD -> List(InstrS, FuType.lsu, LSUOpType.sd)
+    SLLW  -> List(InstrR, FuType.alu, ALUOpType.sllw),
+    SRLW  -> List(InstrR, FuType.alu, ALUOpType.srlw),
+    SRAW  -> List(InstrR, FuType.alu, ALUOpType.sraw),
+    ADDW  -> List(InstrR, FuType.alu, ALUOpType.addw),
+    SUBW  -> List(InstrR, FuType.alu, ALUOpType.subw),
+    LWU   -> List(InstrI, FuType.lsu, LSUOpType.lwu),
+    LD    -> List(InstrI, FuType.lsu, LSUOpType.ld),
+    SD    -> List(InstrS, FuType.lsu, LSUOpType.sd)
   )
 }
 

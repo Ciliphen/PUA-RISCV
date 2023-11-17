@@ -3,9 +3,14 @@ package cpu
 import chisel3.util._
 
 case class CpuConfig(
-  val build:           Boolean = false, // 是否为build模式
-  val isRV32:          Boolean = false, // 是否为RV32
-  val hasMDU:          Boolean = false, // 是否有乘除法单元
+  val build: Boolean = false, // 是否为build模式
+  // 指令集
+  val isRV32:        Boolean = false, // 是否为RV32
+  val hasMExtension: Boolean = false, // 是否有乘除法单元
+  // 特权模式
+  val hasSMode: Boolean = false, // 是否有S模式
+  val hasUMode: Boolean = false, // 是否有U模式
+  // 模块配置
   val hasCommitBuffer: Boolean = false, // 是否有提交缓存
   val decoderNum:      Int     = 1, // 同时访问寄存器的指令数
   val commitNum:       Int     = 1, // 同时提交的指令数
