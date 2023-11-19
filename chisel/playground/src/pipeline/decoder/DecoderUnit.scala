@@ -60,24 +60,33 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     val ctrl         = new DecoderUnitCtrl()
   })
 
-  val issue       = Module(new Issue()).io
+  if (config.decoderNum == 2) {
+    val issue = Module(new Issue()).io
+    issue.allow_to_go          := io.ctrl.allow_to_go
+    issue.instFifo             := io.instFifo.info
+    io.instFifo.allow_to_go(1) := issue.inst1.allow_to_go
+    for (i <- 0 until (config.decoderNum)) {
+      decoder(i).io.in.inst      := inst(i)
+      issue.decodeInst(i)        := inst_info(i)
+      issue.execute(i).mem_wreg  := io.forward(i).mem_wreg
+      issue.execute(i).reg_waddr := io.forward(i).exe.waddr
+    }
+    io.executeStage.inst1.allow_to_go := issue.inst1.allow_to_go
+  }
   val decoder     = Seq.fill(config.decoderNum)(Module(new Decoder()))
   val jumpCtrl    = Module(new JumpCtrl()).io
   val forwardCtrl = Module(new ForwardCtrl()).io
 
   io.regfile(0).src1.raddr := decoder(0).io.out.inst_info.reg1_raddr
   io.regfile(0).src2.raddr := decoder(0).io.out.inst_info.reg2_raddr
-  io.regfile(1).src1.raddr := decoder(1).io.out.inst_info.reg1_raddr
-  io.regfile(1).src2.raddr := decoder(1).io.out.inst_info.reg2_raddr
-
-  forwardCtrl.in.forward := io.forward
-  forwardCtrl.in.regfile := io.regfile // TODO:这里的连接可能有问题
-
-  issue.allow_to_go := io.ctrl.allow_to_go
-  issue.instFifo    := io.instFifo.info
-
+  if (config.decoderNum == 2) {
+    io.regfile(1).src1.raddr := decoder(1).io.out.inst_info.reg1_raddr
+    io.regfile(1).src2.raddr := decoder(1).io.out.inst_info.reg2_raddr
+  }
+  forwardCtrl.in.forward    := io.forward
+  forwardCtrl.in.regfile    := io.regfile // TODO:这里的连接可能有问题
   jumpCtrl.in.allow_to_go   := io.ctrl.allow_to_go
-  jumpCtrl.in.decoded_inst0 := decoder(0).io.out
+  jumpCtrl.in.decoded_inst0 := decoder(0).io.out.inst_info
   jumpCtrl.in.forward       := io.forward
   jumpCtrl.in.pc            := io.instFifo.inst(0).pc
   jumpCtrl.in.reg1_data     := io.regfile(0).src1.rdata
@@ -88,12 +97,10 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.fetchUnit.target := Mux(io.bpu.pred_branch, io.bpu.branch_target, jumpCtrl.out.jump_target)
 
   io.instFifo.allow_to_go(0) := io.ctrl.allow_to_go
-  io.instFifo.allow_to_go(1) := issue.inst1.allow_to_go
-
-  io.bpu.id_allow_to_go := io.ctrl.allow_to_go
-  io.bpu.pc             := io.instFifo.inst(0).pc
-  io.bpu.decoded_inst0  := decoder(0).io.out
-  io.bpu.pht_index      := io.instFifo.inst(0).pht_index
+  io.bpu.id_allow_to_go      := io.ctrl.allow_to_go
+  io.bpu.pc                  := io.instFifo.inst(0).pc
+  io.bpu.decoded_inst0       := decoder(0).io.out.inst_info
+  io.bpu.pht_index           := io.instFifo.inst(0).pht_index
 
   io.ctrl.inst0.src1.ren   := decoder(0).io.out.inst_info.reg1_ren
   io.ctrl.inst0.src1.raddr := decoder(0).io.out.inst_info.reg1_raddr
@@ -106,10 +113,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   val inst_info = decoder.map(_.io.out.inst_info)
 
   for (i <- 0 until (config.decoderNum)) {
-    decoder(i).io.in.inst      := inst(i)
-    issue.decodeInst(i)        := inst_info(i)
-    issue.execute(i).mem_wreg  := io.forward(i).mem_wreg
-    issue.execute(i).reg_waddr := io.forward(i).exe.waddr
+    decoder(i).io.in.inst := inst(i)
   }
 
   val int = WireInit(0.U(INT_WID.W))
@@ -139,21 +143,24 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.jb_info.pred_branch      := io.bpu.pred_branch
   io.executeStage.inst0.jb_info.branch_target    := io.bpu.branch_target
   io.executeStage.inst0.jb_info.update_pht_index := io.bpu.update_pht_index
-
-  io.executeStage.inst1.allow_to_go := issue.inst1.allow_to_go
-  io.executeStage.inst1.pc          := pc(1)
-  io.executeStage.inst1.inst_info   := inst_info(1)
-  io.executeStage.inst1.src_info.src1_data := Mux(
-    inst_info(1).reg1_ren,
-    forwardCtrl.out.inst(1).src1.rdata,
-    Util.signedExtend(pc(1), INST_ADDR_WID)
-  )
-  io.executeStage.inst1.src_info.src2_data := Mux(
-    inst_info(1).reg2_ren,
-    forwardCtrl.out.inst(1).src2.rdata,
-    decoder(1).io.out.inst_info.imm
-  )
-  io.executeStage.inst1.ex.excode.map(_ := false.B)
-  io.executeStage.inst1.ex.excode(illegalInstr) := !decoder(1).io.out.inst_info.inst_valid &&
+  if (config.decoderNum == 2) {
+    io.executeStage.inst1.pc        := pc(1)
+    io.executeStage.inst1.inst_info := inst_info(1)
+    io.executeStage.inst1.src_info.src1_data := Mux(
+      inst_info(1).reg1_ren,
+      forwardCtrl.out.inst(1).src1.rdata,
+      Util.signedExtend(pc(1), INST_ADDR_WID)
+    )
+    io.executeStage.inst1.src_info.src2_data := Mux(
+      inst_info(1).reg2_ren,
+      forwardCtrl.out.inst(1).src2.rdata,
+      decoder(1).io.out.inst_info.imm
+    )
+    io.executeStage.inst1.ex.excode.map(_ := false.B)
+    io.executeStage.inst1.ex.excode(illegalInstr) := !decoder(1).io.out.inst_info.inst_valid &&
     !hasInt && !io.instFifo.info.almost_empty
+  }
+  else {
+    io.executeStage.inst1 := DontCare
+  }
 }

@@ -36,13 +36,10 @@ object Util {
     else s
   }
 
-  def signedExtend(raw: UInt, to: Int = 32): UInt = {
-    signedExtend(raw, raw.getWidth, to)
-  }
-
-  def signedExtend(raw: UInt, from: Int, to: Int): UInt = {
-    require(to > from && from >= 1)
-    Cat(Fill(to - from, raw(from - 1)), raw)
+  def signedExtend(a: UInt, len: Int) = {
+    val aLen    = a.getWidth
+    val signBit = a(aLen - 1)
+    if (aLen >= len) a(len - 1, 0) else Cat(Fill(len - aLen, signBit), a)
   }
 
   def zeroExtend(raw: UInt, to: Int = 32): UInt = {

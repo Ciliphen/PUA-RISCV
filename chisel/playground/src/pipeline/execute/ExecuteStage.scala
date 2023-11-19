@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
-import cpu.{CpuConfig, BranchPredictorConfig}
+import cpu.{BranchPredictorConfig, CpuConfig}
 
 class IdExeInst0 extends Bundle {
   val config    = new BranchPredictorConfig()

@@ -29,11 +29,18 @@ class JumpCtrl(implicit val config: CpuConfig) extends Module {
   val jump_register_inst = VecInit(ALUOpType.jalr).contains(op)
   io.out.jump_inst := jump_inst || jump_register_inst
   io.out.jump      := io.in.allow_to_go && (jump_inst || jump_register_inst && !io.out.jump_register)
-  io.out.jump_register := jump_register_inst &&
+  if (config.decoderNum == 2) {
+    io.out.jump_register := jump_register_inst &&
     ((io.in.forward(0).exe.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(0).exe.waddr) ||
-      (io.in.forward(1).exe.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(1).exe.waddr) ||
-      (io.in.forward(0).mem.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(0).mem.waddr) ||
-      (io.in.forward(1).mem.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(1).mem.waddr))
+    (io.in.forward(1).exe.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(1).exe.waddr) ||
+    (io.in.forward(0).mem.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(0).mem.waddr) ||
+    (io.in.forward(1).mem.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(1).mem.waddr))
+
+  } else {
+    io.out.jump_register := jump_register_inst &&
+    ((io.in.forward(0).exe.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(0).exe.waddr) ||
+    (io.in.forward(0).mem.wen && io.in.decoded_inst0.reg1_raddr === io.in.forward(0).mem.waddr))
+  }
   val pc_plus_4 = io.in.pc + 4.U(PC_WID.W)
   io.out.jump_target := Mux(
     jump_inst,
