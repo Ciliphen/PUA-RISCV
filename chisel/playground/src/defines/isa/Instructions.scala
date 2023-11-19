@@ -26,11 +26,11 @@ object SrcType {
 
 object FuType {
   def num     = 5
-  def alu     = "b000".U
-  def lsu     = "b001".U
-  def mdu     = "b010".U
-  def csr     = "b011".U
-  def mou     = "b100".U
+  def alu     = "b000".U // arithmetic logic unit
+  def lsu     = "b001".U // load store unit
+  def mdu     = "b010".U // mul div unit
+  def csr     = "b011".U // control status register
+  def mou     = "b100".U // memory order unit
   def bru     = alu
   def apply() = UInt(log2Up(num).W)
 }
