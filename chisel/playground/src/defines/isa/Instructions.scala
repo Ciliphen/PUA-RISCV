@@ -173,6 +173,40 @@ object CSROpType {
   def clri = "b111".U
 }
 
+trait HasExceptionNO {
+  def instrAddrMisaligned = 0
+  def instrAccessFault    = 1
+  def illegalInstr        = 2
+  def breakPoint          = 3
+  def loadAddrMisaligned  = 4
+  def loadAccessFault     = 5
+  def storeAddrMisaligned = 6
+  def storeAccessFault    = 7
+  def ecallU              = 8
+  def ecallS              = 9
+  def ecallM              = 11
+  def instrPageFault      = 12
+  def loadPageFault       = 13
+  def storePageFault      = 15
+
+  val ExcPriority = Seq(
+    breakPoint, // TODO: different BP has different priority
+    instrPageFault,
+    instrAccessFault,
+    illegalInstr,
+    instrAddrMisaligned,
+    ecallM,
+    ecallS,
+    ecallU,
+    storeAddrMisaligned,
+    loadAddrMisaligned,
+    storePageFault,
+    loadPageFault,
+    storeAccessFault,
+    loadAccessFault
+  )
+}
+
 object Causes {
   val misaligned_fetch         = 0x0
   val fetch_access             = 0x1

@@ -13,7 +13,9 @@ class Decoder extends Module with HasInstrType {
       val inst = UInt(INST_WID.W)
     })
     // outputs
-    val out = Output(new InstInfo())
+    val out = Output(new Bundle {
+      val inst_info = new InstInfo()
+    })
   })
 
   val inst = io.in.inst
@@ -35,24 +37,24 @@ class Decoder extends Module with HasInstrType {
 
   val (rs, rt, rd) = (inst(19, 15), inst(24, 20), inst(11, 7))
 
-  io.out.inst_valid := instrType === InstrN
-  io.out.reg1_ren   := src1Type === SrcType.reg
-  io.out.reg1_raddr := rs
-  io.out.reg2_ren   := src2Type === SrcType.reg
-  io.out.reg2_raddr := rt
-  io.out.fusel      := fuType
-  io.out.op         := fuOpType
+  io.out.inst_info.inst_valid := instrType === InstrN
+  io.out.inst_info.reg1_ren   := src1Type === SrcType.reg
+  io.out.inst_info.reg1_raddr := Mux(src1Type === SrcType.reg, rs, 0.U)
+  io.out.inst_info.reg2_ren   := src2Type === SrcType.reg
+  io.out.inst_info.reg2_raddr := Mux(src2Type === SrcType.reg, rt, 0.U)
+  io.out.inst_info.fusel      := fuType
+  io.out.inst_info.op         := fuOpType
   when(fuType === FuType.bru) {
     def isLink(reg: UInt) = (reg === 1.U || reg === 5.U)
-    when(isLink(rd) && fuOpType === ALUOpType.jal) { io.out.op := ALUOpType.call }
+    when(isLink(rd) && fuOpType === ALUOpType.jal) { io.out.inst_info.op := ALUOpType.call }
     when(fuOpType === ALUOpType.jalr) {
-      when(isLink(rs)) { io.out.op := ALUOpType.ret }
-      when(isLink(rd)) { io.out.op := ALUOpType.call }
+      when(isLink(rs)) { io.out.inst_info.op := ALUOpType.ret }
+      when(isLink(rd)) { io.out.inst_info.op := ALUOpType.call }
     }
   }
-  io.out.reg_wen   := isrfWen(instrType)
-  io.out.reg_waddr := Mux(isrfWen(instrType), rd, 0.U)
-  io.out.imm := LookupTree(
+  io.out.inst_info.reg_wen   := isrfWen(instrType)
+  io.out.inst_info.reg_waddr := Mux(isrfWen(instrType), rd, 0.U)
+  io.out.inst_info.imm := LookupTree(
     instrType,
     Seq(
       InstrI  -> signedExtend(inst(31, 20), XLEN),
@@ -63,9 +65,7 @@ class Decoder extends Module with HasInstrType {
       InstrJ  -> signedExtend(Cat(inst(31), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W)), XLEN)
     )
   )
-  // io.out.csr_addr    := Cat(inst(15, 11), inst(2, 0))
-  io.out.dual_issue  := false.B
-  io.out.inst        := inst
-  io.out.branch_link := VecInit(ALUOpType.jal, ALUOpType.jalr).contains(fuOpType)
-  io.out.mem_addr    := DontCare
+  io.out.inst_info.dual_issue  := false.B
+  io.out.inst_info.inst        := inst
+  io.out.inst_info.branch_link := VecInit(ALUOpType.jal, ALUOpType.jalr).contains(fuOpType)
 }

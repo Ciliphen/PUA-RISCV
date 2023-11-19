@@ -17,6 +17,9 @@ trait Constants extends CoreParameter {
   def SINGLE_ISSUE = false.B
   def DUAL_ISSUE   = true.B
 
+  def INT_WID    = 12
+  def EXCODE_WID = 16
+
   // div
   def DIV_CTRL_WID         = 2
   def DIV_FREE             = 0.U(DIV_CTRL_WID.W)
@@ -94,7 +97,7 @@ trait AXIConst {
   def RESP_SLVERR = 2
   def RESP_DECERR = 3
 }
-object Const extends Constants with AXIConst
+object Const extends Constants with AXIConst with HasExceptionNO
 
 object Instructions extends HasInstrType with CoreParameter {
   def NOP           = 0x00000013.U

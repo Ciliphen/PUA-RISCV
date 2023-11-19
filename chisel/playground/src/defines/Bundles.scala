@@ -8,10 +8,8 @@ import cpu.CpuConfig
 
 class ExceptionInfo extends Bundle {
   val flush_req = Bool()
-  val eret      = Bool()
-  val badvaddr  = UInt(PC_WID.W)
-  val bd        = Bool()
-  // val excode    = UInt(EXCODE_WID.W)
+  val excode    = Vec(EXCODE_WID, Bool())
+  val int       = Vec(INT_WID, Bool())
 }
 
 class SrcInfo extends Bundle {
@@ -36,7 +34,6 @@ class InstInfo extends Bundle {
   val imm         = UInt(XLEN.W)
   val dual_issue  = Bool()
   val branch_link = Bool()
-  val mem_addr    = UInt(DATA_ADDR_WID.W)
   val inst        = UInt(INST_WID.W)
 }
 
