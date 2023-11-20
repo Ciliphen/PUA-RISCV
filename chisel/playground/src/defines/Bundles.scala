@@ -34,6 +34,7 @@ class InstInfo extends Bundle {
   val imm         = UInt(XLEN.W)
   val dual_issue  = Bool()
   val inst        = UInt(INST_WID.W)
+  val mem_wreg    = Bool()
 }
 
 class MemRead extends Bundle {
