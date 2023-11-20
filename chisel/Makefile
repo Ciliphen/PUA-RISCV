@@ -9,6 +9,8 @@ verilog:
 
 test:
 	@echo "make test"
+	$(MAKE) clean
+	mkdir -p $(BUILD_DIR)
 	mill -i __.test.runMain TestMain -td $(BUILD_DIR)
 
 help:
