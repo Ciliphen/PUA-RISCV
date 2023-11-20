@@ -7,6 +7,7 @@ import cpu._
 import cpu.pipeline.decoder.Src12Read
 import cpu.defines.ALUOpType
 import cpu.defines.FuOpType
+import cpu.defines.FuType
 
 class ExecuteUnitBranchPredictor extends Bundle {
   val bpuConfig        = new BranchPredictorConfig()
@@ -21,6 +22,7 @@ class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
   val decoder = new Bundle {
     val inst      = Input(UInt(INST_WID.W))
     val op        = Input(FuOpType())
+    val fusel     = Input(FuType())
     val ena       = Input(Bool())
     val pc        = Input(UInt(PC_WID.W))
     val pc_plus4  = Input(UInt(PC_WID.W))
@@ -70,7 +72,7 @@ class GlobalBranchPredictor(
 
   val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
 
-  io.decoder.branch_inst := ALUOpType.isBru(io.decoder.op) && ALUOpType.isBranch(io.decoder.op)
+  io.decoder.branch_inst := FuType.bru === io.decoder.fusel && ALUOpType.isBranch(io.decoder.op)
   io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
     Fill(14, io.decoder.inst(15)),
     io.decoder.inst(15, 0),
@@ -120,7 +122,7 @@ class AdaptiveTwoLevelPredictor(
 
   val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
 
-  io.decoder.branch_inst := ALUOpType.isBru(io.decoder.op) && ALUOpType.isBranch(io.decoder.op)
+  io.decoder.branch_inst := FuType.bru === io.decoder.fusel && ALUOpType.isBranch(io.decoder.op)
   io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
     Fill(14, io.decoder.inst(15)),
     io.decoder.inst(15, 0),
