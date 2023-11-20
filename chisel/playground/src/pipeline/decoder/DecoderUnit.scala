@@ -137,6 +137,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.ex.excode.map(_ := false.B)
   io.executeStage.inst0.ex.excode(illegalInstr) := !decoder(0).io.out.inst_info.inst_valid &&
     !hasInt && !io.instFifo.info.empty
+  io.executeStage.inst0.ex.excode(instrAccessFault) := io.instFifo.inst(0).acc_err
 
   io.executeStage.inst0.jb_info.jump_regiser     := jumpCtrl.out.jump_register
   io.executeStage.inst0.jb_info.branch_inst      := io.bpu.branch_inst
@@ -159,6 +160,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     io.executeStage.inst1.ex.excode.map(_ := false.B)
     io.executeStage.inst1.ex.excode(illegalInstr) := !decoder(1).io.out.inst_info.inst_valid &&
     !hasInt && !io.instFifo.info.almost_empty
+    io.executeStage.inst1.ex.excode(instrAccessFault) := io.instFifo.inst(1).acc_err
   }
   else {
     io.executeStage.inst1 := DontCare

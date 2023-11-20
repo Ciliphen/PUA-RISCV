@@ -26,7 +26,6 @@ class ARegFile(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val read  = Flipped(Vec(config.decoderNum, new Src12Read()))
     val write = Flipped(Vec(config.commitNum, new RegWrite()))
-    val bpu   = if (config.branchPredictor == "pesudo") Some(Flipped(new Src12Read())) else None
   })
 
   // 定义32个32位寄存器
@@ -63,10 +62,5 @@ class ARegFile(implicit val config: CpuConfig) extends Module {
         }
       }
     }
-  }
-
-  if (config.branchPredictor == "pesudo") {
-    io.bpu.get.src1.rdata := regs(io.bpu.get.src1.raddr)
-    io.bpu.get.src2.rdata := regs(io.bpu.get.src2.raddr)
   }
 }

@@ -33,10 +33,10 @@ trait Constants extends CoreParameter {
 
   // inst rom
   val INST_WID      = 32
-  val INST_ADDR_WID = PC_WID
+  val INST_ADDR_WID = XLEN
 
   // data ram
-  val DATA_ADDR_WID = PC_WID
+  val DATA_ADDR_WID = XLEN
 
   // GPR RegFile
   val AREG_NUM     = 32

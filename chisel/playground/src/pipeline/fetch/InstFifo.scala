@@ -9,6 +9,7 @@ class BufferUnit extends Bundle {
   val bpuConfig = new BranchPredictorConfig()
   val inst      = UInt(INST_WID.W)
   val pht_index = UInt(bpuConfig.phtDepth.W)
+  val acc_err   = Bool()
   val pc        = UInt(PC_WID.W)
 }
 
