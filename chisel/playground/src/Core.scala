@@ -67,9 +67,6 @@
 //   bpu.decoder.pht_index            := decoderUnit.bpu.pht_index
 //   decoderUnit.bpu.update_pht_index := bpu.decoder.update_pht_index
 //   bpu.execute <> executeUnit.bpu
-//   if (config.branchPredictor == "pesudo") {
-//     bpu.regfile.get <> regfile.bpu.get
-//   }
 //   decoderUnit.bpu.branch_inst   := bpu.decoder.branch_inst
 //   decoderUnit.bpu.pred_branch   := bpu.decoder.pred_branch
 //   decoderUnit.bpu.branch_target := bpu.decoder.branch_target

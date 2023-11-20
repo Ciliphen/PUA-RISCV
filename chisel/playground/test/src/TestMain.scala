@@ -4,10 +4,11 @@ import cache.Cache
 import cpu.pipeline.decoder.Decoder
 import cpu.pipeline.decoder.DecoderUnit
 import cache.ICache
+import cpu.pipeline.fetch.BranchPredictorUnit
 
 object TestMain extends App {
   implicit val config = new CpuConfig()
-  def top             = new Cache()
+  def top             = new BranchPredictorUnit()
   val useMFC          = false // use MLIR-based firrtl compiler
   val generator       = Seq(chisel3.stage.ChiselGeneratorAnnotation(() => top))
   if (useMFC) {

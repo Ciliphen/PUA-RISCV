@@ -19,7 +19,7 @@ case class CpuConfig(
   val instFifoDepth:   Int     = 8, // 指令缓存深度
   val mulClockNum:     Int     = 2, // 乘法器的时钟周期数
   val divClockNum:     Int     = 8, // 除法器的时钟周期数
-  val branchPredictor: String  = "adaptive" // adaptive, pesudo, global
+  val branchPredictor: String  = "adaptive" // adaptive, global
 )
 
 case class BranchPredictorConfig(
