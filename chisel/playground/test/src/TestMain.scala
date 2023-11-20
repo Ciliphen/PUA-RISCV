@@ -7,10 +7,11 @@ import cache.ICache
 import cpu.pipeline.fetch.BranchPredictorUnit
 import cpu.pipeline.execute.Alu
 import cpu.pipeline.execute.BranchCtrl
+import cpu.pipeline.execute.Fu
 
 object TestMain extends App {
   implicit val config = new CpuConfig()
-  def top             = new BranchCtrl()
+  def top             = new Fu()
   val useMFC          = false // use MLIR-based firrtl compiler
   val generator       = Seq(chisel3.stage.ChiselGeneratorAnnotation(() => top))
   if (useMFC) {

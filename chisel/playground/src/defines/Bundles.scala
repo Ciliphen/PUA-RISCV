@@ -33,7 +33,6 @@ class InstInfo extends Bundle {
   val reg_waddr   = UInt(REG_ADDR_WID.W)
   val imm         = UInt(XLEN.W)
   val dual_issue  = Bool()
-  val branch_link = Bool()
   val inst        = UInt(INST_WID.W)
 }
 

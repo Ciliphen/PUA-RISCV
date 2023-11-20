@@ -67,5 +67,4 @@ class Decoder extends Module with HasInstrType {
   )
   io.out.inst_info.dual_issue  := false.B
   io.out.inst_info.inst        := inst
-  io.out.inst_info.branch_link := VecInit(ALUOpType.jal, ALUOpType.jalr).contains(fuOpType)
 }
