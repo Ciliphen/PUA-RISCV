@@ -9,10 +9,11 @@ import cpu.pipeline.execute.Alu
 import cpu.pipeline.execute.BranchCtrl
 import cpu.pipeline.execute.Fu
 import cpu.pipeline.execute.ExeAccessMemCtrl
+import cpu.pipeline.memory.DataMemoryAccess
 
 object TestMain extends App {
   implicit val config = new CpuConfig()
-  def top             = new ExeAccessMemCtrl()
+  def top             = new DataMemoryAccess()
   val useMFC          = false // use MLIR-based firrtl compiler
   val generator       = Seq(chisel3.stage.ChiselGeneratorAnnotation(() => top))
   if (useMFC) {
