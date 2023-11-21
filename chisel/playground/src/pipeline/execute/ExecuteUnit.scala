@@ -37,9 +37,9 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   val fu            = Module(new Fu()).io
   val accessMemCtrl = Module(new ExeAccessMemCtrl()).io
 
-  io.ctrl.inst(0).mem_wreg := io.executeStage.inst0.inst_info.mem_wreg
+  io.ctrl.inst(0).mem_wreg  := io.executeStage.inst0.inst_info.mem_wreg
   io.ctrl.inst(0).reg_waddr := io.executeStage.inst0.inst_info.reg_waddr
-  io.ctrl.inst(1).mem_wreg := io.executeStage.inst1.inst_info.mem_wreg
+  io.ctrl.inst(1).mem_wreg  := io.executeStage.inst1.inst_info.mem_wreg
   io.ctrl.inst(1).reg_waddr := io.executeStage.inst1.inst_info.reg_waddr
   io.ctrl.branch := io.ctrl.allow_to_go &&
     (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail)
@@ -94,7 +94,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     Seq(
       (fu.branch.pred_fail && fu.branch.branch)    -> io.executeStage.inst0.jb_info.branch_target,
       (fu.branch.pred_fail && !fu.branch.branch)   -> (io.executeStage.inst0.pc + 4.U),
-      (io.executeStage.inst0.jb_info.jump_regiser) -> io.executeStage.inst0.src_info.src1_data
+      (io.executeStage.inst0.jb_info.jump_regiser) -> (io.executeStage.inst0.src_info.src1_data + io.executeStage.inst0.src_info.src2_data)
     )
   )
 

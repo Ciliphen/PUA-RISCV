@@ -18,7 +18,7 @@
 
 // class Core(implicit val config: CpuConfig) extends Module {
 //   val io = IO(new Bundle {
-//     val ext_int = Input(UInt(6.W))
+//     val ext_int = Input(UInt(EXT_INT_WID.W))
 //     val inst    = new Cache_ICache()
 //     val data    = new Cache_DCache()
 //     val debug   = new DEBUG()

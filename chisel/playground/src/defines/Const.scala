@@ -17,8 +17,9 @@ trait Constants extends CoreParameter {
   val SINGLE_ISSUE = false.B
   val DUAL_ISSUE   = true.B
 
-  val INT_WID    = 12
-  val EXCODE_WID = 16
+  val EXT_INT_WID = 3
+  val INT_WID     = 12
+  val EXCODE_WID  = 16
 
   // div
   val DIV_CTRL_WID         = 2

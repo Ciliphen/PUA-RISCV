@@ -7,7 +7,7 @@
 // class PuaCpu extends Module {
 //   implicit val config = new CpuConfig()
 //   val io = IO(new Bundle {
-//     val ext_int   = Input(UInt(6.W))
+//     val ext_int   = Input(UInt(EXT_INT_WID.W))
 //     val axi       = new AXI()
 //     val debug     = new DEBUG()
 //   })
