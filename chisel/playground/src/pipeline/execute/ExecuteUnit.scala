@@ -107,22 +107,32 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst0.mem.sel       := accessMemCtrl.inst.map(_.mem_sel)
   io.memoryStage.inst0.mem.inst_info := accessMemCtrl.mem.out.inst_info
 
-  io.memoryStage.inst0.pc            := io.executeStage.inst0.pc
-  io.memoryStage.inst0.inst_info     := io.executeStage.inst0.inst_info
-  io.memoryStage.inst0.rd_info.wdata := fu.inst(0).result
-  io.memoryStage.inst0.ex := Mux(
-    io.executeStage.inst0.inst_info.fusel === FuType.lsu,
-    accessMemCtrl.inst(0).ex.out,
-    fu.inst(0).ex.out
+  io.memoryStage.inst0.pc                        := io.executeStage.inst0.pc
+  io.memoryStage.inst0.inst_info                 := io.executeStage.inst0.inst_info
+  io.memoryStage.inst0.rd_info.wdata(FuType.alu) := fu.inst(0).result.alu
+  io.memoryStage.inst0.rd_info.wdata(FuType.mdu) := fu.inst(0).result.mdu
+  io.memoryStage.inst0.rd_info.wdata(FuType.csr) := io.csr.out.rdata
+  io.memoryStage.inst0.rd_info.wdata(FuType.lsu) := 0.U
+  io.memoryStage.inst0.rd_info.wdata(FuType.mou) := 0.U
+  io.memoryStage.inst0.ex := MuxLookup(io.executeStage.inst0.inst_info.fusel, fu.inst(0).ex.out)(
+    Seq(
+      FuType.lsu -> accessMemCtrl.inst(0).ex.out,
+      FuType.csr -> io.csr.out.ex(0)
+    )
   )
 
-  io.memoryStage.inst1.pc            := io.executeStage.inst1.pc
-  io.memoryStage.inst1.inst_info     := io.executeStage.inst1.inst_info
-  io.memoryStage.inst1.rd_info.wdata := fu.inst(1).result
-  io.memoryStage.inst1.ex := Mux(
-    io.executeStage.inst1.inst_info.fusel === FuType.lsu,
-    accessMemCtrl.inst(1).ex.out,
-    fu.inst(1).ex.out
+  io.memoryStage.inst1.pc                        := io.executeStage.inst1.pc
+  io.memoryStage.inst1.inst_info                 := io.executeStage.inst1.inst_info
+  io.memoryStage.inst1.rd_info.wdata(FuType.alu) := fu.inst(1).result.alu
+  io.memoryStage.inst1.rd_info.wdata(FuType.mdu) := fu.inst(1).result.mdu
+  io.memoryStage.inst1.rd_info.wdata(FuType.csr) := io.csr.out.rdata
+  io.memoryStage.inst1.rd_info.wdata(FuType.lsu) := 0.U
+  io.memoryStage.inst1.rd_info.wdata(FuType.mou) := 0.U
+  io.memoryStage.inst1.ex := MuxLookup(io.executeStage.inst1.inst_info.fusel, fu.inst(1).ex.out)(
+    Seq(
+      FuType.lsu -> accessMemCtrl.inst(1).ex.out,
+      FuType.csr -> io.csr.out.ex(1)
+    )
   )
 
   io.decoderUnit.forward(0).exe.wen      := io.memoryStage.inst0.inst_info.reg_wen

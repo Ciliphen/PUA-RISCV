@@ -43,14 +43,14 @@ class Decoder extends Module with HasInstrType {
   io.out.inst_info.reg2_raddr := Mux(src2Type === SrcType.reg, rt, 0.U)
   io.out.inst_info.fusel      := fuType
   io.out.inst_info.op         := fuOpType
-  when(fuType === FuType.bru) {
-    def isLink(reg: UInt) = (reg === 1.U || reg === 5.U)
-    when(isLink(rd) && fuOpType === ALUOpType.jal) { io.out.inst_info.op := ALUOpType.call }
-    when(fuOpType === ALUOpType.jalr) {
-      when(isLink(rs)) { io.out.inst_info.op := ALUOpType.ret }
-      when(isLink(rd)) { io.out.inst_info.op := ALUOpType.call }
-    }
-  }
+  // when(fuType === FuType.bru) {
+  //   def isLink(reg: UInt) = (reg === 1.U || reg === 5.U)
+  //   when(isLink(rd) && fuOpType === ALUOpType.jal) { io.out.inst_info.op := ALUOpType.call }
+  //   when(fuOpType === ALUOpType.jalr) {
+  //     when(isLink(rs)) { io.out.inst_info.op := ALUOpType.ret }
+  //     when(isLink(rd)) { io.out.inst_info.op := ALUOpType.call }
+  //   }
+  // }
   io.out.inst_info.reg_wen   := isrfWen(instrType)
   io.out.inst_info.reg_waddr := Mux(isrfWen(instrType), rd, 0.U)
   io.out.inst_info.imm := LookupTree(

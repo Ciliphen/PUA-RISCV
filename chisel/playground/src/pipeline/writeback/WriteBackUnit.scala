@@ -18,13 +18,13 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
   io.regfile(0).wen := io.writeBackStage.inst0.inst_info.reg_wen &&
     io.ctrl.allow_to_go && !io.writeBackStage.inst0.ex.excode.asUInt.orR
   io.regfile(0).waddr := io.writeBackStage.inst0.inst_info.reg_waddr
-  io.regfile(0).wdata := io.writeBackStage.inst0.rd_info.wdata
+  io.regfile(0).wdata := io.writeBackStage.inst0.rd_info.wdata(io.writeBackStage.inst0.inst_info.fusel)
 
   io.regfile(1).wen :=
     io.writeBackStage.inst1.inst_info.reg_wen && io.ctrl.allow_to_go &&
       !io.writeBackStage.inst0.ex.excode.asUInt.orR && !io.writeBackStage.inst1.ex.excode.asUInt.orR
   io.regfile(1).waddr := io.writeBackStage.inst1.inst_info.reg_waddr
-  io.regfile(1).wdata := io.writeBackStage.inst1.rd_info.wdata
+  io.regfile(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.inst_info.fusel)
 
   if (config.hasCommitBuffer) {
     val buffer = Module(new CommitBuffer()).io

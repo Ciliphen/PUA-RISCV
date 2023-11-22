@@ -18,7 +18,7 @@ class SrcInfo extends Bundle {
 }
 
 class RdInfo extends Bundle {
-  val wdata = UInt(XLEN.W)
+  val wdata = Vec(FuType.num, UInt(XLEN.W))
 }
 
 class InstInfo extends Bundle {

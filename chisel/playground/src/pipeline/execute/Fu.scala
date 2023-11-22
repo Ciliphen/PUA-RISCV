@@ -22,7 +22,10 @@ class Fu(implicit val config: CpuConfig) extends Module {
           val in  = Input(new ExceptionInfo())
           val out = Output(new ExceptionInfo())
         }
-        val result = Output(UInt(DATA_WID.W))
+        val result = Output(new Bundle {
+          val mdu = UInt(DATA_WID.W)
+          val alu = UInt(DATA_WID.W)
+        })
       }
     )
     val csr_rdata = Input(Vec(config.fuNum, UInt(DATA_WID.W)))
@@ -52,9 +55,9 @@ class Fu(implicit val config: CpuConfig) extends Module {
     // alu(i).io.mul.ready         := mul.ready
     // alu(i).io.div.ready         := div.ready
     // alu(i).io.div.result        := div.result
-    alu(i).io.csr_rdata         := io.csr_rdata(i)
-    io.inst(i).ex.out           := io.inst(i).ex.in
-    io.inst(i).ex.out.excode    := io.inst(i).ex.in.excode
+    alu(i).io.csr_rdata      := io.csr_rdata(i)
+    io.inst(i).ex.out        := io.inst(i).ex.in
+    io.inst(i).ex.out.excode := io.inst(i).ex.in.excode
   }
 
 //   mul.src1        := Mux(io.inst(0).mul_en, io.inst(0).src_info.src1_data, io.inst(1).src_info.src1_data)
@@ -73,10 +76,12 @@ class Fu(implicit val config: CpuConfig) extends Module {
 //     (io.inst.map(_.mul_en).reduce(_ || _) && !mul.ready)
   io.stall_req := false.B
 
-  io.inst(0).result := Mux(
+  io.inst(0).result.alu := Mux(
     ALUOpType.isBru(io.inst(0).inst_info.op),
     io.inst(0).pc + 4.U,
     alu(0).io.result
   )
-  io.inst(1).result := alu(1).io.result
+  io.inst(0).result.mdu := DontCare
+  io.inst(1).result.alu := alu(1).io.result
+  io.inst(1).result.mdu := DontCare
 }

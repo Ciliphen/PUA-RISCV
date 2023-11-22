@@ -33,6 +33,7 @@ class CsrExecuteUnit(implicit val config: CpuConfig) extends Bundle {
   val out = Output(new Bundle {
     val rdata    = Vec(config.fuNum, UInt(DATA_WID.W))
     val trap_ill = Bool()
+    val ex       = Vec(config.fuNum, new ExceptionInfo())
   })
 }
 
@@ -226,12 +227,10 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   MaskedRegMap.generate(fixMapping, addr, rdataDummy, wen && !illegal_access, wdata)
 
   // CSR inst decode
-  val ret      = Wire(Bool())
-  val isEbreak = addr === privEbreak && op === CSROpType.jmp
-  val isEcall  = addr === privEcall && op === CSROpType.jmp
-  val isMret   = addr === privMret && op === CSROpType.jmp
-  val isSret   = addr === privSret && op === CSROpType.jmp
-  val isUret   = addr === privUret && op === CSROpType.jmp
+  val ret    = Wire(Bool())
+  val isMret = addr === privMret && op === CSROpType.jmp
+  val isSret = addr === privSret && op === CSROpType.jmp
+  val isUret = addr === privUret && op === CSROpType.jmp
   ret := isMret || isSret || isUret
 
   val csrExceptionVec = Wire(Vec(16, Bool()))
