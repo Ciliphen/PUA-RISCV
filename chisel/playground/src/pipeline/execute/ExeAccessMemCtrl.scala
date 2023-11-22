@@ -62,7 +62,7 @@ class ExeAccessMemCtrl(implicit val config: CpuConfig) extends Module {
   )
   val addr_aligned = Wire(Vec(config.fuNum, Bool()))
   for (i <- 0 until config.fuNum) {
-    addr_aligned(i) := Util.LookupTree(
+    addr_aligned(i) := LookupTree(
       io.inst(i).inst_info.op(1, 0),
       List(
         "b00".U -> true.B, //b

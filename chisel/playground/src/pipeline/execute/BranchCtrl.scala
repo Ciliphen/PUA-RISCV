@@ -31,5 +31,5 @@ class BranchCtrl extends Module {
     ALUOpType.getBranchType(ALUOpType.bltu) -> sltu
   )
   io.out.pred_fail := io.in.pred_branch =/= io.out.branch
-  io.out.branch    := Util.LookupTree(ALUOpType.getBranchType(op), table) ^ ALUOpType.isBranchInvert(op)
+  io.out.branch    := LookupTree(ALUOpType.getBranchType(op), table) ^ ALUOpType.isBranchInvert(op)
 }

@@ -3,7 +3,6 @@ package cpu.pipeline.decoder
 import chisel3._
 import chisel3.util._
 import cpu.defines._
-import cpu.defines.Util._
 import cpu.defines.Const._
 
 class Decoder extends Module with HasInstrType {
@@ -57,15 +56,15 @@ class Decoder extends Module with HasInstrType {
   io.out.inst_info.imm := LookupTree(
     instrType,
     Seq(
-      InstrI  -> signedExtend(inst(31, 20), XLEN),
-      InstrS  -> signedExtend(Cat(inst(31, 25), inst(11, 7)), XLEN),
-      InstrSA -> signedExtend(Cat(inst(31, 25), inst(11, 7)), XLEN),
-      InstrB  -> signedExtend(Cat(inst(31), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W)), XLEN),
-      InstrU  -> signedExtend(Cat(inst(31, 12), 0.U(12.W)), XLEN),
-      InstrJ  -> signedExtend(Cat(inst(31), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W)), XLEN)
+      InstrI  -> SignedExtend(inst(31, 20), XLEN),
+      InstrS  -> SignedExtend(Cat(inst(31, 25), inst(11, 7)), XLEN),
+      InstrSA -> SignedExtend(Cat(inst(31, 25), inst(11, 7)), XLEN),
+      InstrB  -> SignedExtend(Cat(inst(31), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W)), XLEN),
+      InstrU  -> SignedExtend(Cat(inst(31, 12), 0.U(12.W)), XLEN),
+      InstrJ  -> SignedExtend(Cat(inst(31), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W)), XLEN)
     )
   )
-  io.out.inst_info.dual_issue  := false.B
-  io.out.inst_info.inst        := inst
-  io.out.inst_info.mem_wreg    := fuType === FuType.lsu && LSUOpType.isLoad(fuOpType)
+  io.out.inst_info.dual_issue := false.B
+  io.out.inst_info.inst       := inst
+  io.out.inst_info.mem_wreg   := fuType === FuType.lsu && LSUOpType.isLoad(fuOpType)
 }

@@ -75,8 +75,6 @@ class DecoderUnitCtrl extends Bundle {
 
 class ExecuteFuCtrl extends Bundle {
   val allow_to_go = Input(Bool())
-  val do_flush    = Input(Bool())
-  val eret        = Input(Bool())
 }
 
 class ExecuteCtrl(implicit val config: CpuConfig) extends Bundle {
@@ -92,7 +90,6 @@ class ExecuteCtrl(implicit val config: CpuConfig) extends Bundle {
 
 class MemoryCtrl extends Bundle {
   val flush_req = Output(Bool())
-  val eret      = Output(Bool())
 
   val allow_to_go = Input(Bool())
   val do_flush    = Input(Bool())

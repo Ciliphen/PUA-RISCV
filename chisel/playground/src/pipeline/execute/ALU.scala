@@ -37,16 +37,16 @@ class Alu extends Module {
 
   val shsrc1 = MuxLookup(op, src1(XLEN - 1, 0))(
     List(
-      ALUOpType.srlw -> Util.zeroExtend(src1(31, 0), XLEN),
-      ALUOpType.sraw -> Util.signedExtend(src1(31, 0), XLEN)
+      ALUOpType.srlw -> ZeroExtend(src1(31, 0), XLEN),
+      ALUOpType.sraw -> SignedExtend(src1(31, 0), XLEN)
     )
   )
   val shamt = Mux(ALUOpType.isWordOp(op), src2(4, 0), if (XLEN == 64) src2(5, 0) else src2(4, 0))
   val res = MuxLookup(op(3, 0), sum)(
     List(
       ALUOpType.sll  -> ((shsrc1 << shamt)(XLEN - 1, 0)),
-      ALUOpType.slt  -> Util.zeroExtend(slt, XLEN),
-      ALUOpType.sltu -> Util.zeroExtend(sltu, XLEN),
+      ALUOpType.slt  -> ZeroExtend(slt, XLEN),
+      ALUOpType.sltu -> ZeroExtend(sltu, XLEN),
       ALUOpType.xor  -> xor,
       ALUOpType.srl  -> (shsrc1 >> shamt),
       ALUOpType.or   -> (src1 | src2),
@@ -54,5 +54,5 @@ class Alu extends Module {
       ALUOpType.sra  -> ((shsrc1.asSInt >> shamt).asUInt)
     )
   )
-  io.result := Mux(ALUOpType.isWordOp(op), Util.signedExtend(res(31, 0), 64), res)
+  io.result := Mux(ALUOpType.isWordOp(op), SignedExtend(res(31, 0), 64), res)
 }
