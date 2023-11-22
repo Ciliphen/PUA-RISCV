@@ -25,7 +25,7 @@ class DataForwardToDecoderUnit extends Bundle {
   val mem      = new RegWrite()
 }
 
-class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExceptionNO {
+class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExceptionNO with HasCSRConst {
   val io = IO(new Bundle {
     // 输入
     val instFifo = new InstFifoDecoderUnit()
@@ -104,6 +104,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   val pc        = io.instFifo.inst.map(_.pc)
   val inst      = io.instFifo.inst.map(_.inst)
   val inst_info = decoder.map(_.io.out.inst_info)
+  val priv_mode = io.csr.priv_mode
 
   for (i <- 0 until (config.decoderNum)) {
     decoder(i).io.in.inst := inst(i)
@@ -111,8 +112,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
 
   val int = WireInit(0.U(INT_WID.W))
   BoringUtils.addSink(int, "intDecoderUnit")
-  io.executeStage.inst0.ex.int.zip(int.asBools).map { case (x, y) => x := y }
-  val hasInt = int.orR
+  io.executeStage.inst0.ex.interrupt.zip(int.asBools).map { case (x, y) => x := y }
 
   io.executeStage.inst0.valid     := !io.instFifo.info.empty
   io.executeStage.inst0.pc        := pc(0)
@@ -129,10 +129,24 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   )
   io.executeStage.inst0.ex.flush_req    := io.executeStage.inst0.ex.excode.asUInt.orR
   io.executeStage.inst0.ex.excode.map(_ := false.B)
-  io.executeStage.inst0.ex.excode(illegalInstr) := !decoder(0).io.out.inst_info.inst_valid &&
-    !hasInt && !io.instFifo.info.empty
+
+  io.executeStage.inst0.ex.excode(illegalInstr)        := !inst_info(0).inst_valid
   io.executeStage.inst0.ex.excode(instrAccessFault)    := io.instFifo.inst(0).acc_err
   io.executeStage.inst0.ex.excode(instrAddrMisaligned) := io.instFifo.inst(0).addr_err
+  io.executeStage.inst0.ex.excode(breakPoint) := inst_info(0).inst(31, 20) === privEbreak &&
+    inst_info(0).op === CSROpType.jmp
+  io.executeStage.inst0.ex.excode(ecallM) := inst_info(0).inst(31, 20) === privEcall &&
+    inst_info(0).op === CSROpType.jmp && priv_mode === ModeM
+  io.executeStage.inst0.ex.excode(ecallS) := inst_info(0).inst(31, 20) === privEcall &&
+    inst_info(0).op === CSROpType.jmp && priv_mode === ModeS
+  io.executeStage.inst0.ex.excode(ecallU) := inst_info(0).inst(31, 20) === privEcall &&
+    inst_info(0).op === CSROpType.jmp && priv_mode === ModeU
+
+  io.executeStage.inst0.ex.tval := Mux(
+    io.executeStage.inst0.ex.excode(instrAccessFault) || io.executeStage.inst0.ex.excode(instrAddrMisaligned),
+    io.instFifo.inst(0).pc,
+    0.U
+  )
 
   io.executeStage.inst0.jb_info.jump_regiser     := jumpCtrl.out.jump_register
   io.executeStage.inst0.jb_info.branch_inst      := io.bpu.branch_inst
@@ -153,11 +167,26 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
       forwardCtrl.out.inst(1).src2.rdata,
       decoder(1).io.out.inst_info.imm
     )
+    io.executeStage.inst1.ex.flush_req    := io.executeStage.inst1.ex.excode.asUInt.orR
     io.executeStage.inst1.ex.excode.map(_ := false.B)
-    io.executeStage.inst1.ex.excode(illegalInstr) := !decoder(1).io.out.inst_info.inst_valid &&
-    !hasInt && !io.instFifo.info.almost_empty
+
+    io.executeStage.inst1.ex.excode(illegalInstr)        := !inst_info(1).inst_valid
     io.executeStage.inst1.ex.excode(instrAccessFault)    := io.instFifo.inst(1).acc_err
     io.executeStage.inst1.ex.excode(instrAddrMisaligned) := io.instFifo.inst(1).addr_err
+    io.executeStage.inst1.ex.excode(breakPoint) := inst_info(1).inst(31, 20) === privEbreak &&
+    inst_info(1).op === CSROpType.jmp
+    io.executeStage.inst1.ex.excode(ecallM) := inst_info(1).inst(31, 20) === privEcall &&
+    inst_info(1).op === CSROpType.jmp && priv_mode === ModeM
+    io.executeStage.inst1.ex.excode(ecallS) := inst_info(1).inst(31, 20) === privEcall &&
+    inst_info(1).op === CSROpType.jmp && priv_mode === ModeS
+    io.executeStage.inst1.ex.excode(ecallU) := inst_info(1).inst(31, 20) === privEcall &&
+    inst_info(1).op === CSROpType.jmp && priv_mode === ModeU
+
+    io.executeStage.inst1.ex.tval := Mux(
+      io.executeStage.inst1.ex.excode(instrAccessFault) || io.executeStage.inst1.ex.excode(instrAddrMisaligned),
+      io.instFifo.inst(1).pc,
+      0.U
+    )
   } else {
     io.executeStage.inst1 := DontCare
   }
