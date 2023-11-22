@@ -8,6 +8,7 @@ import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
 import cpu.pipeline.execute.DecoderUnitExecuteUnit
 import cpu.pipeline.fetch.BufferUnit
+import cpu.pipeline.execute
 
 class InstFifoDecoderUnit(implicit val config: CpuConfig) extends Bundle {
   val allow_to_go = Output(Vec(config.decoderNum, Bool()))
@@ -24,21 +25,13 @@ class DataForwardToDecoderUnit extends Bundle {
   val mem      = new RegWrite()
 }
 
-class CsrDecoderUnit extends Bundle {
-  val access_allowed    = Bool()
-  val kernel_mode       = Bool()
-  val intterupt_allowed = Bool()
-  val cause_ip          = UInt(8.W)
-  val status_im         = UInt(8.W)
-}
-
 class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExceptionNO {
   val io = IO(new Bundle {
     // 输入
     val instFifo = new InstFifoDecoderUnit()
     val regfile  = Vec(config.decoderNum, new Src12Read())
     val forward  = Input(Vec(config.fuNum, new DataForwardToDecoderUnit()))
-    val csr      = Input(new CsrDecoderUnit())
+    val csr      = Input(new execute.CsrDecoderUnit())
     // 输出
     val fetchUnit = new Bundle {
       val branch = Output(Bool())
@@ -121,12 +114,13 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.ex.int.zip(int.asBools).map { case (x, y) => x := y }
   val hasInt = int.orR
 
+  io.executeStage.inst0.valid     := !io.instFifo.info.empty
   io.executeStage.inst0.pc        := pc(0)
   io.executeStage.inst0.inst_info := inst_info(0)
   io.executeStage.inst0.src_info.src1_data := Mux(
     inst_info(0).reg1_ren,
     forwardCtrl.out.inst(0).src1.rdata,
-    Util.signedExtend(pc(0), INST_ADDR_WID)
+    SignedExtend(pc(0), INST_ADDR_WID)
   )
   io.executeStage.inst0.src_info.src2_data := Mux(
     inst_info(0).reg2_ren,
@@ -145,12 +139,13 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.jb_info.branch_target    := io.bpu.branch_target
   io.executeStage.inst0.jb_info.update_pht_index := io.bpu.update_pht_index
   if (config.decoderNum == 2) {
+    io.executeStage.inst1.valid     := !io.instFifo.info.almost_empty
     io.executeStage.inst1.pc        := pc(1)
     io.executeStage.inst1.inst_info := inst_info(1)
     io.executeStage.inst1.src_info.src1_data := Mux(
       inst_info(1).reg1_ren,
       forwardCtrl.out.inst(1).src1.rdata,
-      Util.signedExtend(pc(1), INST_ADDR_WID)
+      SignedExtend(pc(1), INST_ADDR_WID)
     )
     io.executeStage.inst1.src_info.src2_data := Mux(
       inst_info(1).reg2_ren,
@@ -161,8 +156,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     io.executeStage.inst1.ex.excode(illegalInstr) := !decoder(1).io.out.inst_info.inst_valid &&
     !hasInt && !io.instFifo.info.almost_empty
     io.executeStage.inst1.ex.excode(instrAccessFault) := io.instFifo.inst(1).acc_err
-  }
-  else {
+  } else {
     io.executeStage.inst1 := DontCare
   }
 }

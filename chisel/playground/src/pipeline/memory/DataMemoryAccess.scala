@@ -44,7 +44,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
     (io.memoryUnit.in.mem_sel(0) && !io.memoryUnit.in.ex(0).flush_req ||
       io.memoryUnit.in.mem_sel(1) && !io.memoryUnit.in.ex(0).flush_req && !io.memoryUnit.in.ex(1).flush_req)
   io.dataMemory.out.addr := mem_addr
-  val rdata = Util.LookupTree(
+  val rdata = LookupTree(
     mem_addr(2, 0),
     List(
       "b000".U -> mem_rdata(63, 0),
@@ -57,19 +57,19 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       "b111".U -> mem_rdata(63, 56)
     )
   )
-  io.memoryUnit.out.rdata := Util.LookupTree(
+  io.memoryUnit.out.rdata := LookupTree(
     op,
     List(
-      LSUOpType.lb  -> Util.signedExtend(rdata(7, 0), XLEN),
-      LSUOpType.lh  -> Util.signedExtend(rdata(15, 0), XLEN),
-      LSUOpType.lw  -> Util.signedExtend(rdata(31, 0), XLEN),
-      LSUOpType.lbu -> Util.zeroExtend(rdata(7, 0), XLEN),
-      LSUOpType.lhu -> Util.zeroExtend(rdata(15, 0), XLEN),
-      LSUOpType.lwu -> Util.zeroExtend(rdata(31, 0), XLEN)
+      LSUOpType.lb  -> SignedExtend(rdata(7, 0), XLEN),
+      LSUOpType.lh  -> SignedExtend(rdata(15, 0), XLEN),
+      LSUOpType.lw  -> SignedExtend(rdata(31, 0), XLEN),
+      LSUOpType.lbu -> ZeroExtend(rdata(7, 0), XLEN),
+      LSUOpType.lhu -> ZeroExtend(rdata(15, 0), XLEN),
+      LSUOpType.lwu -> ZeroExtend(rdata(31, 0), XLEN)
     )
   )
   def genWdata(data: UInt, sizeEncode: UInt): UInt = {
-    Util.LookupTree(
+    LookupTree(
       sizeEncode,
       List(
         "b00".U -> Fill(8, data(7, 0)),
@@ -81,7 +81,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   }
   io.dataMemory.out.wdata := genWdata(mem_wdata, op(1, 0))
   def genWmask(addr: UInt, sizeEncode: UInt): UInt = {
-    Util.LookupTree(
+    LookupTree(
       sizeEncode,
       List(
         "b00".U -> 0x1.U, //0001 << addr(2:0)

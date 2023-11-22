@@ -3,13 +3,13 @@ package cpu.defines
 import chisel3._
 import chisel3.util._
 
-object Util {
-  def subwordModify(source: UInt, start: Int, md: UInt): UInt = {
+object SubwordModify {
+  def apply(source: UInt, start: Int, md: UInt): UInt = {
     val ms = md.getWidth
-    subwordModify(source, (start, start - ms + 1), md)
+    apply(source, (start, start - ms + 1), md)
   }
 
-  def subwordModify(source: UInt, tuple: (Int, Int), md: UInt): UInt = {
+  def apply(source: UInt, tuple: (Int, Int), md: UInt): UInt = {
     val ws    = source.getWidth
     val ms    = md.getWidth
     val start = tuple._1
@@ -23,42 +23,107 @@ object Util {
     else if (start == ws - 1) Cat(md, source(end - 1, 0))
     else Cat(source(ws - 1, start + 1), md, source(end - 1, 0))
   }
+}
 
-  def listHasElement(list: Seq[UInt], element: UInt): Bool = {
-    list.foldLeft(false.B)((r, e) => r || (e === element))
-  }
-
-  def MAXnBIT(m: Int): BigInt = BigInt(1) << m
-
-  def unsignedToSigned(s: BigInt, width: Int = 32): BigInt = {
-    val m = MAXnBIT(width - 1)
-    if (s >= m) s - 2 * m
-    else s
-  }
-
-  def signedExtend(a: UInt, len: Int) = {
+object SignedExtend {
+  def apply(a: UInt, len: Int) = {
     val aLen    = a.getWidth
     val signBit = a(aLen - 1)
     if (aLen >= len) a(len - 1, 0) else Cat(Fill(len - aLen, signBit), a)
   }
+}
 
-  def zeroExtend(raw: UInt, to: Int = 32): UInt = {
-    zeroExtend(raw, raw.getWidth, to)
+object ZeroExtend {
+  def apply(a: UInt, len: Int) = {
+    val aLen = a.getWidth
+    if (aLen >= len) a(len - 1, 0) else Cat(0.U((len - aLen).W), a)
   }
+}
+object LookupTree {
+  def apply[T <: Data](key: UInt, mapping: Iterable[(UInt, T)]): T =
+    Mux1H(mapping.map(p => (p._1 === key, p._2)))
+}
 
-  def zeroExtend(raw: UInt, from: Int, to: Int): UInt = {
-    require(to > from && from >= 1)
-    Cat(Fill(to - from, 0.U), raw)
+object LookupTreeDefault {
+  def apply[T <: Data](key: UInt, default: T, mapping: Iterable[(UInt, T)]): T =
+    MuxLookup(key, default)(mapping.toSeq)
+}
+
+object MaskData {
+  def apply(oldData: UInt, newData: UInt, fullmask: UInt) = {
+    require(oldData.getWidth == newData.getWidth)
+    require(oldData.getWidth == fullmask.getWidth)
+    (newData & fullmask) | (oldData & ~fullmask)
   }
+}
 
-  object LookupTree {
-    def apply[T <: Data](key: UInt, mapping: Iterable[(UInt, T)]): T =
-      Mux1H(mapping.map(p => (p._1 === key, p._2)))
+object RegMap {
+  def Unwritable = null
+  def apply(addr: Int, reg: UInt, wfn: UInt => UInt = (x => x)) = (addr, (reg, wfn))
+  def generate(
+    mapping: Map[Int, (UInt, UInt => UInt)],
+    raddr:   UInt,
+    rdata:   UInt,
+    waddr:   UInt,
+    wen:     Bool,
+    wdata:   UInt,
+    wmask:   UInt
+  ): Unit = {
+    val chiselMapping = mapping.map { case (a, (r, w)) => (a.U, r, w) }
+    rdata := LookupTree(raddr, chiselMapping.map { case (a, r, w) => (a, r) })
+    chiselMapping.map {
+      case (a, r, w) =>
+        if (w != null) when(wen && waddr === a) { r := w(MaskData(r, wdata, wmask)) }
+    }
   }
+  def generate(
+    mapping: Map[Int, (UInt, UInt => UInt)],
+    addr:    UInt,
+    rdata:   UInt,
+    wen:     Bool,
+    wdata:   UInt,
+    wmask:   UInt
+  ): Unit = generate(mapping, addr, rdata, addr, wen, wdata, wmask)
+}
 
-  object LookupTreeDefault {
-    def apply[T <: Data](key: UInt, default: T, mapping: Iterable[(UInt, T)]): T =
-      MuxLookup(key, default)(mapping.toSeq)
+object MaskedRegMap extends CoreParameter {
+  def Unwritable = null
+  def NoSideEffect: UInt => UInt = (x => x)
+  def WritableMask   = Fill(XLEN, true.B)
+  def UnwritableMask = 0.U(XLEN.W)
+  def apply(
+    addr:  Int,
+    reg:   UInt,
+    wmask: UInt         = WritableMask,
+    wfn:   UInt => UInt = (x => x),
+    rmask: UInt         = WritableMask
+  ) = (addr, (reg, wmask, wfn, rmask))
+  def generate(
+    mapping: Map[Int, (UInt, UInt, UInt => UInt, UInt)],
+    raddr:   UInt,
+    rdata:   UInt,
+    waddr:   UInt,
+    wen:     Bool,
+    wdata:   UInt
+  ): Unit = {
+    val chiselMapping = mapping.map { case (a, (r, wm, w, rm)) => (a.U, r, wm, w, rm) }
+    rdata := LookupTree(raddr, chiselMapping.map { case (a, r, wm, w, rm) => (a, r & rm) })
+    chiselMapping.map {
+      case (a, r, wm, w, rm) =>
+        if (w != null && wm != UnwritableMask) when(wen && waddr === a) { r := w(MaskData(r, wdata, wm)) }
+    }
   }
-
+  def isIllegalAddr(mapping: Map[Int, (UInt, UInt, UInt => UInt, UInt)], addr: UInt): Bool = {
+    val illegalAddr   = Wire(Bool())
+    val chiselMapping = mapping.map { case (a, (r, wm, w, rm)) => (a.U, r, wm, w, rm) }
+    illegalAddr := LookupTreeDefault(addr, true.B, chiselMapping.map { case (a, r, wm, w, rm) => (a, false.B) })
+    illegalAddr
+  }
+  def generate(
+    mapping: Map[Int, (UInt, UInt, UInt => UInt, UInt)],
+    addr:    UInt,
+    rdata:   UInt,
+    wen:     Bool,
+    wdata:   UInt
+  ): Unit = generate(mapping, addr, rdata, addr, wen, wdata)
 }
