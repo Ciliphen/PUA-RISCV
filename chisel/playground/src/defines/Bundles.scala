@@ -7,7 +7,6 @@ import cpu.defines.Const._
 import cpu.CpuConfig
 
 class ExceptionInfo extends Bundle {
-  val flush_req = Bool()
   val excode    = Vec(EXCODE_WID, Bool())
   val interrupt = Vec(INT_WID, Bool())
   val tval      = UInt(XLEN.W)

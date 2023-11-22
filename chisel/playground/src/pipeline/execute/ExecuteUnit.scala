@@ -6,7 +6,7 @@ import cpu.CpuConfig
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.pipeline.decoder.RegWrite
-import cpu.pipeline.memory.{CsrInfo, ExecuteUnitMemoryUnit}
+import cpu.pipeline.memory.ExecuteUnitMemoryUnit
 import cpu.pipeline.fetch.ExecuteUnitBranchPredictor
 
 class ExecuteUnit(implicit val config: CpuConfig) extends Module {
@@ -45,7 +45,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail)
 
   io.csr.in.inst_info(0) := Mux(
-    !io.executeStage.inst0.ex.flush_req,
+    !io.executeStage.inst0.ex.excode.asUInt.orR,
     io.executeStage.inst0.inst_info,
     0.U.asTypeOf(new InstInfo())
   )
@@ -115,7 +115,6 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     accessMemCtrl.inst(0).ex.out,
     fu.inst(0).ex.out
   )
-  io.memoryStage.inst0.csr := io.csr.out.debug
 
   io.memoryStage.inst1.pc            := io.executeStage.inst1.pc
   io.memoryStage.inst1.inst_info     := io.executeStage.inst1.inst_info

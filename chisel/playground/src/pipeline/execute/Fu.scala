@@ -54,7 +54,6 @@ class Fu(implicit val config: CpuConfig) extends Module {
     // alu(i).io.div.result        := div.result
     alu(i).io.csr_rdata         := io.csr_rdata(i)
     io.inst(i).ex.out           := io.inst(i).ex.in
-    io.inst(i).ex.out.flush_req := io.inst(i).ex.in.flush_req
     io.inst(i).ex.out.excode    := io.inst(i).ex.in.excode
   }
 

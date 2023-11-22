@@ -81,6 +81,25 @@ class Mie extends Bundle {
   val blank6 = UInt(2.W)
 }
 
+class Satp extends Bundle {
+  val mode = UInt(4.W)
+  val asid = UInt(16.W)
+  val ppn  = UInt(44.W)
+}
+
+class Priv extends Bundle {
+  val m = Output(Bool())
+  val h = Output(Bool())
+  val s = Output(Bool())
+  val u = Output(Bool())
+}
+
+class Interrupt extends Bundle {
+  val e = new Priv()
+  val t = new Priv()
+  val s = new Priv()
+}
+
 object Priv {
   def u       = "b00".U
   def s       = "b01".U

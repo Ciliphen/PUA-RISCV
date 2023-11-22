@@ -78,11 +78,10 @@ class ExeAccessMemCtrl(implicit val config: CpuConfig) extends Module {
     io.inst(i).ex.out                             := io.inst(i).ex.in
     io.inst(i).ex.out.excode(loadAddrMisaligned)  := store_inst && !addr_aligned(i)
     io.inst(i).ex.out.excode(storeAddrMisaligned) := !store_inst && !addr_aligned(i)
-    io.inst(i).ex.out.flush_req                   := io.inst(i).ex.in.flush_req || io.inst(i).ex.out.excode.asUInt.orR
   }
   io.inst(0).mem_sel := (LSUOpType.isStore(io.inst(0).inst_info.op) || LSUOpType.isLoad(io.inst(0).inst_info.op)) &&
-    !io.inst(0).ex.out.flush_req
+    !io.inst(0).ex.out.excode.asUInt.orR
   io.inst(1).mem_sel := (LSUOpType.isStore(io.inst(1).inst_info.op) || LSUOpType.isLoad(io.inst(1).inst_info.op)) &&
-    !io.inst(0).ex.out.flush_req && !io.inst(1).ex.out.flush_req
+    !io.inst(0).ex.out.excode.asUInt.orR && !io.inst(1).ex.out.excode.asUInt.orR
 
 }

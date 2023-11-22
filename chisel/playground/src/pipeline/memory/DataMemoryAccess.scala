@@ -41,8 +41,9 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   val mem_wdata = io.memoryUnit.in.mem_wdata
   val op        = io.memoryUnit.in.inst_info.op
   io.dataMemory.out.en := io.memoryUnit.in.mem_en &&
-    (io.memoryUnit.in.mem_sel(0) && !io.memoryUnit.in.ex(0).flush_req ||
-      io.memoryUnit.in.mem_sel(1) && !io.memoryUnit.in.ex(0).flush_req && !io.memoryUnit.in.ex(1).flush_req)
+    (io.memoryUnit.in.mem_sel(0) && !io.memoryUnit.in.ex(0).excode.asUInt.orR ||
+      io.memoryUnit.in.mem_sel(1) && !io.memoryUnit.in.ex(0).excode.asUInt.orR &&
+        !io.memoryUnit.in.ex(1).excode.asUInt.orR)
   io.dataMemory.out.addr := mem_addr
   val rdata = LookupTree(
     mem_addr(2, 0),

@@ -6,12 +6,6 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class CsrInfo extends Bundle {
-  val csr_count  = UInt(DATA_WID.W)
-  val csr_random = UInt(DATA_WID.W)
-  val csr_cause  = UInt(DATA_WID.W)
-}
-
 class ExeMemInst1 extends Bundle {
   val pc        = UInt(PC_WID.W)
   val inst_info = new InstInfo()
@@ -20,7 +14,6 @@ class ExeMemInst1 extends Bundle {
 }
 
 class ExeMemInst0(implicit val config: CpuConfig) extends ExeMemInst1 {
-  val csr = new CsrInfo()
   val mem = new Bundle {
     val en        = Bool()
     val ren       = Bool()

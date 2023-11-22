@@ -15,13 +15,14 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
     val debug          = new DEBUG()
   })
 
-  io.regfile(0)
-    .wen := io.writeBackStage.inst0.inst_info.reg_wen && io.ctrl.allow_to_go && !io.writeBackStage.inst0.ex.flush_req
+  io.regfile(0).wen := io.writeBackStage.inst0.inst_info.reg_wen &&
+    io.ctrl.allow_to_go && !io.writeBackStage.inst0.ex.excode.asUInt.orR
   io.regfile(0).waddr := io.writeBackStage.inst0.inst_info.reg_waddr
   io.regfile(0).wdata := io.writeBackStage.inst0.rd_info.wdata
 
   io.regfile(1).wen :=
-    io.writeBackStage.inst1.inst_info.reg_wen && io.ctrl.allow_to_go && !io.writeBackStage.inst0.ex.flush_req && !io.writeBackStage.inst1.ex.flush_req
+    io.writeBackStage.inst1.inst_info.reg_wen && io.ctrl.allow_to_go &&
+      !io.writeBackStage.inst0.ex.excode.asUInt.orR && !io.writeBackStage.inst1.ex.excode.asUInt.orR
   io.regfile(1).waddr := io.writeBackStage.inst1.inst_info.reg_waddr
   io.regfile(1).wdata := io.writeBackStage.inst1.rd_info.wdata
 
@@ -45,22 +46,22 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
     io.debug.wb_pc := Mux(
       clock.asBool,
       io.writeBackStage.inst0.pc,
-      Mux(io.writeBackStage.inst0.ex.flush_req, 0.U, io.writeBackStage.inst1.pc),
+      Mux(io.writeBackStage.inst0.ex.excode.asUInt.orR, 0.U, io.writeBackStage.inst1.pc)
     )
     io.debug.wb_rf_wen := Mux(
       clock.asBool,
       Fill(4, io.regfile(0).wen),
-      Fill(4, io.regfile(1).wen),
+      Fill(4, io.regfile(1).wen)
     )
     io.debug.wb_rf_wnum := Mux(
       clock.asBool,
       io.regfile(0).waddr,
-      io.regfile(1).waddr,
+      io.regfile(1).waddr
     )
     io.debug.wb_rf_wdata := Mux(
       clock.asBool,
       io.regfile(0).wdata,
-      io.regfile(1).wdata,
+      io.regfile(1).wdata
     )
   }
 }

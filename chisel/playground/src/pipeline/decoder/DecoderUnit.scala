@@ -127,9 +127,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     forwardCtrl.out.inst(0).src2.rdata,
     decoder(0).io.out.inst_info.imm
   )
-  io.executeStage.inst0.ex.flush_req    := io.executeStage.inst0.ex.excode.asUInt.orR
-  io.executeStage.inst0.ex.excode.map(_ := false.B)
-
+  io.executeStage.inst0.ex.excode.map(_                := false.B)
   io.executeStage.inst0.ex.excode(illegalInstr)        := !inst_info(0).inst_valid
   io.executeStage.inst0.ex.excode(instrAccessFault)    := io.instFifo.inst(0).acc_err
   io.executeStage.inst0.ex.excode(instrAddrMisaligned) := io.instFifo.inst(0).addr_err
@@ -167,9 +165,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
       forwardCtrl.out.inst(1).src2.rdata,
       decoder(1).io.out.inst_info.imm
     )
-    io.executeStage.inst1.ex.flush_req    := io.executeStage.inst1.ex.excode.asUInt.orR
-    io.executeStage.inst1.ex.excode.map(_ := false.B)
-
+    io.executeStage.inst1.ex.excode.map(_                := false.B)
     io.executeStage.inst1.ex.excode(illegalInstr)        := !inst_info(1).inst_valid
     io.executeStage.inst1.ex.excode(instrAccessFault)    := io.instFifo.inst(1).acc_err
     io.executeStage.inst1.ex.excode(instrAddrMisaligned) := io.instFifo.inst(1).addr_err

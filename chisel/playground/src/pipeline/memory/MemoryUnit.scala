@@ -62,9 +62,6 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst0.ex        := io.memoryStage.inst0.ex
   io.writeBackStage.inst0.ex.excode := io.memoryStage.inst0.ex.excode
 
-  io.writeBackStage.inst0.ex.flush_req := io.memoryStage.inst0.ex.flush_req || io.writeBackStage.inst0.ex.excode.asUInt.orR
-  io.writeBackStage.inst0.csr          := io.memoryStage.inst0.csr
-
   io.writeBackStage.inst1.pc        := io.memoryStage.inst1.pc
   io.writeBackStage.inst1.inst_info := io.memoryStage.inst1.inst_info
   io.writeBackStage.inst1.rd_info.wdata := Mux(
@@ -74,8 +71,6 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   )
   io.writeBackStage.inst1.ex        := io.memoryStage.inst1.ex
   io.writeBackStage.inst1.ex.excode := io.memoryStage.inst1.ex.excode
-
-  io.writeBackStage.inst1.ex.flush_req := io.memoryStage.inst1.ex.flush_req || io.writeBackStage.inst1.ex.excode.asUInt.orR
 
   io.csr.in.inst(0).pc := io.writeBackStage.inst0.pc
   io.csr.in.inst(0).ex := io.writeBackStage.inst0.ex
