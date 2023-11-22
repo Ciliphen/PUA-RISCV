@@ -22,19 +22,19 @@ class RdInfo extends Bundle {
 }
 
 class InstInfo extends Bundle {
-  val inst_valid  = Bool()
-  val reg1_ren    = Bool()
-  val reg1_raddr  = UInt(REG_ADDR_WID.W)
-  val reg2_ren    = Bool()
-  val reg2_raddr  = UInt(REG_ADDR_WID.W)
-  val fusel       = FuType()
-  val op          = FuOpType()
-  val reg_wen     = Bool()
-  val reg_waddr   = UInt(REG_ADDR_WID.W)
-  val imm         = UInt(XLEN.W)
-  val dual_issue  = Bool()
-  val inst        = UInt(INST_WID.W)
-  val mem_wreg    = Bool()
+  val inst_valid = Bool()
+  val reg1_ren   = Bool()
+  val reg1_raddr = UInt(REG_ADDR_WID.W)
+  val reg2_ren   = Bool()
+  val reg2_raddr = UInt(REG_ADDR_WID.W)
+  val fusel      = FuType()
+  val op         = FuOpType()
+  val reg_wen    = Bool()
+  val reg_waddr  = UInt(REG_ADDR_WID.W)
+  val imm        = UInt(XLEN.W)
+  val dual_issue = Bool()
+  val inst       = UInt(INST_WID.W)
+  val mem_wreg   = Bool()
 }
 
 class MemRead extends Bundle {
@@ -107,14 +107,15 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   // read inst request from cpu
   val en      = Output(Bool())
   val ready   = Output(Bool())
-  val addr    = Output(Vec(config.instFetchNum,UInt(INST_ADDR_WID.W))) // virtual address and next virtual address
+  val addr    = Output(Vec(config.instFetchNum, UInt(INST_ADDR_WID.W))) // virtual address and next virtual address
   val fence_i = Output(Bool())
 
   // read inst result
-  val rdata   = Input(Vec(config.instFetchNum,UInt(INST_WID.W)))
-  val valid   = Input(Vec(config.instFetchNum,Bool()))
-  val acc_err = Input(Bool())
-  val stall   = Input(Bool())
+  val rdata    = Input(Vec(config.instFetchNum, UInt(INST_WID.W)))
+  val valid    = Input(Vec(config.instFetchNum, Bool()))
+  val acc_err  = Input(Bool())
+  val addr_err = Input(Bool())
+  val stall    = Input(Bool())
 }
 
 // cpu to dcache

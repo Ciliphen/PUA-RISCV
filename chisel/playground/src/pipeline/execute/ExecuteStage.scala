@@ -7,6 +7,7 @@ import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
 
 class IdExeInst0 extends Bundle {
+  val valid     = Bool()
   val config    = new BranchPredictorConfig()
   val pc        = UInt(PC_WID.W)
   val inst_info = new InstInfo()
@@ -24,6 +25,7 @@ class IdExeInst0 extends Bundle {
 }
 
 class IdExeInst1 extends Bundle {
+  val valid       = Bool()
   val allow_to_go = Bool()
   val pc          = UInt(PC_WID.W)
   val inst_info   = new InstInfo()

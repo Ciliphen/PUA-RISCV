@@ -10,13 +10,14 @@ class BufferUnit extends Bundle {
   val inst      = UInt(INST_WID.W)
   val pht_index = UInt(bpuConfig.phtDepth.W)
   val acc_err   = Bool()
+  val addr_err  = Bool()
   val pc        = UInt(PC_WID.W)
 }
 
 class InstFifo(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val do_flush              = Input(Bool())
-    val icache_stall          = Input(Bool())
+    val do_flush     = Input(Bool())
+    val icache_stall = Input(Bool())
 
     val ren  = Input(Vec(config.decoderNum, Bool()))
     val read = Output(Vec(config.decoderNum, new BufferUnit()))
@@ -46,7 +47,7 @@ class InstFifo(implicit val config: CpuConfig) extends Module {
   io.read(0) := MuxCase(
     buffer(deq_ptr),
     Seq(
-      io.empty -> 0.U.asTypeOf(new BufferUnit()),
+      io.empty        -> 0.U.asTypeOf(new BufferUnit()),
       io.almost_empty -> buffer(deq_ptr)
     )
   )
@@ -61,8 +62,8 @@ class InstFifo(implicit val config: CpuConfig) extends Module {
     0.U,
     Seq(
       (io.empty) -> 0.U,
-      io.ren(1) -> 2.U,
-      io.ren(0) -> 1.U
+      io.ren(1)  -> 2.U,
+      io.ren(0)  -> 1.U
     )
   )
 

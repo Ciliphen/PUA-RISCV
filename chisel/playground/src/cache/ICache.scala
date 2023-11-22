@@ -18,6 +18,7 @@ class ICache(implicit config: CpuConfig) extends Module {
   val status                                  = RegInit(s_idle)
 
   io.cpu.valid.map(_ := status === s_finishwait)
+  io.cpu.addr_err := io.cpu.addr(0)(1, 0).orR
   val addr_err = io.cpu.addr(0).orR
 
   // default
