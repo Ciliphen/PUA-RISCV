@@ -97,7 +97,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.bpu.branch_inst      := io.executeStage.inst0.jb_info.branch_inst
 
   io.fetchUnit.branch := io.ctrl.allow_to_go &&
-    (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail)
+    (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail) && io.executeStage.inst0.valid
   io.fetchUnit.target := MuxCase(
     io.executeStage.inst0.pc + 4.U, // 默认顺序运行吧
     Seq(

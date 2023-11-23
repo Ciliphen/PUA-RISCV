@@ -9,10 +9,10 @@ verilog:
 	mkdir -p $(BUILD_DIR)
 	mill -i __.test.runMain Elaborate -td $(BUILD_DIR)
 
-func:
-	$(MAKE) verilog
-	cp $(BUILD_DIR)/PuaCpu.v $(DIFF_DIR)
-	cd $(DIFF_WORK_DIR) && make func
+# func:
+# 	$(MAKE) verilog
+# 	cp $(BUILD_DIR)/PuaCpu.v $(DIFF_DIR)
+# 	cd $(DIFF_WORK_DIR) && make func
 
 test:
 	@echo "make test"
