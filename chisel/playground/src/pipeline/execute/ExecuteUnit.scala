@@ -111,7 +111,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst0.inst_info                 := io.executeStage.inst0.inst_info
   io.memoryStage.inst0.rd_info.wdata(FuType.alu) := fu.inst(0).result.alu
   io.memoryStage.inst0.rd_info.wdata(FuType.mdu) := fu.inst(0).result.mdu
-  io.memoryStage.inst0.rd_info.wdata(FuType.csr) := io.csr.out.rdata
+  io.memoryStage.inst0.rd_info.wdata(FuType.csr) := io.csr.out.rdata(0)
   io.memoryStage.inst0.rd_info.wdata(FuType.lsu) := 0.U
   io.memoryStage.inst0.rd_info.wdata(FuType.mou) := 0.U
   io.memoryStage.inst0.ex := MuxLookup(io.executeStage.inst0.inst_info.fusel, fu.inst(0).ex.out)(
@@ -125,7 +125,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst1.inst_info                 := io.executeStage.inst1.inst_info
   io.memoryStage.inst1.rd_info.wdata(FuType.alu) := fu.inst(1).result.alu
   io.memoryStage.inst1.rd_info.wdata(FuType.mdu) := fu.inst(1).result.mdu
-  io.memoryStage.inst1.rd_info.wdata(FuType.csr) := io.csr.out.rdata
+  io.memoryStage.inst1.rd_info.wdata(FuType.csr) := io.csr.out.rdata(1)
   io.memoryStage.inst1.rd_info.wdata(FuType.lsu) := 0.U
   io.memoryStage.inst1.rd_info.wdata(FuType.mou) := 0.U
   io.memoryStage.inst1.ex := MuxLookup(io.executeStage.inst1.inst_info.fusel, fu.inst(1).ex.out)(
@@ -137,11 +137,11 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
 
   io.decoderUnit.forward(0).exe.wen      := io.memoryStage.inst0.inst_info.reg_wen
   io.decoderUnit.forward(0).exe.waddr    := io.memoryStage.inst0.inst_info.reg_waddr
-  io.decoderUnit.forward(0).exe.wdata    := io.memoryStage.inst0.rd_info.wdata
+  io.decoderUnit.forward(0).exe.wdata    := io.memoryStage.inst0.rd_info.wdata(io.memoryStage.inst0.inst_info.fusel)
   io.decoderUnit.forward(0).exe_mem_wreg := io.memoryStage.inst0.inst_info.mem_wreg
 
   io.decoderUnit.forward(1).exe.wen      := io.memoryStage.inst1.inst_info.reg_wen
   io.decoderUnit.forward(1).exe.waddr    := io.memoryStage.inst1.inst_info.reg_waddr
-  io.decoderUnit.forward(1).exe.wdata    := io.memoryStage.inst1.rd_info.wdata
+  io.decoderUnit.forward(1).exe.wdata    := io.memoryStage.inst1.rd_info.wdata(io.memoryStage.inst1.inst_info.fusel)
   io.decoderUnit.forward(1).exe_mem_wreg := io.memoryStage.inst1.inst_info.mem_wreg
 }

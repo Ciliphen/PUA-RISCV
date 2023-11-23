@@ -12,6 +12,12 @@ class ExceptionInfo extends Bundle {
   val tval      = UInt(XLEN.W)
 }
 
+class ExtInterrupt extends Bundle {
+  val ei = Bool()
+  val ti = Bool()
+  val si = Bool()
+}
+
 class SrcInfo extends Bundle {
   val src1_data = UInt(XLEN.W)
   val src2_data = UInt(XLEN.W)

@@ -47,30 +47,24 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
 
   io.decoderUnit(0).wen   := io.writeBackStage.inst0.inst_info.reg_wen
   io.decoderUnit(0).waddr := io.writeBackStage.inst0.inst_info.reg_waddr
-  io.decoderUnit(0).wdata := io.writeBackStage.inst0.rd_info.wdata
+  io.decoderUnit(0).wdata := io.writeBackStage.inst0.rd_info.wdata(io.writeBackStage.inst0.inst_info.fusel)
   io.decoderUnit(1).wen   := io.writeBackStage.inst1.inst_info.reg_wen
   io.decoderUnit(1).waddr := io.writeBackStage.inst1.inst_info.reg_waddr
-  io.decoderUnit(1).wdata := io.writeBackStage.inst1.rd_info.wdata
+  io.decoderUnit(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.inst_info.fusel)
 
-  io.writeBackStage.inst0.pc        := io.memoryStage.inst0.pc
-  io.writeBackStage.inst0.inst_info := io.memoryStage.inst0.inst_info
-  io.writeBackStage.inst0.rd_info.wdata := Mux(
-    io.writeBackStage.inst0.inst_info.mem_wreg,
-    dataMemoryAccess.memoryUnit.out.rdata,
-    io.memoryStage.inst0.rd_info.wdata
-  )
-  io.writeBackStage.inst0.ex        := io.memoryStage.inst0.ex
-  io.writeBackStage.inst0.ex.exception := io.memoryStage.inst0.ex.exception
+  io.writeBackStage.inst0.pc                        := io.memoryStage.inst0.pc
+  io.writeBackStage.inst0.inst_info                 := io.memoryStage.inst0.inst_info
+  io.writeBackStage.inst0.rd_info.wdata             := io.memoryStage.inst0.rd_info.wdata
+  io.writeBackStage.inst0.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
+  io.writeBackStage.inst0.ex                        := io.memoryStage.inst0.ex
+  io.writeBackStage.inst0.ex.exception              := io.memoryStage.inst0.ex.exception
 
-  io.writeBackStage.inst1.pc        := io.memoryStage.inst1.pc
-  io.writeBackStage.inst1.inst_info := io.memoryStage.inst1.inst_info
-  io.writeBackStage.inst1.rd_info.wdata := Mux(
-    io.writeBackStage.inst1.inst_info.mem_wreg,
-    dataMemoryAccess.memoryUnit.out.rdata,
-    io.memoryStage.inst1.rd_info.wdata
-  )
-  io.writeBackStage.inst1.ex        := io.memoryStage.inst1.ex
-  io.writeBackStage.inst1.ex.exception := io.memoryStage.inst1.ex.exception
+  io.writeBackStage.inst1.pc                        := io.memoryStage.inst1.pc
+  io.writeBackStage.inst1.inst_info                 := io.memoryStage.inst1.inst_info
+  io.writeBackStage.inst1.rd_info.wdata             := io.memoryStage.inst1.rd_info.wdata
+  io.writeBackStage.inst1.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
+  io.writeBackStage.inst1.ex                        := io.memoryStage.inst1.ex
+  io.writeBackStage.inst1.ex.exception              := io.memoryStage.inst1.ex.exception
 
   io.csr.in.inst(0).pc := io.writeBackStage.inst0.pc
   io.csr.in.inst(0).ex := io.writeBackStage.inst0.ex

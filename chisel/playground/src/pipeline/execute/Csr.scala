@@ -45,7 +45,7 @@ class CsrDecoderUnit extends Bundle {
 
 class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val io = IO(new Bundle {
-    val ext_int = Input(UInt(EXT_INT_WID.W))
+    val ext_int = Input(new ExtInterrupt())
     val ctrl = Input(new Bundle {
       val exe_stall = Bool()
       val mem_stall = Bool()
@@ -68,12 +68,12 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val mstatus_init = Wire(new Mstatus())
   mstatus_init     := 0.U.asTypeOf(new Mstatus())
   mstatus_init.uxl := 2.U
-  val mstatus   = RegInit(mstatus_init.asUInt) // 状态寄存器
+  val mstatus   = RegInit(UInt(XLEN.W), mstatus_init.asUInt) // 状态寄存器
   val misa_init = Wire(new Misa())
   misa_init            := 0.U.asTypeOf(new Misa())
   misa_init.mxl        := 2.U
   misa_init.extensions := "h101100".U
-  val misa       = RegInit(misa_init.asUInt) // ISA寄存器
+  val misa       = RegInit(UInt(XLEN.W), misa_init.asUInt) // ISA寄存器
   val mie        = RegInit(0.U(XLEN.W)) // 中断使能寄存器
   val mtvec      = RegInit(0.U(XLEN.W)) // 中断向量基址寄存器
   val mcounteren = RegInit(0.U(XLEN.W)) // 计数器使能寄存器
