@@ -11,7 +11,7 @@ case class CpuConfig(
   val hasSMode: Boolean = false, // 是否有S模式
   val hasUMode: Boolean = false, // 是否有U模式
   // 模块配置
-  val hasCommitBuffer: Boolean = false, // 是否有提交缓存
+  val hasCommitBuffer: Boolean = true, // 是否有提交缓存
   val decoderNum:      Int     = 2, // 同时访问寄存器的指令数
   val commitNum:       Int     = 2, // 同时提交的指令数
   val fuNum:           Int     = 2, // 功能单元数

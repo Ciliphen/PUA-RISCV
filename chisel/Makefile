@@ -10,7 +10,8 @@ verilog:
 	mill -i __.test.runMain Elaborate -td $(BUILD_DIR)
 
 func:
-	# cp $(BUILD_DIR)/PuaCpu.v $(DIFF_DIR)
+	$(MAKE) verilog
+	cp $(BUILD_DIR)/PuaCpu.v $(DIFF_DIR)
 	cd $(DIFF_WORK_DIR) && make func
 
 test:
