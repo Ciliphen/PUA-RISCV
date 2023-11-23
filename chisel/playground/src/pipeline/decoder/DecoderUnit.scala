@@ -127,21 +127,21 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     forwardCtrl.out.inst(0).src2.rdata,
     decoder(0).io.out.inst_info.imm
   )
-  io.executeStage.inst0.ex.excode.map(_                := false.B)
-  io.executeStage.inst0.ex.excode(illegalInstr)        := !inst_info(0).inst_valid
-  io.executeStage.inst0.ex.excode(instrAccessFault)    := io.instFifo.inst(0).acc_err
-  io.executeStage.inst0.ex.excode(instrAddrMisaligned) := io.instFifo.inst(0).addr_err
-  io.executeStage.inst0.ex.excode(breakPoint) := inst_info(0).inst(31, 20) === privEbreak &&
+  io.executeStage.inst0.ex.exception.map(_                := false.B)
+  io.executeStage.inst0.ex.exception(illegalInstr)        := !inst_info(0).inst_valid
+  io.executeStage.inst0.ex.exception(instrAccessFault)    := io.instFifo.inst(0).acc_err
+  io.executeStage.inst0.ex.exception(instrAddrMisaligned) := io.instFifo.inst(0).addr_err
+  io.executeStage.inst0.ex.exception(breakPoint) := inst_info(0).inst(31, 20) === privEbreak &&
     inst_info(0).op === CSROpType.jmp
-  io.executeStage.inst0.ex.excode(ecallM) := inst_info(0).inst(31, 20) === privEcall &&
+  io.executeStage.inst0.ex.exception(ecallM) := inst_info(0).inst(31, 20) === privEcall &&
     inst_info(0).op === CSROpType.jmp && priv_mode === ModeM
-  io.executeStage.inst0.ex.excode(ecallS) := inst_info(0).inst(31, 20) === privEcall &&
+  io.executeStage.inst0.ex.exception(ecallS) := inst_info(0).inst(31, 20) === privEcall &&
     inst_info(0).op === CSROpType.jmp && priv_mode === ModeS
-  io.executeStage.inst0.ex.excode(ecallU) := inst_info(0).inst(31, 20) === privEcall &&
+  io.executeStage.inst0.ex.exception(ecallU) := inst_info(0).inst(31, 20) === privEcall &&
     inst_info(0).op === CSROpType.jmp && priv_mode === ModeU
 
   io.executeStage.inst0.ex.tval := Mux(
-    io.executeStage.inst0.ex.excode(instrAccessFault) || io.executeStage.inst0.ex.excode(instrAddrMisaligned),
+    io.executeStage.inst0.ex.exception(instrAccessFault) || io.executeStage.inst0.ex.exception(instrAddrMisaligned),
     io.instFifo.inst(0).pc,
     0.U
   )
@@ -165,21 +165,21 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
       forwardCtrl.out.inst(1).src2.rdata,
       decoder(1).io.out.inst_info.imm
     )
-    io.executeStage.inst1.ex.excode.map(_                := false.B)
-    io.executeStage.inst1.ex.excode(illegalInstr)        := !inst_info(1).inst_valid
-    io.executeStage.inst1.ex.excode(instrAccessFault)    := io.instFifo.inst(1).acc_err
-    io.executeStage.inst1.ex.excode(instrAddrMisaligned) := io.instFifo.inst(1).addr_err
-    io.executeStage.inst1.ex.excode(breakPoint) := inst_info(1).inst(31, 20) === privEbreak &&
+    io.executeStage.inst1.ex.exception.map(_                := false.B)
+    io.executeStage.inst1.ex.exception(illegalInstr)        := !inst_info(1).inst_valid
+    io.executeStage.inst1.ex.exception(instrAccessFault)    := io.instFifo.inst(1).acc_err
+    io.executeStage.inst1.ex.exception(instrAddrMisaligned) := io.instFifo.inst(1).addr_err
+    io.executeStage.inst1.ex.exception(breakPoint) := inst_info(1).inst(31, 20) === privEbreak &&
     inst_info(1).op === CSROpType.jmp
-    io.executeStage.inst1.ex.excode(ecallM) := inst_info(1).inst(31, 20) === privEcall &&
+    io.executeStage.inst1.ex.exception(ecallM) := inst_info(1).inst(31, 20) === privEcall &&
     inst_info(1).op === CSROpType.jmp && priv_mode === ModeM
-    io.executeStage.inst1.ex.excode(ecallS) := inst_info(1).inst(31, 20) === privEcall &&
+    io.executeStage.inst1.ex.exception(ecallS) := inst_info(1).inst(31, 20) === privEcall &&
     inst_info(1).op === CSROpType.jmp && priv_mode === ModeS
-    io.executeStage.inst1.ex.excode(ecallU) := inst_info(1).inst(31, 20) === privEcall &&
+    io.executeStage.inst1.ex.exception(ecallU) := inst_info(1).inst(31, 20) === privEcall &&
     inst_info(1).op === CSROpType.jmp && priv_mode === ModeU
 
     io.executeStage.inst1.ex.tval := Mux(
-      io.executeStage.inst1.ex.excode(instrAccessFault) || io.executeStage.inst1.ex.excode(instrAddrMisaligned),
+      io.executeStage.inst1.ex.exception(instrAccessFault) || io.executeStage.inst1.ex.exception(instrAddrMisaligned),
       io.instFifo.inst(1).pc,
       0.U
     )

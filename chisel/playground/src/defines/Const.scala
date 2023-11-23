@@ -19,7 +19,7 @@ trait Constants extends CoreParameter {
 
   val EXT_INT_WID = 3
   val INT_WID     = 12
-  val EXCODE_WID  = 16
+  val EXC_WID     = 16
 
   // div
   val DIV_CTRL_WID         = 2

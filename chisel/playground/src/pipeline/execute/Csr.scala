@@ -183,8 +183,8 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val priv_mode = RegInit(Priv.m) // 当前特权模式
 
   // 优先使用inst0的信息
-  val exc_sel = io.memoryUnit.in.inst(0).ex.excode.asUInt.orR ||
-    !io.memoryUnit.in.inst(1).ex.excode.asUInt.orR
+  val exc_sel = io.memoryUnit.in.inst(0).ex.exception.asUInt.orR ||
+    !io.memoryUnit.in.inst(1).ex.exception.asUInt.orR
   val pc        = Mux(exc_sel, io.memoryUnit.in.inst(0).pc, io.memoryUnit.in.inst(1).pc)
   val exc       = Mux(exc_sel, io.memoryUnit.in.inst(0).ex, io.memoryUnit.in.inst(1).ex)
   val valid     = io.executeUnit.in.valid(0)

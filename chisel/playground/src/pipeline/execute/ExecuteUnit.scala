@@ -45,7 +45,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail)
 
   io.csr.in.inst_info(0) := Mux(
-    !io.executeStage.inst0.ex.excode.asUInt.orR,
+    !io.executeStage.inst0.ex.exception.asUInt.orR,
     io.executeStage.inst0.inst_info,
     0.U.asTypeOf(new InstInfo())
   )
