@@ -64,4 +64,5 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
       io.regfile(1).wdata
     )
   }
+  io.debug.wb_rf_wen := io.ctrl.allow_to_go
 }
