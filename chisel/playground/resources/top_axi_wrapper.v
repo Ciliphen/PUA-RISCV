@@ -46,53 +46,52 @@ module top_axi_wrapper(
     output[63:0]debug_wdata
 );
 
-
-RiscVTop core(
-    .aclk       (clock),
-    .aresetn    (~reset),
+PuaCpu core(
+    .clock              (clock),
+    .reset              (reset),
     // Interrupts
-    .MEI        (MEI), // to PLIC
-    .MSI        (MSI), // to CLINT
-    .MTI        (MTI), // to CLINT
+    .io_ext_int_ei      (MEI), // to PLIC
+    .io_ext_int_si      (MSI), // to CLINT
+    .io_ext_int_ti      (MTI), // to CLINT
     // aw
-    .awid       (MAXI_awid),
-    .awaddr     (MAXI_awaddr),
-    .awlen      (MAXI_awlen),
-    .awsize     (MAXI_awsize),
-    .awburst    (MAXI_awburst),
-    .awvalid    (MAXI_awvalid),
-    .awready    (MAXI_awready),
+    .io_axi_aw_id       (MAXI_awid),
+    .io_axi_aw_addr     (MAXI_awaddr),
+    .io_axi_aw_len      (MAXI_awlen),
+    .io_axi_aw_size     (MAXI_awsize),
+    .io_axi_aw_burst    (MAXI_awburst),
+    .io_axi_aw_valid    (MAXI_awvalid),
+    .io_axi_aw_ready    (MAXI_awready),
     // w
-    .wdata      (MAXI_wdata),
-    .wstrb      (MAXI_wstrb),
-    .wlast      (MAXI_wlast),
-    .wvalid     (MAXI_wvalid),
-    .wready     (MAXI_wready),
+    .io_axi_w_data      (MAXI_wdata),
+    .io_axi_w_strb      (MAXI_wstrb),
+    .io_axi_w_last      (MAXI_wlast),
+    .io_axi_w_valid     (MAXI_wvalid),
+    .io_axi_w_ready     (MAXI_wready),
     // b
-    .bid        (MAXI_bid),
-    .bresp      (MAXI_bresp),
-    .bvalid     (MAXI_bvalid),
-    .bready     (MAXI_bready),
+    .io_axi_b_id        (MAXI_bid),
+    .io_axi_b_resp      (MAXI_bresp),
+    .io_axi_b_valid     (MAXI_bvalid),
+    .io_axi_b_ready     (MAXI_bready),
     // ar
-    .arid       (MAXI_arid),
-    .araddr     (MAXI_araddr),
-    .arlen      (MAXI_arlen),
-    .arsize     (MAXI_arsize),
-    .arburst    (MAXI_arburst),
-    .arvalid    (MAXI_arvalid),
-    .arready    (MAXI_arready),
+    .io_axi_ar_id       (MAXI_arid),
+    .io_axi_ar_addr     (MAXI_araddr),
+    .io_axi_ar_len      (MAXI_arlen),
+    .io_axi_ar_size     (MAXI_arsize),
+    .io_axi_ar_burst    (MAXI_arburst),
+    .io_axi_ar_valid    (MAXI_arvalid),
+    .io_axi_ar_ready    (MAXI_arready),
     // r
-    .rid        (MAXI_rid),
-    .rdata      (MAXI_rdata),
-    .rresp      (MAXI_rresp),
-    .rlast      (MAXI_rlast),
-    .rvalid     (MAXI_rvalid),
-    .rready     (MAXI_rready),
+    .io_axi_r_id        (MAXI_rid),
+    .io_axi_r_data      (MAXI_rdata),
+    .io_axi_r_resp      (MAXI_rresp),
+    .io_axi_r_last      (MAXI_rlast),
+    .io_axi_r_valid     (MAXI_rvalid),
+    .io_axi_r_ready     (MAXI_rready),
     // debug
-    .debug_commit   (debug_commit),
-    .debug_pc       (debug_pc),
-    .debug_reg_num  (debug_reg_num),
-    .debug_wdata    (debug_wdata)
+    .debug_commit       (debug_commit),
+    .debug_pc           (debug_pc),
+    .debug_reg_num      (debug_reg_num),
+    .debug_wdata        (debug_wdata)
 );
 
 endmodule

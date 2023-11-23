@@ -1,4 +1,6 @@
 BUILD_DIR = ./build
+DIFF_DIR = ./difftest/core
+DIFF_WORK_DIR = ./difftest/test/test_workbench/sim
 
 export PATH := $(PATH):$(abspath ./utils)
 
@@ -6,6 +8,10 @@ verilog:
 	$(MAKE) clean
 	mkdir -p $(BUILD_DIR)
 	mill -i __.test.runMain Elaborate -td $(BUILD_DIR)
+
+func:
+	# cp $(BUILD_DIR)/PuaCpu.v $(DIFF_DIR)
+	cd $(DIFF_WORK_DIR) && make func
 
 test:
 	@echo "make test"

@@ -13,7 +13,6 @@ class Fu(implicit val config: CpuConfig) extends Module {
       config.decoderNum,
       new Bundle {
         val pc        = Input(UInt(PC_WID.W))
-        val hilo_wen  = Input(Bool())
         val mul_en    = Input(Bool())
         val div_en    = Input(Bool())
         val inst_info = Input(new InstInfo())
@@ -28,7 +27,6 @@ class Fu(implicit val config: CpuConfig) extends Module {
         })
       }
     )
-    val csr_rdata = Input(Vec(config.fuNum, UInt(DATA_WID.W)))
     val stall_req = Output(Bool())
     val branch = new Bundle {
       val pred_branch = Input(Bool())
@@ -55,7 +53,6 @@ class Fu(implicit val config: CpuConfig) extends Module {
     // alu(i).io.mul.ready         := mul.ready
     // alu(i).io.div.ready         := div.ready
     // alu(i).io.div.result        := div.result
-    alu(i).io.csr_rdata      := io.csr_rdata(i)
     io.inst(i).ex.out        := io.inst(i).ex.in
     io.inst(i).ex.out.exception := io.inst(i).ex.in.exception
   }

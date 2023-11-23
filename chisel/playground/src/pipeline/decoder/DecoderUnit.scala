@@ -103,10 +103,6 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.ctrl.inst0.src2.raddr := decoder(0).io.out.inst_info.reg2_raddr
   io.ctrl.branch           := inst0_branch
 
-  val int = WireInit(0.U(INT_WID.W))
-  BoringUtils.addSink(int, "intDecoderUnit")
-  io.executeStage.inst0.ex.interrupt.zip(int.asBools).map { case (x, y) => x := y }
-
   io.executeStage.inst0.valid     := !io.instFifo.info.empty
   io.executeStage.inst0.pc        := pc(0)
   io.executeStage.inst0.inst_info := inst_info(0)
@@ -120,6 +116,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     forwardCtrl.out.inst(0).src2.rdata,
     decoder(0).io.out.inst_info.imm
   )
+  (0 until (INT_WID)).foreach(i => io.executeStage.inst0.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst0.ex.exception.map(_                := false.B)
   io.executeStage.inst0.ex.exception(illegalInstr)        := !inst_info(0).inst_valid
   io.executeStage.inst0.ex.exception(instrAccessFault)    := io.instFifo.inst(0).acc_err
@@ -157,6 +154,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     forwardCtrl.out.inst(1).src2.rdata,
     decoder(1).io.out.inst_info.imm
   )
+  (0 until (INT_WID)).foreach(i => io.executeStage.inst1.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst1.ex.exception.map(_                := false.B)
   io.executeStage.inst1.ex.exception(illegalInstr)        := !inst_info(1).inst_valid
   io.executeStage.inst1.ex.exception(instrAccessFault)    := io.instFifo.inst(1).acc_err

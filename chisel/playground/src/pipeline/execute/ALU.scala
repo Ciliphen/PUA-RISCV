@@ -23,7 +23,6 @@ class Alu extends Module {
   val io = IO(new Bundle {
     val inst_info = Input(new InstInfo())
     val src_info  = Input(new SrcInfo())
-    val csr_rdata = Input(UInt(DATA_WID.W))
     val result    = Output(UInt(DATA_WID.W))
   })
   val op     = io.inst_info.op

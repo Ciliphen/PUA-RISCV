@@ -25,22 +25,20 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
 
 class CsrExecuteUnit(implicit val config: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
-    val valid     = Vec(config.fuNum, Bool())
-    val inst_info = Vec(config.fuNum, new InstInfo())
-    val src_info  = Vec(config.fuNum, new SrcInfo())
-    val wdata     = UInt(DATA_WID.W)
+    val valid     = Bool()
+    val inst_info = new InstInfo()
+    val src_info  = new SrcInfo()
+    val ex        = new ExceptionInfo()
   })
   val out = Output(new Bundle {
-    val rdata    = Vec(config.fuNum, UInt(DATA_WID.W))
-    val trap_ill = Bool()
-    val ex       = Vec(config.fuNum, new ExceptionInfo())
+    val rdata = UInt(DATA_WID.W)
+    val ex    = new ExceptionInfo()
   })
 }
 
 class CsrDecoderUnit extends Bundle {
   val priv_mode = Output(Priv())
-  val irq       = Output(Bool())
-  val irq_type  = Output(UInt(4.W))
+  val interrupt = Output(UInt(INT_WID.W))
 }
 
 class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
@@ -168,32 +166,37 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     // MaskedRegMap(PmpaddrBase + 3, pmpaddr3, pmpaddrWmask)
   ) //++ perfCntsLoMapping
 
-  // interrupts
+  val priv_mode = RegInit(Priv.m) // 当前特权模式
 
-  val mtip = WireInit(false.B)
-  val meip = WireInit(false.B)
-  val msip = WireInit(false.B)
-  BoringUtils.addSink(mtip, "mtip")
-  BoringUtils.addSink(meip, "meip")
-  BoringUtils.addSink(msip, "msip")
+  // interrupts
+  val mtip = io.ext_int.ti
+  val meip = io.ext_int.ei
+  val msip = io.ext_int.si
   mipWire.t.m := mtip
   mipWire.e.m := meip
   mipWire.s.m := msip
-
-  val priv_mode = RegInit(Priv.m) // 当前特权模式
+  val seip              = meip
+  val mip_has_interrupt = WireInit(mip)
+  mip_has_interrupt.e.s := mip.e.s | seip
+  val interrupt_enable = Wire(UInt(INT_WID.W)) // 不用考虑ideleg
+  interrupt_enable := Fill(
+    INT_WID,
+    (((priv_mode === ModeM) && mstatus.asTypeOf(new Mstatus()).mie) || (priv_mode < ModeM))
+  )
+  io.decoderUnit.interrupt := mie(11, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
 
   // 优先使用inst0的信息
   val exc_sel = io.memoryUnit.in.inst(0).ex.exception.asUInt.orR ||
     !io.memoryUnit.in.inst(1).ex.exception.asUInt.orR
   val pc        = Mux(exc_sel, io.memoryUnit.in.inst(0).pc, io.memoryUnit.in.inst(1).pc)
   val exc       = Mux(exc_sel, io.memoryUnit.in.inst(0).ex, io.memoryUnit.in.inst(1).ex)
-  val valid     = io.executeUnit.in.valid(0)
-  val op        = io.executeUnit.in.inst_info(0).op
-  val fusel     = io.executeUnit.in.inst_info(0).fusel
-  val addr      = io.executeUnit.in.inst_info(0).inst(31, 20)
+  val valid     = io.executeUnit.in.valid
+  val op        = io.executeUnit.in.inst_info.op
+  val fusel     = io.executeUnit.in.inst_info.fusel
+  val addr      = io.executeUnit.in.inst_info.inst(31, 20)
   val rdata     = Wire(UInt(XLEN.W))
-  val src1      = io.executeUnit.in.src_info(0).src1_data
-  val csri      = ZeroExtend(io.executeUnit.in.inst_info(0).inst(19, 15), XLEN)
+  val src1      = io.executeUnit.in.src_info.src1_data
+  val csri      = ZeroExtend(io.executeUnit.in.inst_info.inst(19, 15), XLEN)
   val exe_stall = io.ctrl.exe_stall
   val mem_stall = io.ctrl.mem_stall
   val wdata = LookupTree(
@@ -208,7 +211,6 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     )
   )
 
-  io.executeUnit.out.trap_ill := false.B
   //val satp_legal  = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
   val wen            = (valid && op =/= CSROpType.jmp) //&& (addr =/= Satp.U || satp_legal)
   val illegal_mode   = priv_mode < addr(9, 8)
@@ -233,8 +235,13 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val isUret = addr === privUret && op === CSROpType.jmp
   ret := isMret || isSret || isUret
 
-  val csrExceptionVec = Wire(Vec(16, Bool()))
-  csrExceptionVec.map(_         := false.B)
-  csrExceptionVec(illegalInstr) := (illegal_addr || illegal_access) && wen
+  io.executeUnit.out.ex                         := io.executeUnit.in.ex
+  io.executeUnit.out.ex.exception(illegalInstr) := (illegal_addr || illegal_access) && wen
+  io.executeUnit.out.rdata                      := rdata
+
+  io.decoderUnit.priv_mode                      := priv_mode
+
+  io.memoryUnit.out.flush := exc.exception.asUInt.orR || exc.interrupt.asUInt.orR
+  io.memoryUnit.out.flush_pc := mtvec
 
 }

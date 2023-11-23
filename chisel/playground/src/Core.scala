@@ -59,6 +59,7 @@ class Core(implicit val config: CpuConfig) extends Module {
 
   bpu.decoder.ena                  := ctrl.decoderUnit.allow_to_go
   bpu.decoder.op                   := decoderUnit.bpu.decoded_inst0.op
+  bpu.decoder.fusel                := decoderUnit.bpu.decoded_inst0.fusel
   bpu.decoder.inst                 := decoderUnit.bpu.decoded_inst0.inst
   bpu.decoder.rs1                  := decoderUnit.bpu.decoded_inst0.reg1_raddr
   bpu.decoder.rs2                  := decoderUnit.bpu.decoded_inst0.reg2_raddr
@@ -82,6 +83,8 @@ class Core(implicit val config: CpuConfig) extends Module {
     instFifo.wen(i)             := io.inst.valid(i)
     instFifo.write(i).pc        := io.inst.addr(0) + (i * 4).U
     instFifo.write(i).inst      := io.inst.rdata(i)
+    instFifo.write(i).acc_err   := io.inst.acc_err
+    instFifo.write(i).addr_err  := io.inst.addr_err
   }
 
   decoderUnit.instFifo.info.empty        := instFifo.empty
@@ -135,8 +138,10 @@ class Core(implicit val config: CpuConfig) extends Module {
 
   io.debug <> writeBackUnit.debug
 
-  // io.inst.fence_i        := executeUnit.executeStage.inst0.inst_info.ifence
-  // io.data.fence_i        := memoryUnit.memoryStage.inst0.inst_info.dfence
+  io.inst.fence_i := executeUnit.executeStage.inst0.inst_info.fusel === FuType.mou &&
+    executeUnit.executeStage.inst0.inst_info.op === MOUOpType.fencei
+  io.data.fence_i := memoryUnit.memoryStage.inst0.inst_info.fusel === FuType.mou &&
+    memoryUnit.memoryStage.inst0.inst_info.op === MOUOpType.fencei
   io.inst.en    := !instFifo.full
   io.inst.ready := !ctrl.fetchUnit.allow_to_go
   io.data.ready := !ctrl.memoryUnit.allow_to_go
