@@ -28,7 +28,8 @@ class RdInfo extends Bundle {
 }
 
 class InstInfo extends Bundle {
-  val inst_valid = Bool()
+  val valid      = Bool()
+  val inst_legal = Bool()
   val reg1_ren   = Bool()
   val reg1_raddr = UInt(REG_ADDR_WID.W)
   val reg2_ren   = Bool()
@@ -38,7 +39,6 @@ class InstInfo extends Bundle {
   val reg_wen    = Bool()
   val reg_waddr  = UInt(REG_ADDR_WID.W)
   val imm        = UInt(XLEN.W)
-  val dual_issue = Bool()
   val inst       = UInt(INST_WID.W)
   val mem_wreg   = Bool()
 }

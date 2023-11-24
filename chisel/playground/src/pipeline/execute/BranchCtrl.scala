@@ -17,6 +17,8 @@ class BranchCtrl extends Module {
       val pred_fail = Output(Bool())
     }
   })
+  val valid =
+    io.in.inst_info.fusel === FuType.bru && ALUOpType.isBranch(io.in.inst_info.op) && io.in.inst_info.valid
   val src1   = io.in.src_info.src1_data
   val src2   = io.in.src_info.src2_data
   val op     = io.in.inst_info.op
@@ -31,5 +33,6 @@ class BranchCtrl extends Module {
     ALUOpType.getBranchType(ALUOpType.bltu) -> sltu
   )
   io.out.pred_fail := io.in.pred_branch =/= io.out.branch
-  io.out.branch    := LookupTree(ALUOpType.getBranchType(op), table) ^ ALUOpType.isBranchInvert(op)
+  io.out.branch := (LookupTree(ALUOpType.getBranchType(op), table) ^
+    ALUOpType.isBranchInvert(op)) & valid
 }

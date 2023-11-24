@@ -50,8 +50,6 @@ class Issue(implicit val config: CpuConfig) extends Module {
     // 指令1是否允许执行
     io.inst1.allow_to_go := io.allow_to_go &&
     !instFifo_invalid &&
-    inst0.dual_issue &&
-    inst1.dual_issue &&
     !struct_conflict &&
     !data_conflict &&
     !VecInit(FuType.bru, FuType.mou).contains(io.decodeInst(1).fusel)

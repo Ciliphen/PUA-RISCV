@@ -103,9 +103,9 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.ctrl.inst0.src2.raddr := decoder(0).io.out.inst_info.reg2_raddr
   io.ctrl.branch           := inst0_branch
 
-  io.executeStage.inst0.valid     := !io.instFifo.info.empty
-  io.executeStage.inst0.pc        := pc(0)
-  io.executeStage.inst0.inst_info := inst_info(0)
+  io.executeStage.inst0.pc              := pc(0)
+  io.executeStage.inst0.inst_info       := inst_info(0)
+  io.executeStage.inst0.inst_info.valid := !io.instFifo.info.empty
   io.executeStage.inst0.src_info.src1_data := Mux(
     inst_info(0).reg1_ren,
     forwardCtrl.out.inst(0).src1.rdata,
@@ -118,7 +118,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   )
   (0 until (INT_WID)).foreach(i => io.executeStage.inst0.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst0.ex.exception.map(_                := false.B)
-  io.executeStage.inst0.ex.exception(illegalInstr)        := !inst_info(0).inst_valid
+  io.executeStage.inst0.ex.exception(illegalInstr)        := !inst_info(0).inst_legal
   io.executeStage.inst0.ex.exception(instrAccessFault)    := io.instFifo.inst(0).acc_err
   io.executeStage.inst0.ex.exception(instrAddrMisaligned) := io.instFifo.inst(0).addr_err
   io.executeStage.inst0.ex.exception(breakPoint) := inst_info(0).inst(31, 20) === privEbreak &&
@@ -141,9 +141,9 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.jb_info.branch_target    := io.bpu.branch_target
   io.executeStage.inst0.jb_info.update_pht_index := io.bpu.update_pht_index
 
-  io.executeStage.inst1.valid     := !io.instFifo.info.almost_empty
-  io.executeStage.inst1.pc        := pc(1)
-  io.executeStage.inst1.inst_info := inst_info(1)
+  io.executeStage.inst1.pc              := pc(1)
+  io.executeStage.inst1.inst_info       := inst_info(1)
+  io.executeStage.inst1.inst_info.valid := !io.instFifo.info.almost_empty && !io.instFifo.info.empty
   io.executeStage.inst1.src_info.src1_data := Mux(
     inst_info(1).reg1_ren,
     forwardCtrl.out.inst(1).src1.rdata,
@@ -156,7 +156,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   )
   (0 until (INT_WID)).foreach(i => io.executeStage.inst1.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst1.ex.exception.map(_                := false.B)
-  io.executeStage.inst1.ex.exception(illegalInstr)        := !inst_info(1).inst_valid
+  io.executeStage.inst1.ex.exception(illegalInstr)        := !inst_info(1).inst_legal
   io.executeStage.inst1.ex.exception(instrAccessFault)    := io.instFifo.inst(1).acc_err
   io.executeStage.inst1.ex.exception(instrAddrMisaligned) := io.instFifo.inst(1).addr_err
   io.executeStage.inst1.ex.exception(breakPoint) := inst_info(1).inst(31, 20) === privEbreak &&

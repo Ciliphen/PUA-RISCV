@@ -36,15 +36,19 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   val fu            = Module(new Fu()).io
   val accessMemCtrl = Module(new ExeAccessMemCtrl()).io
 
+  val valid = VecInit(io.executeStage.inst0.inst_info.valid, io.executeStage.inst1.inst_info.valid)
+
   io.ctrl.inst(0).mem_wreg  := io.executeStage.inst0.inst_info.mem_wreg
   io.ctrl.inst(0).reg_waddr := io.executeStage.inst0.inst_info.reg_waddr
   io.ctrl.inst(1).mem_wreg  := io.executeStage.inst1.inst_info.mem_wreg
   io.ctrl.inst(1).reg_waddr := io.executeStage.inst1.inst_info.reg_waddr
-  io.ctrl.branch := io.ctrl.allow_to_go &&
+  io.ctrl.branch := valid(0) && io.ctrl.allow_to_go &&
     (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail)
 
-  val csr_sel0 = io.executeStage.inst0.inst_info.fusel === FuType.csr && !io.executeStage.inst0.ex.exception.asUInt.orR
-  val csr_sel1 = io.executeStage.inst1.inst_info.fusel === FuType.csr && !io.executeStage.inst1.ex.exception.asUInt.orR
+  val csr_sel0 = valid(0) && io.executeStage.inst0.inst_info.fusel === FuType.csr &&
+    !io.executeStage.inst0.ex.exception.asUInt.orR
+  val csr_sel1 = valid(1) && io.executeStage.inst1.inst_info.fusel === FuType.csr &&
+    !io.executeStage.inst1.ex.exception.asUInt.orR
   io.csr.in.valid := csr_sel0 || csr_sel1
   io.csr.in.inst_info := Mux(
     csr_sel0 && !csr_sel1,
@@ -96,8 +100,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.bpu.branch           := fu.branch.branch
   io.bpu.branch_inst      := io.executeStage.inst0.jb_info.branch_inst
 
-  io.fetchUnit.branch := io.ctrl.allow_to_go &&
-    (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail) && io.executeStage.inst0.valid
+  io.fetchUnit.branch := io.ctrl.branch
   io.fetchUnit.target := MuxCase(
     io.executeStage.inst0.pc + 4.U, // 默认顺序运行吧
     Seq(
