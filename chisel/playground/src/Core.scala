@@ -143,6 +143,6 @@ class Core(implicit val config: CpuConfig) extends Module {
   io.data.fence_i := memoryUnit.memoryStage.inst0.inst_info.fusel === FuType.mou &&
     memoryUnit.memoryStage.inst0.inst_info.op === MOUOpType.fencei
   io.inst.en    := !instFifo.full && !reset.asBool
-  io.inst.ready := !ctrl.fetchUnit.allow_to_go
-  io.data.ready := !ctrl.memoryUnit.allow_to_go
+  io.inst.ready := ctrl.fetchUnit.allow_to_go
+  io.data.ready := ctrl.memoryUnit.allow_to_go
 }
