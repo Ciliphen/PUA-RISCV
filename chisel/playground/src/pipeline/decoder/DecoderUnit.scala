@@ -74,17 +74,17 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   }
   io.executeStage.inst1.allow_to_go := issue.inst1.allow_to_go
 
-  io.regfile(0).src1.raddr  := decoder(0).io.out.inst_info.reg1_raddr
-  io.regfile(0).src2.raddr  := decoder(0).io.out.inst_info.reg2_raddr
-  io.regfile(1).src1.raddr  := decoder(1).io.out.inst_info.reg1_raddr
-  io.regfile(1).src2.raddr  := decoder(1).io.out.inst_info.reg2_raddr
-  forwardCtrl.in.forward    := io.forward
-  forwardCtrl.in.regfile    := io.regfile // TODO:这里的连接可能有问题
-  jumpCtrl.in.allow_to_go   := io.ctrl.allow_to_go
-  jumpCtrl.in.decoded_inst0 := decoder(0).io.out.inst_info
-  jumpCtrl.in.forward       := io.forward
-  jumpCtrl.in.pc            := io.instFifo.inst(0).pc
-  jumpCtrl.in.reg1_data     := io.regfile(0).src1.rdata
+  io.regfile(0).src1.raddr := decoder(0).io.out.inst_info.reg1_raddr
+  io.regfile(0).src2.raddr := decoder(0).io.out.inst_info.reg2_raddr
+  io.regfile(1).src1.raddr := decoder(1).io.out.inst_info.reg1_raddr
+  io.regfile(1).src2.raddr := decoder(1).io.out.inst_info.reg2_raddr
+  forwardCtrl.in.forward   := io.forward
+  forwardCtrl.in.regfile   := io.regfile // TODO:这里的连接可能有问题
+  jumpCtrl.in.allow_to_go  := io.ctrl.allow_to_go
+  jumpCtrl.in.inst_info    := decoder(0).io.out.inst_info
+  jumpCtrl.in.forward      := io.forward
+  jumpCtrl.in.pc           := io.instFifo.inst(0).pc
+  jumpCtrl.in.src_info     := io.executeStage.inst0.src_info
 
   val inst0_branch = jumpCtrl.out.jump || io.bpu.pred_branch
 
