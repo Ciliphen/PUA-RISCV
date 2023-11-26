@@ -14,21 +14,19 @@ class ICache(implicit config: CpuConfig) extends Module {
     val axi = new ICache_AXIInterface()
   })
 
-  val s_idle :: s_read :: s_finishwait :: Nil = Enum(3)
-  val status                                  = RegInit(s_idle)
+  val s_idle :: s_uncached :: s_save :: Nil = Enum(3)
+  val status                                = RegInit(s_idle)
 
-  io.cpu.inst_valid.map(_ := status === s_finishwait)
-  val read_next_addr = (status === s_idle || status === s_finishwait)
-  io.cpu.addr_err := io.cpu.addr(read_next_addr)(1, 0).orR
-  val addr_err = io.cpu.addr(read_next_addr)(63, 32).orR
-  val raddr    = Cat(io.cpu.addr(read_next_addr)(31, 2), 0.U(2.W))
+  val read_next_addr = (status === s_idle || status === s_save)
+  val addr_err       = io.cpu.addr(read_next_addr)(63, 32).orR
+  val pc             = Cat(io.cpu.addr(read_next_addr)(31, 2), 0.U(2.W))
 
   // default
   val arvalid = RegInit(false.B)
   val araddr  = RegInit(0.U(32.W))
   io.axi.ar.id    := 0.U
   io.axi.ar.addr  := araddr
-  io.axi.ar.len   := (config.instFetchNum - 1).U
+  io.axi.ar.len   := 0.U
   io.axi.ar.size  := 2.U
   io.axi.ar.lock  := 0.U
   io.axi.ar.burst := BURST_INCR.U
@@ -36,53 +34,56 @@ class ICache(implicit config: CpuConfig) extends Module {
   io.axi.ar.prot  := 0.U
   io.axi.ar.cache := 0.U
 
-  val rdata = RegInit(VecInit(Seq.fill(config.instFetchNum)(0.U(32.W))))
+  val rready = RegInit(false.B)
+  val saved = RegInit(VecInit(Seq.fill(config.instFetchNum)(0.U.asTypeOf(new Bundle {
+    val inst  = UInt(32.W)
+    val valid = Bool()
+  }))))
   io.axi.r.ready := true.B
 
   val acc_err = RegInit(false.B)
-
-  io.cpu.inst.map(_ := 0.U)
-  io.cpu.acc_err    := acc_err
-  io.cpu.stall      := false.B
-  io.cpu.inst       := rdata
+  io.cpu.acc_err      := acc_err
+  io.cpu.icache_stall := false.B
+  (0 until config.instFetchNum).foreach(i => {
+    io.cpu.inst(i)       := saved(i).inst
+    io.cpu.inst_valid(i) := saved(i).valid
+  })
+  io.cpu.addr_err := io.cpu.addr(read_next_addr)(1, 0).orR
 
   switch(status) {
     is(s_idle) {
+      acc_err := false.B
       when(io.cpu.req) {
         when(addr_err) {
           acc_err := true.B
-          status  := s_finishwait
+          status  := s_save
         }.otherwise {
-          araddr  := raddr
-          arvalid := true.B
-          status  := s_read
+          araddr         := pc
+          arvalid        := true.B
+          io.axi.ar.len  := 0.U
+          io.axi.ar.size := 2.U
+          status         := s_uncached
         }
       }
     }
-    is(s_read) {
-      when(io.axi.ar.ready) {
-        arvalid := false.B
-      }
-      when(io.axi.r.valid) {
-        rdata(0) := Mux(araddr(2), io.axi.r.data(63, 32), io.axi.r.data(31, 0))
-        rdata(1) := Mux(araddr(2), 0.U, io.axi.r.data(63, 32))
-        acc_err  := io.axi.r.resp =/= RESP_OKEY.U
-        status   := s_finishwait
+    is(s_uncached) {
+      when(io.axi.ar.valid) {
+        when(io.axi.ar.ready) {
+          arvalid := false.B
+          rready  := true.B
+        }
+      }.elsewhen(io.axi.r.valid && io.axi.r.ready) {
+        saved(0).inst  := Mux(araddr(2), io.axi.r.data(63, 32), io.axi.r.data(31, 0))
+        saved(0).valid := true.B
+        acc_err        := io.axi.r.resp =/= RESP_OKEY.U
+        rready         := false.B
+        status         := s_save
       }
     }
-    is(s_finishwait) {
-      when(io.cpu.ready) {
-        acc_err := false.B
-        when(io.cpu.req) {
-          when(addr_err) {
-            acc_err := true.B
-            status  := s_finishwait
-          }.otherwise {
-            araddr  := raddr
-            arvalid := true.B
-            status  := s_read
-          }
-        }
+    is(s_save) {
+      when(io.cpu.cpu_ready && !io.cpu.icache_stall) {
+        status := s_idle
+        (0 until config.instFetchNum).foreach(i => saved(i).valid := false.B)
       }
     }
   }
