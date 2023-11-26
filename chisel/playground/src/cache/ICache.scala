@@ -17,7 +17,7 @@ class ICache(implicit config: CpuConfig) extends Module {
   val s_idle :: s_read :: s_finishwait :: Nil = Enum(3)
   val status                                  = RegInit(s_idle)
 
-  io.cpu.valid.map(_ := status === s_finishwait)
+  io.cpu.inst_valid.map(_ := status === s_finishwait)
   val read_next_addr = (status === s_idle || status === s_finishwait)
   io.cpu.addr_err := io.cpu.addr(read_next_addr)(1, 0).orR
   val addr_err = io.cpu.addr(read_next_addr)(63, 32).orR
@@ -40,14 +40,14 @@ class ICache(implicit config: CpuConfig) extends Module {
   io.axi.ar.prot     := 0.U
   io.axi.ar.cache    := 0.U
   io.axi.r.ready     := true.B
-  io.cpu.rdata.map(_ := 0.U)
+  io.cpu.inst.map(_ := 0.U)
   io.cpu.acc_err     := acc_err
   io.cpu.stall       := false.B
-  io.cpu.rdata       := rdata
+  io.cpu.inst       := rdata
 
   switch(status) {
     is(s_idle) {
-      when(io.cpu.en) {
+      when(io.cpu.req) {
         when(addr_err) {
           acc_err := true.B
           status  := s_finishwait
@@ -72,7 +72,7 @@ class ICache(implicit config: CpuConfig) extends Module {
     is(s_finishwait) {
       when(io.cpu.ready) {
         acc_err := false.B
-        when(io.cpu.en) {
+        when(io.cpu.req) {
           when(addr_err) {
             acc_err := true.B
             status  := s_finishwait

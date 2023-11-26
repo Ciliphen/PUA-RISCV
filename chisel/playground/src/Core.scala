@@ -50,7 +50,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   fetchUnit.execute <> executeUnit.fetchUnit
   fetchUnit.decoder <> decoderUnit.fetchUnit
   fetchUnit.instFifo.full     := instFifo.full
-  fetchUnit.iCache.inst_valid := io.inst.valid
+  fetchUnit.iCache.inst_valid := io.inst.inst_valid
   io.inst.addr(0)             := fetchUnit.iCache.pc
   io.inst.addr(1)             := fetchUnit.iCache.pc_next
   for (i <- 2 until config.instFetchNum) {
@@ -80,9 +80,9 @@ class Core(implicit val config: CpuConfig) extends Module {
   for (i <- 0 until config.instFetchNum) {
     instFifo.write(i).pht_index := bpu.instBuffer.pht_index(i)
     bpu.instBuffer.pc(i)        := instFifo.write(i).pc
-    instFifo.wen(i)             := io.inst.valid(i)
+    instFifo.wen(i)             := io.inst.inst_valid(i)
     instFifo.write(i).pc        := io.inst.addr(0) + (i * 4).U
-    instFifo.write(i).inst      := io.inst.rdata(i)
+    instFifo.write(i).inst      := io.inst.inst(i)
     instFifo.write(i).acc_err   := io.inst.acc_err
     instFifo.write(i).addr_err  := io.inst.addr_err
   }
@@ -142,7 +142,7 @@ class Core(implicit val config: CpuConfig) extends Module {
     executeUnit.executeStage.inst0.inst_info.op === MOUOpType.fencei
   io.data.fence_i := memoryUnit.memoryStage.inst0.inst_info.fusel === FuType.mou &&
     memoryUnit.memoryStage.inst0.inst_info.op === MOUOpType.fencei
-  io.inst.en    := !instFifo.full && !reset.asBool
+  io.inst.req    := !instFifo.full && !reset.asBool
   io.inst.ready := ctrl.fetchUnit.allow_to_go
   io.data.ready := ctrl.memoryUnit.allow_to_go
 }
