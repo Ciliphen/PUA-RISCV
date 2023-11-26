@@ -123,18 +123,18 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
 
 // cpu to dcache
 class Cache_DCache extends Bundle {
-  val addr    = Output(UInt(DATA_ADDR_WID.W))
-  val size    = Output(UInt(2.W))
-  val en      = Output(Bool())
-  val write   = Output(Bool())
-  val wdata   = Output(UInt(XLEN.W))
-  val ready   = Output(Bool())
-  val fence_i = Output(Bool())
+  val addr      = Output(UInt(DATA_ADDR_WID.W))
+  val size      = Output(UInt(2.W))
+  val en        = Output(Bool())
+  val write     = Output(Bool())
+  val wdata     = Output(UInt(XLEN.W))
+  val cpu_ready = Output(Bool())
+  val fence_i   = Output(Bool())
 
-  val rdata   = Input(UInt(XLEN.W))
-  val valid   = Input(Bool())
-  val acc_err = Input(Bool())
-  val stall   = Input(Bool())
+  val rdata        = Input(UInt(XLEN.W))
+  val valid        = Input(Bool())
+  val acc_err      = Input(Bool())
+  val dcache_stall = Input(Bool())
 }
 
 // axi

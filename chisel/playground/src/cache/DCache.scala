@@ -15,8 +15,8 @@ class DCache(implicit config: CpuConfig) extends Module {
   })
 
   // * fsm * //
-  val s_idle :: s_read :: s_write :: s_finishwait :: Nil = Enum(4)
-  val status                                             = RegInit(s_idle)
+  val s_idle :: s_uncached :: s_writeback :: s_save :: Nil = Enum(4)
+  val status                                               = RegInit(s_idle)
 
   val wstrb_gen = Wire(UInt(8.W))
   wstrb_gen := MuxLookup(io.cpu.size, "b1111_1111".U)(
@@ -28,7 +28,7 @@ class DCache(implicit config: CpuConfig) extends Module {
     )
   )
 
-  io.cpu.valid := status === s_finishwait
+  io.cpu.valid := status === s_save
 
   val addr_err = io.cpu.addr(63, 32).orR
 
@@ -54,13 +54,13 @@ class DCache(implicit config: CpuConfig) extends Module {
   io.axi.ar.size  := 0.U
   io.axi.ar.burst := BURST_FIXED.U
   val arvalid = RegInit(false.B)
-  io.axi.ar.valid := arvalid
-  io.axi.ar.prot  := 0.U
-  io.axi.ar.cache := 0.U
-  io.axi.ar.lock  := 0.U
-  io.axi.r.ready  := true.B
-  io.cpu.rdata    := 0.U
-  io.cpu.stall    := false.B
+  io.axi.ar.valid     := arvalid
+  io.axi.ar.prot      := 0.U
+  io.axi.ar.cache     := 0.U
+  io.axi.ar.lock      := 0.U
+  io.axi.r.ready      := true.B
+  io.cpu.rdata        := 0.U
+  io.cpu.dcache_stall := status === s_uncached
 
   io.cpu.acc_err := false.B
 
@@ -69,7 +69,7 @@ class DCache(implicit config: CpuConfig) extends Module {
       when(io.cpu.en) {
         when(addr_err) {
           io.cpu.acc_err := true.B
-          status         := s_finishwait
+          status         := s_save
         }.otherwise {
           when(io.cpu.write) {
             io.axi.aw.addr  := io.cpu.addr(31, 0)
@@ -78,27 +78,27 @@ class DCache(implicit config: CpuConfig) extends Module {
             io.axi.w.data   := io.cpu.wdata
             io.axi.w.strb   := wstrb_gen
             io.axi.w.valid  := true.B
-            status          := s_write
+            status          := s_writeback
           }.otherwise {
             io.axi.ar.addr := io.cpu.addr(31, 0)
             io.axi.ar.size := Cat(false.B, io.cpu.size)
             arvalid        := true.B
-            status         := s_read
+            status         := s_uncached
           }
         }
       }
     }
-    is(s_read) {
+    is(s_uncached) {
       when(io.axi.ar.ready) {
         arvalid := false.B
       }
       when(io.axi.r.valid) {
         io.cpu.rdata   := io.axi.r.data
         io.cpu.acc_err := io.axi.r.resp =/= RESP_OKEY.U
-        status         := s_finishwait
+        status         := s_save
       }
     }
-    is(s_write) {
+    is(s_writeback) {
       when(io.axi.aw.ready) {
         io.axi.aw.valid := false.B
       }
@@ -107,16 +107,16 @@ class DCache(implicit config: CpuConfig) extends Module {
       }
       when(io.axi.b.valid) {
         io.cpu.acc_err := io.axi.b.resp =/= RESP_OKEY.U
-        status         := s_finishwait
+        status         := s_save
       }
     }
-    is(s_finishwait) {
-      when(io.cpu.ready) {
+    is(s_save) {
+      when(io.cpu.cpu_ready) {
         io.cpu.acc_err := false.B
         when(io.cpu.en) {
           when(addr_err) {
             io.cpu.acc_err := true.B
-            status         := s_finishwait
+            status         := s_save
           }.otherwise {
             when(io.cpu.write) {
               io.axi.aw.addr  := io.cpu.addr(31, 0)
@@ -125,12 +125,12 @@ class DCache(implicit config: CpuConfig) extends Module {
               io.axi.w.data   := io.cpu.wdata
               io.axi.w.strb   := wstrb_gen
               io.axi.w.valid  := true.B
-              status          := s_write
+              status          := s_writeback
             }.otherwise {
               io.axi.ar.addr := io.cpu.addr(31, 0)
               io.axi.ar.size := Cat(false.B, io.cpu.size)
               arvalid        := true.B
-              status         := s_read
+              status         := s_uncached
             }
           }
         }.otherwise {

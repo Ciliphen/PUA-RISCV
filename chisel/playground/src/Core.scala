@@ -44,7 +44,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   ctrl.memoryUnit <> memoryUnit.ctrl
   ctrl.writeBackUnit <> writeBackUnit.ctrl
   ctrl.cacheCtrl.iCache_stall := io.inst.icache_stall
-  ctrl.cacheCtrl.dCache_stall := io.data.stall
+  ctrl.cacheCtrl.dCache_stall := io.data.dcache_stall
 
   fetchUnit.memory <> memoryUnit.fetchUnit
   fetchUnit.execute <> executeUnit.fetchUnit
@@ -143,5 +143,5 @@ class Core(implicit val config: CpuConfig) extends Module {
     memoryUnit.memoryStage.inst0.inst_info.op === MOUOpType.fencei
   io.inst.req    := !instFifo.full && !reset.asBool
   io.inst.cpu_ready := ctrl.fetchUnit.allow_to_go
-  io.data.ready := ctrl.memoryUnit.allow_to_go
+  io.data.cpu_ready := ctrl.memoryUnit.allow_to_go
 }
