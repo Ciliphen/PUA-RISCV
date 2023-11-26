@@ -16,8 +16,7 @@ class BufferUnit extends Bundle {
 
 class InstFifo(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val do_flush     = Input(Bool())
-    val icache_stall = Input(Bool())
+    val do_flush = Input(Bool())
 
     val ren  = Input(Vec(config.decoderNum, Bool()))
     val read = Output(Vec(config.decoderNum, new BufferUnit()))

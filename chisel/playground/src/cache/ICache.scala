@@ -24,25 +24,26 @@ class ICache(implicit config: CpuConfig) extends Module {
   val raddr    = Cat(io.cpu.addr(read_next_addr)(31, 2), 0.U(2.W))
 
   // default
-  val ar = RegInit(0.U.asTypeOf(new Bundle {
-    val valid = Bool()
-    val addr  = UInt(32.W)
-  }))
-  val rdata   = RegInit(VecInit(Seq.fill(config.instFetchNum)(0.U(32.W))))
+  val arvalid = RegInit(false.B)
+  val araddr  = RegInit(0.U(32.W))
+  io.axi.ar.id    := 0.U
+  io.axi.ar.addr  := araddr
+  io.axi.ar.len   := (config.instFetchNum - 1).U
+  io.axi.ar.size  := 2.U
+  io.axi.ar.lock  := 0.U
+  io.axi.ar.burst := BURST_INCR.U
+  io.axi.ar.valid := arvalid
+  io.axi.ar.prot  := 0.U
+  io.axi.ar.cache := 0.U
+
+  val rdata = RegInit(VecInit(Seq.fill(config.instFetchNum)(0.U(32.W))))
+  io.axi.r.ready := true.B
+
   val acc_err = RegInit(false.B)
-  io.axi.ar.id       := 0.U
-  io.axi.ar.addr     := ar.addr
-  io.axi.ar.len      := (config.instFetchNum - 1).U
-  io.axi.ar.size     := 2.U
-  io.axi.ar.lock     := 0.U
-  io.axi.ar.burst    := BURST_INCR.U
-  io.axi.ar.valid    := ar.valid
-  io.axi.ar.prot     := 0.U
-  io.axi.ar.cache    := 0.U
-  io.axi.r.ready     := true.B
+
   io.cpu.inst.map(_ := 0.U)
-  io.cpu.acc_err     := acc_err
-  io.cpu.stall       := false.B
+  io.cpu.acc_err    := acc_err
+  io.cpu.stall      := false.B
   io.cpu.inst       := rdata
 
   switch(status) {
@@ -52,19 +53,19 @@ class ICache(implicit config: CpuConfig) extends Module {
           acc_err := true.B
           status  := s_finishwait
         }.otherwise {
-          ar.addr  := raddr
-          ar.valid := true.B
-          status   := s_read
+          araddr  := raddr
+          arvalid := true.B
+          status  := s_read
         }
       }
     }
     is(s_read) {
       when(io.axi.ar.ready) {
-        ar.valid := false.B
+        arvalid := false.B
       }
       when(io.axi.r.valid) {
-        rdata(0) := Mux(ar.addr(2), io.axi.r.data(63, 32), io.axi.r.data(31, 0))
-        rdata(1) := Mux(ar.addr(2), 0.U, io.axi.r.data(63, 32))
+        rdata(0) := Mux(araddr(2), io.axi.r.data(63, 32), io.axi.r.data(31, 0))
+        rdata(1) := Mux(araddr(2), 0.U, io.axi.r.data(63, 32))
         acc_err  := io.axi.r.resp =/= RESP_OKEY.U
         status   := s_finishwait
       }
@@ -77,9 +78,9 @@ class ICache(implicit config: CpuConfig) extends Module {
             acc_err := true.B
             status  := s_finishwait
           }.otherwise {
-            ar.addr  := raddr
-            ar.valid := true.B
-            status   := s_read
+            araddr  := raddr
+            arvalid := true.B
+            status  := s_read
           }
         }
       }

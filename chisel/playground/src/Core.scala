@@ -73,7 +73,6 @@ class Core(implicit val config: CpuConfig) extends Module {
   decoderUnit.bpu.branch_target := bpu.decoder.branch_target
 
   instFifo.do_flush     := ctrl.decoderUnit.do_flush
-  instFifo.icache_stall := io.inst.stall
   instFifo.ren <> decoderUnit.instFifo.allow_to_go
   decoderUnit.instFifo.inst <> instFifo.read
 
