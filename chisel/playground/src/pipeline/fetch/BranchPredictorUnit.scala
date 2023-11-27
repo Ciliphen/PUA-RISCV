@@ -8,6 +8,7 @@ import cpu.pipeline.decoder.Src12Read
 import cpu.defines.ALUOpType
 import cpu.defines.FuOpType
 import cpu.defines.FuType
+import cpu.defines.SignedExtend
 
 class ExecuteUnitBranchPredictor extends Bundle {
   val bpuConfig        = new BranchPredictorConfig()
@@ -25,7 +26,6 @@ class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
     val fusel     = Input(FuType())
     val ena       = Input(Bool())
     val pc        = Input(UInt(PC_WID.W))
-    val pc_plus4  = Input(UInt(PC_WID.W))
     val pht_index = Input(UInt(bpuConfig.phtDepth.W))
 
     val rs1 = Input(UInt(REG_ADDR_WID.W))
@@ -72,12 +72,11 @@ class GlobalBranchPredictor(
 
   val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
 
-  io.decoder.branch_inst := FuType.bru === io.decoder.fusel && ALUOpType.isBranch(io.decoder.op)
-  io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
-    Fill(14, io.decoder.inst(15)),
-    io.decoder.inst(15, 0),
-    0.U(2.W)
-  )
+  val inst = io.decoder.inst
+  val imm  = SignedExtend(Cat(inst(31), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W)), XLEN)
+
+  io.decoder.branch_inst   := FuType.bru === io.decoder.fusel && ALUOpType.isBranch(io.decoder.op)
+  io.decoder.branch_target := io.decoder.pc + imm
   // 局部预测模式
 
   val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
@@ -122,12 +121,11 @@ class AdaptiveTwoLevelPredictor(
 
   val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
 
-  io.decoder.branch_inst := FuType.bru === io.decoder.fusel && ALUOpType.isBranch(io.decoder.op)
-  io.decoder.branch_target := io.decoder.pc_plus4 + Cat(
-    Fill(14, io.decoder.inst(15)),
-    io.decoder.inst(15, 0),
-    0.U(2.W)
-  )
+  val inst = io.decoder.inst
+  val imm  = SignedExtend(Cat(inst(31), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W)), XLEN)
+
+  io.decoder.branch_inst   := FuType.bru === io.decoder.fusel && ALUOpType.isBranch(io.decoder.op)
+  io.decoder.branch_target := io.decoder.pc + imm
 
   val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
   val pht       = RegInit(VecInit(Seq.fill(1 << PHT_DEPTH)(strongly_taken)))

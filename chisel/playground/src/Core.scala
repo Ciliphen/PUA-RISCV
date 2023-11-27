@@ -64,7 +64,6 @@ class Core(implicit val config: CpuConfig) extends Module {
   bpu.decoder.rs1                  := decoderUnit.bpu.decoded_inst0.reg1_raddr
   bpu.decoder.rs2                  := decoderUnit.bpu.decoded_inst0.reg2_raddr
   bpu.decoder.pc                   := decoderUnit.bpu.pc
-  bpu.decoder.pc_plus4             := decoderUnit.bpu.pc + 4.U
   bpu.decoder.pht_index            := decoderUnit.bpu.pht_index
   decoderUnit.bpu.update_pht_index := bpu.decoder.update_pht_index
   bpu.execute <> executeUnit.bpu
