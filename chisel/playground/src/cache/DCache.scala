@@ -47,26 +47,30 @@ class DCache(implicit config: CpuConfig) extends Module {
   io.axi.aw.cache := 0.U
 
   val wvalid = RegInit(false.B)
+  val wdata  = RegInit(0.U(XLEN.W))
+  val wstrb  = RegInit(0.U(4.W))
   io.axi.w.id    := 1.U
-  io.axi.w.data  := 0.U
-  io.axi.w.strb  := 0.U
+  io.axi.w.data  := wdata
+  io.axi.w.strb  := wstrb
   io.axi.w.last  := 1.U
   io.axi.w.valid := wvalid
 
   io.axi.b.ready := 1.U
 
-  val araddr = RegInit(0.U(32.W))
-  val arsize = RegInit(0.U(3.W))
+  val araddr  = RegInit(0.U(32.W))
+  val arsize  = RegInit(0.U(3.W))
+  val arlen   = RegInit(0.U(8.W))
+  val arvalid = RegInit(false.B)
   io.axi.ar.id    := 1.U
   io.axi.ar.addr  := araddr
-  io.axi.ar.len   := 0.U
+  io.axi.ar.len   := arlen
   io.axi.ar.size  := arsize
   io.axi.ar.burst := BURST_INCR.U
-  val arvalid = RegInit(false.B)
   io.axi.ar.valid := arvalid
   io.axi.ar.prot  := 0.U
   io.axi.ar.cache := 0.U
   io.axi.ar.lock  := 0.U
+
   val rready = RegInit(false.B)
   io.axi.r.ready := rready
 
@@ -85,19 +89,19 @@ class DCache(implicit config: CpuConfig) extends Module {
           status  := s_save
         }.otherwise {
           when(io.cpu.write) {
-            awaddr        := io.cpu.addr(31, 0)
-            awsize        := Cat(false.B, io.cpu.size)
-            awvalid       := true.B
-            io.axi.w.data := io.cpu.wdata
-            io.axi.w.strb := wstrb_gen
-            wvalid        := true.B
-            status        := s_writeback
+            awaddr  := io.cpu.addr(31, 0)
+            awsize  := Cat(false.B, io.cpu.size)
+            awvalid := true.B
+            wdata   := io.cpu.wdata
+            wstrb   := wstrb_gen
+            wvalid  := true.B
+            status  := s_writeback
           }.otherwise {
-            araddr         := io.cpu.addr(31, 0)
-            io.axi.ar.size := Cat(false.B, io.cpu.size)
-            arvalid        := true.B
-            rready         := true.B
-            status         := s_uncached
+            araddr  := io.cpu.addr(31, 0)
+            arsize  := Cat(false.B, io.cpu.size)
+            arvalid := true.B
+            rready  := true.B
+            status  := s_uncached
           }
         }
       }
