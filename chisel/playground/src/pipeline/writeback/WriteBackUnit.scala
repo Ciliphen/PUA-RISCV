@@ -29,11 +29,11 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
   if (config.hasCommitBuffer) {
     val buffer = Module(new CommitBuffer()).io
     buffer.enq(0).wb_pc       := io.writeBackStage.inst0.pc
-    buffer.enq(0).wb_rf_wen   := io.regfile(0).wen
+    buffer.enq(0).wb_rf_wen   := io.regfile(0).wen || io.writeBackStage.inst0.commit
     buffer.enq(0).wb_rf_wnum  := io.regfile(0).waddr
     buffer.enq(0).wb_rf_wdata := io.regfile(0).wdata
     buffer.enq(1).wb_pc       := io.writeBackStage.inst1.pc
-    buffer.enq(1).wb_rf_wen   := io.regfile(1).wen
+    buffer.enq(1).wb_rf_wen   := io.regfile(1).wen || io.writeBackStage.inst1.commit
     buffer.enq(1).wb_rf_wnum  := io.regfile(1).waddr
     buffer.enq(1).wb_rf_wdata := io.regfile(1).wdata
     buffer.flush              := io.ctrl.do_flush
