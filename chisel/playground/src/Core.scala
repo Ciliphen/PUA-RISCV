@@ -123,7 +123,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   memoryUnit.dataMemory.in.rdata := io.data.rdata
   io.data.en                     := memoryUnit.dataMemory.out.en
   io.data.size                   := memoryUnit.dataMemory.out.rlen
-  io.data.write                  := memoryUnit.dataMemory.out.wen
+  io.data.wen                  := memoryUnit.dataMemory.out.wen
   io.data.wdata                  := memoryUnit.dataMemory.out.wdata
   io.data.addr                   := memoryUnit.dataMemory.out.addr
 

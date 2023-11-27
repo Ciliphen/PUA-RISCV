@@ -76,10 +76,17 @@ class DCache(implicit config: CpuConfig) extends Module {
 
   val saved_rdata = RegInit(0.U(DATA_WID.W))
   val acc_err     = RegInit(false.B)
-  io.cpu.rdata        := saved_rdata
-  io.cpu.dcache_stall := Mux(status === s_idle, io.cpu.en, status =/= s_save)
-  io.cpu.acc_err      := acc_err
+  io.cpu.rdata   := saved_rdata
+  io.cpu.acc_err := acc_err
 
+  val mmio_read_stall  = !io.cpu.wen.orR
+  val mmio_write_stall = io.cpu.wen.orR && !io.axi.w.ready
+  val cached_stall     = false.B
+  io.cpu.dcache_stall := Mux(
+    status === s_idle,
+    Mux(io.cpu.en, (cached_stall || mmio_read_stall || mmio_write_stall), io.cpu.fence_i),
+    status =/= s_save
+  )
   switch(status) {
     is(s_idle) {
       acc_err := false.B
@@ -88,7 +95,7 @@ class DCache(implicit config: CpuConfig) extends Module {
           acc_err := true.B
           status  := s_save
         }.otherwise {
-          when(io.cpu.write) {
+          when(io.cpu.wen) {
             awaddr  := io.cpu.addr(31, 0)
             awsize  := Cat(false.B, io.cpu.size)
             awvalid := true.B

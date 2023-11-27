@@ -126,7 +126,7 @@ class Cache_DCache extends Bundle {
   val addr      = Output(UInt(DATA_ADDR_WID.W))
   val size      = Output(UInt(2.W))
   val en        = Output(Bool())
-  val write     = Output(Bool())
+  val wen       = Output(Bool())
   val wdata     = Output(UInt(XLEN.W))
   val cpu_ready = Output(Bool())
   val fence_i   = Output(Bool())
