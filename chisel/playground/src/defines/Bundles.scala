@@ -224,9 +224,9 @@ class AXI extends Bundle {
   val b  = new B() // write response channel
 }
 
-class DEBUG(implicit config: CpuConfig) extends Bundle {
+class DEBUG extends Bundle {
   val wb_pc       = Output(UInt(32.W))
-  val wb_rf_wen   = Output(UInt(4.W))
+  val wb_rf_wen   = Output(Bool())
   val wb_rf_wnum  = Output(UInt(5.W))
   val wb_rf_wdata = Output(UInt(32.W))
 }

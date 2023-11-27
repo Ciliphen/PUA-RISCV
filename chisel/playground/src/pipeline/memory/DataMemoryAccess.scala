@@ -29,7 +29,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       val out = Output(new Bundle {
         val en    = Bool()
         val rlen  = UInt(2.W)
-        val wen   = UInt(4.W)
+        val wen   = Bool()
         val addr  = UInt(DATA_ADDR_WID.W)
         val wdata = UInt(DATA_WID.W)
       })
@@ -81,17 +81,6 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
     )
   }
   io.dataMemory.out.wdata := genWdata(mem_wdata, op(1, 0))
-  def genWmask(addr: UInt, sizeEncode: UInt): UInt = {
-    LookupTree(
-      sizeEncode,
-      List(
-        "b00".U -> 0x1.U, //0001 << addr(2:0)
-        "b01".U -> 0x3.U, //0011
-        "b10".U -> 0xf.U, //1111
-        "b11".U -> 0xff.U //11111111
-      )
-    ) << addr(2, 0)
-  }
-  io.dataMemory.out.wen  := genWmask(mem_addr, op(1, 0))
-  io.dataMemory.out.rlen := op(1, 0)
+  io.dataMemory.out.wen   := LSUOpType.isStore(op) && io.memoryUnit.in.mem_en
+  io.dataMemory.out.rlen  := op(1, 0)
 }

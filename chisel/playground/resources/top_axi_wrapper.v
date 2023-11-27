@@ -88,10 +88,10 @@ PuaCpu core(
     .io_axi_r_valid     (MAXI_rvalid),
     .io_axi_r_ready     (MAXI_rready),
     // debug
-    .debug_commit       (debug_commit),
-    .debug_pc           (debug_pc),
-    .debug_reg_num      (debug_reg_num),
-    .debug_wdata        (debug_wdata)
+    .io_debug_wb_pc           (debug_pc),
+    .io_debug_wb_rf_wen       (debug_commit),
+    .io_debug_wb_rf_wnum      (debug_reg_num),
+    .io_debug_wb_rf_wdata     (debug_wdata)
 );
 
 endmodule

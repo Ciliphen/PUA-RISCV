@@ -2,37 +2,18 @@ package cpu.pipeline.writeback
 
 import chisel3._
 import chisel3.util._
+import cpu.defines.DEBUG
 
 class CommitBuffer(
-    depth: Int = 32,
-) extends Module {
+  depth: Int = 32)
+    extends Module {
   val io = IO(new Bundle {
     val flush = Input(Bool())
-    val enq = Flipped(
-      Vec(
-        2,
-        new Bundle {
-          val wb_pc       = Output(UInt(32.W))
-          val wb_rf_wen   = Output(UInt(4.W))
-          val wb_rf_wnum  = Output(UInt(5.W))
-          val wb_rf_wdata = Output(UInt(32.W))
-        },
-      ),
-    )
-    val deq = new Bundle {
-      val wb_pc       = Output(UInt(32.W))
-      val wb_rf_wen   = Output(UInt(4.W))
-      val wb_rf_wnum  = Output(UInt(5.W))
-      val wb_rf_wdata = Output(UInt(32.W))
-    }
+    val enq   = Flipped(Vec(2, new DEBUG()))
+    val deq   = new DEBUG()
   })
 
-  val ram = RegInit(VecInit(Seq.fill(depth)(0.U.asTypeOf(new Bundle {
-    val wb_pc       = UInt(32.W)
-    val wb_rf_wen   = UInt(4.W)
-    val wb_rf_wnum  = UInt(5.W)
-    val wb_rf_wdata = UInt(32.W)
-  }))))
+  val ram        = RegInit(VecInit(Seq.fill(depth)(0.U.asTypeOf(new DEBUG()))))
   val enq_ptr    = RegInit(0.U(log2Ceil(depth).W))
   val deq_ptr    = RegInit(0.U(log2Ceil(depth).W))
   val maybe_full = RegInit(false.B)
@@ -51,8 +32,8 @@ class CommitBuffer(
     Seq(
       io.flush                 -> 0.U,
       (do_enq(0) && do_enq(1)) -> (enq_ptr + 2.U),
-      (do_enq(0) || do_enq(1)) -> (enq_ptr + 1.U),
-    ),
+      (do_enq(0) || do_enq(1)) -> (enq_ptr + 1.U)
+    )
   )
 
   when(do_enq(0)) {
