@@ -42,13 +42,14 @@ class ICache(implicit config: CpuConfig) extends Module {
   io.axi.r.ready := true.B
 
   val acc_err = RegInit(false.B)
-  io.cpu.acc_err      := acc_err
-  io.cpu.icache_stall := false.B
+  io.cpu.acc_err := acc_err
   (0 until config.instFetchNum).foreach(i => {
     io.cpu.inst(i)       := saved(i).inst
     io.cpu.inst_valid(i) := saved(i).valid
   })
   io.cpu.addr_err := io.cpu.addr(read_next_addr)(1, 0).orR
+
+  io.cpu.icache_stall := Mux(status === s_idle, io.cpu.req, status =/= s_save)
 
   switch(status) {
     is(s_idle) {
