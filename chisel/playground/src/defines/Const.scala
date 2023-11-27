@@ -33,7 +33,7 @@ trait Constants extends CoreParameter {
   val DIV_STOP             = false.B
 
   // inst rom
-  val INST_WID      = 32
+  val INST_WID      = XLEN
   val INST_ADDR_WID = XLEN
 
   // data ram
@@ -97,6 +97,18 @@ trait AXIConst {
   val RESP_EXOKEY = 1
   val RESP_SLVERR = 2
   val RESP_DECERR = 3
+
+  val AXI_ID_WID    = 4
+  val AXI_ADDR_WID  = 32
+  val AXI_DATA_WID  = 64
+  val AXI_STRB_WID  = 8
+  val AXI_RESP_WID  = 2
+  val AXI_LEN_WID   = 8
+  val AXI_SIZE_WID  = 3
+  val AXI_BURST_WID = 2
+  val AXI_LOCK_WID  = 2
+  val AXI_CACHE_WID = 4
+  val AXI_PROT_WID  = 3
 }
 object Const extends Constants with AXIConst with HasExceptionNO
 

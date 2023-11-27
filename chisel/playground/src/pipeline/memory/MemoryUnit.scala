@@ -26,10 +26,11 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
       })
       val out = Output(new Bundle {
         val en    = Bool()
-        val rlen  = UInt(2.W)
-        val wen   = UInt(4.W)
-        val addr  = UInt(DATA_ADDR_WID.W)
-        val wdata = UInt(DATA_WID.W)
+        val rlen  = UInt(AXI_LEN_WID.W)
+        val wen   = Bool()
+        val addr  = UInt(AXI_ADDR_WID.W)
+        val wdata = UInt(AXI_DATA_WID.W)
+        val wstrb = UInt(AXI_STRB_WID.W)
       })
     }
   })

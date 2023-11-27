@@ -23,7 +23,7 @@ class ICache(implicit config: CpuConfig) extends Module {
 
   // default
   val arvalid = RegInit(false.B)
-  val araddr  = RegInit(0.U(32.W))
+  val araddr  = RegInit(0.U(AXI_ADDR_WID.W))
   io.axi.ar.id    := 0.U
   io.axi.ar.addr  := araddr
   io.axi.ar.len   := 0.U
@@ -36,7 +36,7 @@ class ICache(implicit config: CpuConfig) extends Module {
 
   val rready = RegInit(false.B)
   val saved = RegInit(VecInit(Seq.fill(config.instFetchNum)(0.U.asTypeOf(new Bundle {
-    val inst  = UInt(32.W)
+    val inst  = UInt(AXI_DATA_WID.W)
     val valid = Bool()
   }))))
   io.axi.r.ready := true.B

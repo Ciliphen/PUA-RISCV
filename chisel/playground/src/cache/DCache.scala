@@ -18,24 +18,14 @@ class DCache(implicit config: CpuConfig) extends Module {
   val s_idle :: s_uncached :: s_writeback :: s_save :: Nil = Enum(4)
   val status                                               = RegInit(s_idle)
 
-  val wstrb_gen = Wire(UInt(8.W))
-  wstrb_gen := MuxLookup(io.cpu.size, "b1111_1111".U)(
-    Seq(
-      0.U -> ("b1".U << io.cpu.addr(2, 0)),
-      1.U -> ("b11".U << Cat(io.cpu.addr(2, 1), 0.U(1.W))),
-      2.U -> ("b1111".U << Cat(io.cpu.addr(2), 0.U(2.W))),
-      3.U -> ("b1111_1111".U)
-    )
-  )
-
   io.cpu.valid := status === s_save
 
   val addr_err = io.cpu.addr(63, 32).orR
 
   // default
   val awvalid = RegInit(false.B)
-  val awaddr  = RegInit(0.U(32.W))
-  val awsize  = RegInit(0.U(3.W))
+  val awaddr  = RegInit(0.U(AXI_ADDR_WID.W))
+  val awsize  = RegInit(0.U(AXI_SIZE_WID.W))
   io.axi.aw.id    := 1.U
   io.axi.aw.addr  := awaddr
   io.axi.aw.len   := 0.U
@@ -47,8 +37,8 @@ class DCache(implicit config: CpuConfig) extends Module {
   io.axi.aw.cache := 0.U
 
   val wvalid = RegInit(false.B)
-  val wdata  = RegInit(0.U(XLEN.W))
-  val wstrb  = RegInit(0.U(4.W))
+  val wdata  = RegInit(0.U(AXI_DATA_WID.W))
+  val wstrb  = RegInit(0.U(AXI_STRB_WID.W))
   io.axi.w.id    := 1.U
   io.axi.w.data  := wdata
   io.axi.w.strb  := wstrb
@@ -57,9 +47,9 @@ class DCache(implicit config: CpuConfig) extends Module {
 
   io.axi.b.ready := 1.U
 
-  val araddr  = RegInit(0.U(32.W))
-  val arsize  = RegInit(0.U(3.W))
-  val arlen   = RegInit(0.U(8.W))
+  val araddr  = RegInit(0.U(AXI_ADDR_WID.W))
+  val arsize  = RegInit(0.U(AXI_SIZE_WID.W))
+  val arlen   = RegInit(0.U(AXI_LEN_WID.W))
   val arvalid = RegInit(false.B)
   io.axi.ar.id    := 1.U
   io.axi.ar.addr  := araddr
@@ -87,6 +77,7 @@ class DCache(implicit config: CpuConfig) extends Module {
     Mux(io.cpu.en, (cached_stall || mmio_read_stall || mmio_write_stall), io.cpu.fence_i),
     status =/= s_save
   )
+
   switch(status) {
     is(s_idle) {
       acc_err := false.B
@@ -100,7 +91,7 @@ class DCache(implicit config: CpuConfig) extends Module {
             awsize  := Cat(false.B, io.cpu.size)
             awvalid := true.B
             wdata   := io.cpu.wdata
-            wstrb   := wstrb_gen
+            wstrb   := io.cpu.wstrb
             wvalid  := true.B
             status  := s_writeback
           }.otherwise {

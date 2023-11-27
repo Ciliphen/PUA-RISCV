@@ -130,6 +130,7 @@ class Cache_DCache extends Bundle {
   val wdata     = Output(UInt(XLEN.W))
   val cpu_ready = Output(Bool())
   val fence_i   = Output(Bool())
+  val wstrb     = Output(UInt(AXI_STRB_WID.W))
 
   val rdata        = Input(UInt(XLEN.W))
   val valid        = Input(Bool())
@@ -141,14 +142,14 @@ class Cache_DCache extends Bundle {
 // master -> slave
 
 class AR extends Bundle {
-  val id    = Output(UInt(4.W))
-  val addr  = Output(UInt(32.W))
-  val len   = Output(UInt(8.W))
-  val size  = Output(UInt(3.W))
-  val burst = Output(UInt(2.W))
-  val lock  = Output(UInt(2.W))
-  val cache = Output(UInt(4.W))
-  val prot  = Output(UInt(3.W))
+  val id    = Output(UInt(AXI_ID_WID.W))
+  val addr  = Output(UInt(AXI_ADDR_WID.W))
+  val len   = Output(UInt(AXI_LEN_WID.W))
+  val size  = Output(UInt(AXI_SIZE_WID.W))
+  val burst = Output(UInt(AXI_BURST_WID.W))
+  val lock  = Output(UInt(AXI_LOCK_WID.W))
+  val cache = Output(UInt(AXI_CACHE_WID.W))
+  val prot  = Output(UInt(AXI_PROT_WID.W))
   val valid = Output(Bool())
 
   val ready = Input(Bool())
@@ -157,31 +158,31 @@ class AR extends Bundle {
 class R extends Bundle {
   val ready = Output(Bool())
 
-  val id    = Input(UInt(4.W))
-  val data  = Input(UInt(XLEN.W))
-  val resp  = Input(UInt(2.W))
+  val id    = Input(UInt(AXI_ID_WID.W))
+  val data  = Input(UInt(AXI_DATA_WID.W))
+  val resp  = Input(UInt(AXI_RESP_WID.W))
   val last  = Input(Bool())
   val valid = Input(Bool())
 }
 
 class AW extends Bundle {
-  val id    = Output(UInt(4.W))
-  val addr  = Output(UInt(32.W))
-  val len   = Output(UInt(8.W))
-  val size  = Output(UInt(3.W))
-  val burst = Output(UInt(2.W))
-  val lock  = Output(UInt(2.W))
-  val cache = Output(UInt(4.W))
-  val prot  = Output(UInt(3.W))
+  val id    = Output(UInt(AXI_ID_WID.W))
+  val addr  = Output(UInt(AXI_ADDR_WID.W))
+  val len   = Output(UInt(AXI_LEN_WID.W))
+  val size  = Output(UInt(AXI_SIZE_WID.W))
+  val burst = Output(UInt(AXI_BURST_WID.W))
+  val lock  = Output(UInt(AXI_LOCK_WID.W))
+  val cache = Output(UInt(AXI_CACHE_WID.W))
+  val prot  = Output(UInt(AXI_PROT_WID.W))
   val valid = Output(Bool())
 
   val ready = Input(Bool())
 }
 
 class W extends Bundle {
-  val id    = Output(UInt(4.W))
-  val data  = Output(UInt(XLEN.W))
-  val strb  = Output(UInt(4.W))
+  val id    = Output(UInt(AXI_ID_WID.W))
+  val data  = Output(UInt(AXI_DATA_WID.W))
+  val strb  = Output(UInt(AXI_STRB_WID.W))
   val last  = Output(Bool())
   val valid = Output(Bool())
 
@@ -191,8 +192,8 @@ class W extends Bundle {
 class B extends Bundle {
   val ready = Output(Bool())
 
-  val id    = Input(UInt(4.W))
-  val resp  = Input(UInt(2.W))
+  val id    = Input(UInt(AXI_ID_WID.W))
+  val resp  = Input(UInt(AXI_RESP_WID.W))
   val valid = Input(Bool())
 }
 
@@ -225,25 +226,8 @@ class AXI extends Bundle {
 }
 
 class DEBUG extends Bundle {
-  val wb_pc       = Output(UInt(32.W))
+  val wb_pc       = Output(UInt(PC_WID.W))
   val wb_rf_wen   = Output(Bool())
-  val wb_rf_wnum  = Output(UInt(5.W))
-  val wb_rf_wdata = Output(UInt(32.W))
-}
-
-class Ctrl_Sram extends Bundle {
-  val do_flush = Output(Bool())
-}
-
-class Ctrl_Stage extends Bundle {
-  val do_flush = Output(Bool())
-  val after_ex = Output(Bool())
-}
-
-class Sram_Ctrl extends Bundle {
-  val sram_discard = Output(UInt(2.W))
-}
-
-class Pipeline_Ctrl extends Bundle {
-  val ex = Output(Bool())
+  val wb_rf_wnum  = Output(UInt(REG_ADDR_WID.W))
+  val wb_rf_wdata = Output(UInt(DATA_WID.W))
 }
