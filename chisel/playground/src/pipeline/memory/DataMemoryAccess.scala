@@ -59,8 +59,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       "b111".U -> mem_rdata(63, 56)
     )
   )
-  io.memoryUnit.out.rdata := LookupTree(
-    op,
+  io.memoryUnit.out.rdata := MuxLookup(op, rdata(XLEN - 1, 0))(
     List(
       LSUOpType.lb  -> SignedExtend(rdata(7, 0), XLEN),
       LSUOpType.lh  -> SignedExtend(rdata(15, 0), XLEN),
