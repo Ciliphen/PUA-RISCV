@@ -135,11 +135,12 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     // MaskedRegMap(Sip, mip.asUInt, sipMask, MaskedRegMap.Unwritable, sipMask),
     // // Supervisor Protection and Translation
     // MaskedRegMap(Satp, satp),
-    // // Machine Information Registers
-    // MaskedRegMap(Mvendorid, mvendorid, 0.U, MaskedRegMap.Unwritable),
-    // MaskedRegMap(Marchid, marchid, 0.U, MaskedRegMap.Unwritable),
-    // MaskedRegMap(Mimpid, mimpid, 0.U, MaskedRegMap.Unwritable),
-    // MaskedRegMap(Mhartid, mhartid, 0.U, MaskedRegMap.Unwritable),
+
+    // Machine Information Registers
+    MaskedRegMap(Mvendorid, mvendorid, 0.U, MaskedRegMap.Unwritable),
+    MaskedRegMap(Marchid, marchid, 0.U, MaskedRegMap.Unwritable),
+    MaskedRegMap(Mimpid, mimpid, 0.U, MaskedRegMap.Unwritable),
+    MaskedRegMap(Mhartid, mhartid, 0.U, MaskedRegMap.Unwritable),
     // Machine Trap Setup
     // MaskedRegMap(Mstatus, mstatus, "hffffffffffffffee".U, (x=>{printf("mstatus write: %x time: %d\n", x, GTimer()); x})),
     MaskedRegMap(Mstatus, mstatus, "hffffffffffffffff".U(64.W), mstatusUpdateSideEffect),
@@ -239,9 +240,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   io.executeUnit.out.ex.exception(illegalInstr) := (illegal_addr || illegal_access) && wen
   io.executeUnit.out.rdata                      := rdata
 
-  io.decoderUnit.priv_mode                      := priv_mode
+  io.decoderUnit.priv_mode := priv_mode
 
-  io.memoryUnit.out.flush := exc.exception.asUInt.orR || exc.interrupt.asUInt.orR
+  io.memoryUnit.out.flush    := exc.exception.asUInt.orR || exc.interrupt.asUInt.orR
   io.memoryUnit.out.flush_pc := mtvec
 
 }
