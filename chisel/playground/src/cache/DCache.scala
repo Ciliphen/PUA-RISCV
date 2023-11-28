@@ -49,11 +49,10 @@ class DCache(implicit config: CpuConfig) extends Module {
 
   val araddr  = RegInit(0.U(AXI_ADDR_WID.W))
   val arsize  = RegInit(0.U(AXI_SIZE_WID.W))
-  val arlen   = RegInit(0.U(AXI_LEN_WID.W))
   val arvalid = RegInit(false.B)
   io.axi.ar.id    := 1.U
   io.axi.ar.addr  := araddr
-  io.axi.ar.len   := arlen
+  io.axi.ar.len   := 0.U
   io.axi.ar.size  := arsize
   io.axi.ar.burst := BURST_INCR.U
   io.axi.ar.valid := arvalid

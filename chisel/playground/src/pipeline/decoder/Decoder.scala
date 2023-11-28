@@ -39,9 +39,9 @@ class Decoder extends Module with HasInstrType {
   io.out.inst_info.valid      := false.B
   io.out.inst_info.inst_legal := instrType =/= InstrN
   io.out.inst_info.reg1_ren   := src1Type === SrcType.reg || inst(6, 0) === "b0110111".U // fix LUI
-  io.out.inst_info.reg1_raddr := Mux(src1Type === SrcType.reg, rs, 0.U)
+  io.out.inst_info.reg1_raddr := Mux(io.out.inst_info.reg1_ren, rs, 0.U)
   io.out.inst_info.reg2_ren   := src2Type === SrcType.reg
-  io.out.inst_info.reg2_raddr := Mux(src2Type === SrcType.reg, rt, 0.U)
+  io.out.inst_info.reg2_raddr := Mux(io.out.inst_info.reg2_ren, rt, 0.U)
   io.out.inst_info.fusel      := fuType
   io.out.inst_info.op         := fuOpType
   // when(fuType === FuType.bru) {
