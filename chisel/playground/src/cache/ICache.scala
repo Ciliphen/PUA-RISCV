@@ -45,7 +45,7 @@ class ICache(implicit config: CpuConfig) extends Module {
   io.cpu.acc_err := acc_err
   (0 until config.instFetchNum).foreach(i => {
     io.cpu.inst(i)       := saved(i).inst
-    io.cpu.inst_valid(i) := saved(i).valid
+    io.cpu.inst_valid(i) := saved(i).valid || acc_err
   })
   io.cpu.addr_err := io.cpu.addr(read_next_addr)(1, 0).orR
 
