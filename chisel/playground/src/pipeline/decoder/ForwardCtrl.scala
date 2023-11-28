@@ -31,13 +31,13 @@ class ForwardCtrl(implicit val config: CpuConfig) extends Module {
     for (j <- 0 until (config.fuNum)) {
       when(
         io.in.forward(j).mem.wen &&
-          io.in.forward(j).mem.waddr === io.in.regfile(i).src1.raddr,
+          io.in.forward(j).mem.waddr === io.in.regfile(i).src1.raddr
       ) {
         io.out.inst(i).src1.rdata := io.in.forward(j).mem.wdata
       }
       when(
         io.in.forward(j).mem.wen &&
-          io.in.forward(j).mem.waddr === io.in.regfile(i).src2.raddr,
+          io.in.forward(j).mem.waddr === io.in.regfile(i).src2.raddr
       ) {
         io.out.inst(i).src2.rdata := io.in.forward(j).mem.wdata
       }
@@ -49,16 +49,26 @@ class ForwardCtrl(implicit val config: CpuConfig) extends Module {
     for (j <- 0 until (config.fuNum)) {
       when(
         io.in.forward(j).exe.wen && !io.in.forward(j).mem_wreg &&
-          io.in.forward(j).exe.waddr === io.in.regfile(i).src1.raddr,
+          io.in.forward(j).exe.waddr === io.in.regfile(i).src1.raddr
       ) {
         io.out.inst(i).src1.rdata := io.in.forward(j).exe.wdata
       }
       when(
         io.in.forward(j).exe.wen && !io.in.forward(j).mem_wreg &&
-          io.in.forward(j).exe.waddr === io.in.regfile(i).src2.raddr,
+          io.in.forward(j).exe.waddr === io.in.regfile(i).src2.raddr
       ) {
         io.out.inst(i).src2.rdata := io.in.forward(j).exe.wdata
       }
     }
   }
+
+  // 读零寄存器时，数据为0
+  (0 until (config.decoderNum)).foreach(i => {
+    when(io.in.regfile(i).src1.raddr === 0.U) {
+      io.out.inst(i).src1.rdata := 0.U
+    }
+    when(io.in.regfile(i).src2.raddr === 0.U) {
+      io.out.inst(i).src2.rdata := 0.U
+    }
+  })
 }
