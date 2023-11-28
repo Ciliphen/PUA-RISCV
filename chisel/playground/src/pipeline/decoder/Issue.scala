@@ -47,12 +47,18 @@ class Issue(implicit val config: CpuConfig) extends Module {
       inst0.reg_wen && (inst0.reg_waddr === inst1.reg1_raddr && inst1.reg1_ren || inst0.reg_waddr === inst1.reg2_raddr && inst1.reg2_ren)
     val data_conflict = raw_reg || load_stall
 
+    // 指令0为bru指令
+    val inst0_is_bru_inst = ((inst0.fusel === FuType.bru && FuType.bru =/= FuType.alu) ||
+      (inst0.fusel === FuType.alu && ALUOpType.isBru(io.decodeInst(0).op)))
+
     // 指令1是否允许执行
-    io.inst1.allow_to_go := io.allow_to_go &&
-    !instFifo_invalid &&
-    !struct_conflict &&
-    !data_conflict &&
-    !VecInit(FuType.bru, FuType.mou).contains(io.decodeInst(1).fusel)
+    io.inst1.allow_to_go :=
+      io.allow_to_go && // 指令0允许执行
+      !instFifo_invalid && // inst buffer存有至少2条指令
+      !struct_conflict && // 无结构冲突
+      !data_conflict && // 无写后读冲突
+      !VecInit(FuType.mou).contains(io.decodeInst(1).fusel) && // 指令1不是mou指令
+      !inst0_is_bru_inst // 指令0不是bru指令
   } else {
     io.inst1.allow_to_go := false.B
   }
