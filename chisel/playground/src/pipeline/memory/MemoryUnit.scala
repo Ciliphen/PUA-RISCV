@@ -70,10 +70,12 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst1.commit := io.memoryStage.inst1.inst_info.valid &&
     !(io.writeBackStage.inst0.ex.exception.asUInt.orR || io.writeBackStage.inst0.ex.interrupt.asUInt.orR)
 
-  io.csr.in.inst(0).pc := io.writeBackStage.inst0.pc
-  io.csr.in.inst(0).ex := io.writeBackStage.inst0.ex
-  io.csr.in.inst(1).pc := io.writeBackStage.inst1.pc
-  io.csr.in.inst(1).ex := io.writeBackStage.inst1.ex
+  io.csr.in.inst(0).pc        := io.writeBackStage.inst0.pc
+  io.csr.in.inst(0).ex        := io.writeBackStage.inst0.ex
+  io.csr.in.inst(0).inst_info := io.writeBackStage.inst0.inst_info
+  io.csr.in.inst(1).pc        := io.writeBackStage.inst1.pc
+  io.csr.in.inst(1).ex        := io.writeBackStage.inst1.ex
+  io.csr.in.inst(1).inst_info := io.writeBackStage.inst1.inst_info
 
   io.fetchUnit.flush    := io.csr.out.flush
   io.fetchUnit.flush_pc := Mux(io.csr.out.flush, io.csr.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)

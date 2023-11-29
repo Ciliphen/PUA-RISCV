@@ -5,8 +5,9 @@ import chisel3.util._
 import cpu.CpuConfig
 
 trait CoreParameter {
-  def config = new CpuConfig
-  val XLEN   = if (config.isRV32) 32 else 64
+  def config    = new CpuConfig
+  val XLEN      = if (config.isRV32) 32 else 64
+  val VADDR_WID = 32
 }
 
 trait Constants extends CoreParameter {

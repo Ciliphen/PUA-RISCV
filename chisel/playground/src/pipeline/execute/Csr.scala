@@ -12,8 +12,9 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
     val inst = Vec(
       config.fuNum,
       new Bundle {
-        val pc = UInt(PC_WID.W)
-        val ex = new ExceptionInfo()
+        val pc        = UInt(PC_WID.W)
+        val ex        = new ExceptionInfo()
+        val inst_info = new InstInfo()
       }
     )
   })
@@ -194,7 +195,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val interrupt_enable = Wire(UInt(INT_WID.W)) // 不用考虑ideleg
   interrupt_enable := Fill(
     INT_WID,
-    (((priv_mode === ModeM) && mstatus.asTypeOf(new Mstatus()).mie) || (priv_mode < ModeM))
+    (((priv_mode === ModeM) && mstatus.asTypeOf(new Mstatus()).ie.m) || (priv_mode < ModeM))
   )
   io.decoderUnit.interrupt := mie(11, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
 
@@ -202,17 +203,21 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val exc_sel =
     (io.memoryUnit.in.inst(0).ex.exception.asUInt.orR || io.memoryUnit.in.inst(0).ex.interrupt.asUInt.orR) ||
       !(io.memoryUnit.in.inst(1).ex.exception.asUInt.orR || io.memoryUnit.in.inst(1).ex.interrupt.asUInt.orR)
-  val pc        = Mux(exc_sel, io.memoryUnit.in.inst(0).pc, io.memoryUnit.in.inst(1).pc)
-  val exc       = Mux(exc_sel, io.memoryUnit.in.inst(0).ex, io.memoryUnit.in.inst(1).ex)
-  val valid     = io.executeUnit.in.valid
-  val op        = io.executeUnit.in.inst_info.op
-  val fusel     = io.executeUnit.in.inst_info.fusel
-  val addr      = io.executeUnit.in.inst_info.inst(31, 20)
-  val rdata     = Wire(UInt(XLEN.W))
-  val src1      = io.executeUnit.in.src_info.src1_data
-  val csri      = ZeroExtend(io.executeUnit.in.inst_info.inst(19, 15), XLEN)
-  val exe_stall = io.ctrl.exe_stall
-  val mem_stall = io.ctrl.mem_stall
+  val mem_pc        = Mux(exc_sel, io.memoryUnit.in.inst(0).pc, io.memoryUnit.in.inst(1).pc)
+  val mem_ex        = Mux(exc_sel, io.memoryUnit.in.inst(0).ex, io.memoryUnit.in.inst(1).ex)
+  val mem_inst_info = Mux(exc_sel, io.memoryUnit.in.inst(0).inst_info, io.memoryUnit.in.inst(1).inst_info)
+  val mem_inst      = mem_inst_info.inst
+  val mem_valid     = mem_inst_info.valid
+  val mem_addr      = mem_inst(31, 20)
+  val valid         = io.executeUnit.in.valid
+  val op            = io.executeUnit.in.inst_info.op
+  val fusel         = io.executeUnit.in.inst_info.fusel
+  val addr          = io.executeUnit.in.inst_info.inst(31, 20)
+  val rdata         = Wire(UInt(XLEN.W))
+  val src1          = io.executeUnit.in.src_info.src1_data
+  val csri          = ZeroExtend(io.executeUnit.in.inst_info.inst(19, 15), XLEN)
+  val exe_stall     = io.ctrl.exe_stall
+  val mem_stall     = io.ctrl.mem_stall
   val wdata = LookupTree(
     op,
     List(
@@ -244,18 +249,60 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
 
   // CSR inst decode
   val ret    = Wire(Bool())
-  val isMret = addr === privMret && op === CSROpType.jmp
-  val isSret = addr === privSret && op === CSROpType.jmp
-  val isUret = addr === privUret && op === CSROpType.jmp
+  val isMret = mem_addr === privMret && op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
+  val isSret = mem_addr === privSret && op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
+  val isUret = mem_addr === privUret && op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
   ret := isMret || isSret || isUret
 
+  val has_exception = mem_ex.exception.asUInt.orR
+  val has_interrupt = mem_ex.interrupt.asUInt.orR
+  val has_exc_int   = has_exception || has_interrupt
+  val exceptionNO   = ExcPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.exception(i), i.U, sum))
+  val interruptNO   = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
+  val causeNO       = (has_interrupt << (XLEN - 1)) | Mux(has_interrupt, interruptNO, exceptionNO)
+
+  val tval_wen = has_interrupt ||
+    !(mem_ex.exception(instrPageFault) ||
+      mem_ex.exception(loadPageFault) ||
+      mem_ex.exception(storePageFault) ||
+      mem_ex.exception(loadAddrMisaligned) ||
+      mem_ex.exception(storeAddrMisaligned))
+
+  when(has_exc_int) {
+    val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
+    val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
+    mcause           := causeNO
+    mepc             := SignedExtend(mem_pc, XLEN)
+    mstatusNew.mpp   := priv_mode
+    mstatusNew.pie.m := mstatusOld.ie.m
+    mstatusNew.ie.m  := false.B
+    priv_mode        := ModeM
+    when(tval_wen) { mtval := 0.U }
+    mstatus := mstatusNew.asUInt
+  }
+
+  val ret_target = Wire(UInt(VADDR_WID.W))
+  ret_target := DontCare
+  val trap_target = Wire(UInt(VADDR_WID.W))
+  trap_target := mtvec(VADDR_WID - 1, 0)
+
+  when(isMret) {
+    val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
+    val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
+    // mstatusNew.mpp.m := ModeU //TODO: add mode U
+    mstatusNew.ie.m  := mstatusOld.pie.m
+    priv_mode        := mstatusOld.mpp
+    mstatusNew.pie.m := true.B
+    mstatusNew.mpp   := ModeU
+    mstatus          := mstatusNew.asUInt
+    // lr := false.B //TODO: add原子操作
+    ret_target := mepc(VADDR_WID - 1, 0)
+  }
+
+  io.decoderUnit.priv_mode                      := priv_mode
   io.executeUnit.out.ex                         := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInstr) := (illegal_addr || illegal_access) && wen
   io.executeUnit.out.rdata                      := rdata
-
-  io.decoderUnit.priv_mode := priv_mode
-
-  io.memoryUnit.out.flush    := exc.exception.asUInt.orR || exc.interrupt.asUInt.orR
-  io.memoryUnit.out.flush_pc := mtvec
-
+  io.memoryUnit.out.flush                       := has_exc_int || ret
+  io.memoryUnit.out.flush_pc                    := Mux(has_exc_int, trap_target, ret_target)
 }

@@ -124,11 +124,11 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.ex.exception(breakPoint) := inst_info(0).inst(31, 20) === privEbreak &&
     inst_info(0).op === CSROpType.jmp
   io.executeStage.inst0.ex.exception(ecallM) := inst_info(0).inst(31, 20) === privEcall &&
-    inst_info(0).op === CSROpType.jmp && priv_mode === ModeM
+    inst_info(0).op === CSROpType.jmp && priv_mode === ModeM && inst_info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallS) := inst_info(0).inst(31, 20) === privEcall &&
-    inst_info(0).op === CSROpType.jmp && priv_mode === ModeS
+    inst_info(0).op === CSROpType.jmp && priv_mode === ModeS && inst_info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallU) := inst_info(0).inst(31, 20) === privEcall &&
-    inst_info(0).op === CSROpType.jmp && priv_mode === ModeU
+    inst_info(0).op === CSROpType.jmp && priv_mode === ModeU && inst_info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.tval := Mux(
     io.executeStage.inst0.ex.exception(instrAccessFault) || io.executeStage.inst0.ex.exception(instrAddrMisaligned),
     io.instFifo.inst(0).pc,
@@ -162,11 +162,11 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.ex.exception(breakPoint) := inst_info(1).inst(31, 20) === privEbreak &&
     inst_info(1).op === CSROpType.jmp
   io.executeStage.inst1.ex.exception(ecallM) := inst_info(1).inst(31, 20) === privEcall &&
-    inst_info(1).op === CSROpType.jmp && priv_mode === ModeM
+    inst_info(1).op === CSROpType.jmp && priv_mode === ModeM && inst_info(1).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallS) := inst_info(1).inst(31, 20) === privEcall &&
-    inst_info(1).op === CSROpType.jmp && priv_mode === ModeS
+    inst_info(1).op === CSROpType.jmp && priv_mode === ModeS && inst_info(1).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallU) := inst_info(1).inst(31, 20) === privEcall &&
-    inst_info(1).op === CSROpType.jmp && priv_mode === ModeU
+    inst_info(1).op === CSROpType.jmp && priv_mode === ModeU && inst_info(1).fusel === FuType.csr
 
   io.executeStage.inst1.ex.tval := Mux(
     io.executeStage.inst1.ex.exception(instrAccessFault) || io.executeStage.inst1.ex.exception(instrAddrMisaligned),

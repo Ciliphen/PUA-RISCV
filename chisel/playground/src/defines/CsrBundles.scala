@@ -5,32 +5,26 @@ import chisel3.util._
 import cpu.defines.Const._
 
 class Mstatus extends Bundle {
-  val sd    = Bool()
-  val wpri0 = UInt(25.W)
-  val mbe   = Bool()
-  val sbe   = Bool()
-  val sxl   = UInt(2.W)
-  val uxl   = UInt(2.W)
-  val wpri1 = UInt(9.W)
-  val tsr   = Bool()
-  val tw    = Bool()
-  val tvm   = Bool()
-  val mxr   = Bool()
-  val sum   = Bool()
-  val mprv  = Bool()
-  val xs    = UInt(2.W)
-  val fs    = UInt(2.W)
-  val mpp   = UInt(2.W)
-  val vs    = UInt(2.W)
-  val spp   = Bool()
-  val mpie  = Bool()
-  val ube   = Bool()
-  val spie  = Bool()
-  val wpri2 = Bool()
-  val mie   = Bool()
-  val wpri3 = Bool()
-  val sie   = Bool()
-  val wpri4 = Bool()
+  val sd = Output(UInt(1.W))
+
+  val pad1 = if (XLEN == 64) Output(UInt(27.W)) else null
+  val sxl  = if (XLEN == 64) Output(UInt(2.W)) else null
+  val uxl  = if (XLEN == 64) Output(UInt(2.W)) else null
+  val pad0 = if (XLEN == 64) Output(UInt(9.W)) else Output(UInt(8.W))
+
+  val tsr  = Output(UInt(1.W))
+  val tw   = Output(UInt(1.W))
+  val tvm  = Output(UInt(1.W))
+  val mxr  = Output(UInt(1.W))
+  val sum  = Output(UInt(1.W))
+  val mprv = Output(UInt(1.W))
+  val xs   = Output(UInt(2.W))
+  val fs   = Output(UInt(2.W))
+  val mpp  = Output(UInt(2.W))
+  val hpp  = Output(UInt(2.W))
+  val spp  = Output(UInt(1.W))
+  val pie  = new Priv
+  val ie   = new Priv
 }
 
 class Misa extends Bundle {
