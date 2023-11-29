@@ -209,6 +209,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val mem_inst      = mem_inst_info.inst
   val mem_valid     = mem_inst_info.valid
   val mem_addr      = mem_inst(31, 20)
+  // 不带前缀的信号为exe阶段的信号
   val valid         = io.executeUnit.in.valid
   val op            = io.executeUnit.in.inst_info.op
   val fusel         = io.executeUnit.in.inst_info.fusel
@@ -248,10 +249,13 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   MaskedRegMap.generate(fixMapping, addr, rdataDummy, wen && !illegal_access, wdata)
 
   // CSR inst decode
-  val ret    = Wire(Bool())
-  val isMret = mem_addr === privMret && op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
-  val isSret = mem_addr === privSret && op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
-  val isUret = mem_addr === privUret && op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
+  val ret = Wire(Bool())
+  val isMret =
+    mem_addr === privMret && mem_inst_info.op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
+  val isSret =
+    mem_addr === privSret && mem_inst_info.op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
+  val isUret =
+    mem_addr === privUret && mem_inst_info.op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
   ret := isMret || isSret || isUret
 
   val has_exception = mem_ex.exception.asUInt.orR
