@@ -16,8 +16,8 @@ class DataMemoryAccess_DataMemory extends Bundle {
     val rlen  = UInt(AXI_LEN_WID.W)
     val wen   = Bool()
     val wstrb = UInt(AXI_STRB_WID.W)
-    val addr  = UInt(AXI_ADDR_WID.W)
-    val wdata = UInt(AXI_DATA_WID.W)
+    val addr  = UInt(DATA_ADDR_WID.W)
+    val wdata = UInt(DATA_WID.W)
   })
 }
 
