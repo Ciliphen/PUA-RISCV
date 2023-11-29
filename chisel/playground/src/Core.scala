@@ -119,13 +119,14 @@ class Core(implicit val config: CpuConfig) extends Module {
   csr.ctrl.mem_stall := !ctrl.memoryUnit.allow_to_go
   csr.ext_int        := io.ext_int
 
-  memoryUnit.dataMemory.in.rdata := io.data.rdata
-  io.data.en                     := memoryUnit.dataMemory.out.en
-  io.data.size                   := memoryUnit.dataMemory.out.rlen
-  io.data.wen                    := memoryUnit.dataMemory.out.wen
-  io.data.wdata                  := memoryUnit.dataMemory.out.wdata
-  io.data.addr                   := memoryUnit.dataMemory.out.addr
-  io.data.wstrb                  := memoryUnit.dataMemory.out.wstrb
+  memoryUnit.dataMemory.in.rdata   := io.data.rdata
+  memoryUnit.dataMemory.in.acc_err := io.data.acc_err
+  io.data.en                       := memoryUnit.dataMemory.out.en
+  io.data.size                     := memoryUnit.dataMemory.out.rlen
+  io.data.wen                      := memoryUnit.dataMemory.out.wen
+  io.data.wdata                    := memoryUnit.dataMemory.out.wdata
+  io.data.addr                     := memoryUnit.dataMemory.out.addr
+  io.data.wstrb                    := memoryUnit.dataMemory.out.wstrb
 
   writeBackStage.memoryUnit <> memoryUnit.writeBackStage
   writeBackStage.ctrl.allow_to_go := ctrl.writeBackUnit.allow_to_go

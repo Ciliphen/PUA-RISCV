@@ -6,6 +6,21 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
+class DataMemoryAccess_DataMemory extends Bundle {
+  val in = Input(new Bundle {
+    val acc_err = Bool()
+    val rdata   = UInt(DATA_WID.W)
+  })
+  val out = Output(new Bundle {
+    val en    = Bool()
+    val rlen  = UInt(AXI_LEN_WID.W)
+    val wen   = Bool()
+    val wstrb = UInt(AXI_STRB_WID.W)
+    val addr  = UInt(AXI_ADDR_WID.W)
+    val wdata = UInt(AXI_DATA_WID.W)
+  })
+}
+
 class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val memoryUnit = new Bundle {
@@ -18,23 +33,12 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
         val ex        = Vec(config.fuNum, new ExceptionInfo())
       })
       val out = Output(new Bundle {
-        val rdata = Output(UInt(DATA_WID.W))
+        val acc_err = Bool()
+        val rdata   = Output(UInt(DATA_WID.W))
       })
     }
 
-    val dataMemory = new Bundle {
-      val in = Input(new Bundle {
-        val rdata = UInt(DATA_WID.W)
-      })
-      val out = Output(new Bundle {
-        val en    = Bool()
-        val rlen  = UInt(AXI_LEN_WID.W)
-        val wen   = Bool()
-        val wstrb = UInt(AXI_STRB_WID.W)
-        val addr  = UInt(AXI_ADDR_WID.W)
-        val wdata = UInt(AXI_DATA_WID.W)
-      })
-    }
+    val dataMemory = new DataMemoryAccess_DataMemory()
   })
   val mem_addr  = io.memoryUnit.in.mem_addr
   val mem_addr2 = mem_addr(1, 0)
@@ -61,6 +65,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       "b111".U -> mem_rdata(63, 56)
     )
   )
+  io.memoryUnit.out.acc_err := io.dataMemory.in.acc_err
   io.memoryUnit.out.rdata := MuxLookup(op, rdata(XLEN - 1, 0))(
     List(
       LSUOpType.lb  -> SignedExtend(rdata(7, 0), XLEN),

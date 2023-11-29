@@ -20,19 +20,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     val decoderUnit    = Output(Vec(config.fuNum, new RegWrite()))
     val csr            = Flipped(new CsrMemoryUnit())
     val writeBackStage = Output(new MemoryUnitWriteBackUnit())
-    val dataMemory = new Bundle {
-      val in = Input(new Bundle {
-        val rdata = UInt(DATA_WID.W)
-      })
-      val out = Output(new Bundle {
-        val en    = Bool()
-        val rlen  = UInt(AXI_LEN_WID.W)
-        val wen   = Bool()
-        val addr  = UInt(AXI_ADDR_WID.W)
-        val wdata = UInt(AXI_DATA_WID.W)
-        val wstrb = UInt(AXI_STRB_WID.W)
-      })
-    }
+    val dataMemory     = new DataMemoryAccess_DataMemory()
   })
 
   val dataMemoryAccess = Module(new DataMemoryAccess()).io
@@ -43,6 +31,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   dataMemoryAccess.memoryUnit.in.mem_sel   := io.memoryStage.inst0.mem.sel
   dataMemoryAccess.memoryUnit.in.ex(0)     := io.memoryStage.inst0.ex
   dataMemoryAccess.memoryUnit.in.ex(1)     := io.memoryStage.inst1.ex
+  dataMemoryAccess.dataMemory.in.acc_err   := io.dataMemory.in.acc_err
   dataMemoryAccess.dataMemory.in.rdata     := io.dataMemory.in.rdata
   io.dataMemory.out                        := dataMemoryAccess.dataMemory.out
 
@@ -58,15 +47,21 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst0.rd_info.wdata             := io.memoryStage.inst0.rd_info.wdata
   io.writeBackStage.inst0.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
   io.writeBackStage.inst0.ex                        := io.memoryStage.inst0.ex
-  io.writeBackStage.inst0.ex.exception              := io.memoryStage.inst0.ex.exception
-  io.writeBackStage.inst0.commit                    := io.memoryStage.inst0.inst_info.valid
+  io.writeBackStage.inst0.ex.exception(loadAccessFault) := io.memoryStage.inst0.mem.sel(0) &&
+    LSUOpType.isLoad(io.memoryStage.inst0.inst_info.op) && dataMemoryAccess.memoryUnit.out.acc_err
+  io.writeBackStage.inst0.ex.exception(storeAccessFault) := io.memoryStage.inst0.mem.sel(0) &&
+    LSUOpType.isStore(io.memoryStage.inst0.inst_info.op) && dataMemoryAccess.memoryUnit.out.acc_err
+  io.writeBackStage.inst0.commit := io.memoryStage.inst0.inst_info.valid
 
   io.writeBackStage.inst1.pc                        := io.memoryStage.inst1.pc
   io.writeBackStage.inst1.inst_info                 := io.memoryStage.inst1.inst_info
   io.writeBackStage.inst1.rd_info.wdata             := io.memoryStage.inst1.rd_info.wdata
   io.writeBackStage.inst1.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
   io.writeBackStage.inst1.ex                        := io.memoryStage.inst1.ex
-  io.writeBackStage.inst1.ex.exception              := io.memoryStage.inst1.ex.exception
+  io.writeBackStage.inst1.ex.exception(loadAccessFault) := io.memoryStage.inst0.mem.sel(1) &&
+    LSUOpType.isLoad(io.memoryStage.inst1.inst_info.op) && dataMemoryAccess.memoryUnit.out.acc_err
+  io.writeBackStage.inst1.ex.exception(storeAccessFault) := io.memoryStage.inst0.mem.sel(1) &&
+    LSUOpType.isStore(io.memoryStage.inst1.inst_info.op) && dataMemoryAccess.memoryUnit.out.acc_err
   io.writeBackStage.inst1.commit := io.memoryStage.inst1.inst_info.valid &&
     !(io.writeBackStage.inst0.ex.exception.asUInt.orR || io.writeBackStage.inst0.ex.interrupt.asUInt.orR)
 
