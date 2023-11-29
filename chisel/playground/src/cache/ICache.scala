@@ -40,25 +40,26 @@ class ICache(implicit config: CpuConfig) extends Module {
   }))))
   io.axi.r.ready := true.B
 
-  val acc_err = RegInit(false.B)
-  io.cpu.acc_err := acc_err
+  val acc_err  = RegInit(false.B)
+  val addr_err = io.cpu.addr(read_next_addr)(63, 32).orR
+
   (0 until config.instFetchNum).foreach(i => {
-    io.cpu.inst(i)       := saved(i).inst
-    io.cpu.inst_valid(i) := saved(i).valid || acc_err
+    io.cpu.inst(i)       := Mux(status === s_idle && !acc_err, 0.U, saved(i).inst)
+    io.cpu.inst_valid(i) := Mux(status === s_idle && !acc_err, false.B, saved(i).valid) && io.cpu.req
   })
 
-  val addr_err = io.cpu.addr(read_next_addr)(63, 32).orR
-  io.cpu.addr_err := addr_err
-
-  io.cpu.icache_stall := Mux(status === s_idle, io.cpu.req, status =/= s_save)
+  io.cpu.addr_err     := addr_err
+  io.cpu.acc_err      := acc_err
+  io.cpu.icache_stall := Mux(status === s_idle && !acc_err, io.cpu.req, status =/= s_save)
 
   switch(status) {
     is(s_idle) {
       acc_err := false.B
       when(io.cpu.req) {
         when(addr_err) {
-          acc_err := true.B
-          status  := s_save
+          acc_err        := true.B
+          saved(0).valid := true.B
+          status         := s_save
         }.otherwise {
           araddr         := pc
           arvalid        := true.B
