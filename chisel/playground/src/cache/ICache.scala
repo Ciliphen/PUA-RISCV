@@ -17,12 +17,11 @@ class ICache(implicit config: CpuConfig) extends Module {
   val s_idle :: s_uncached :: s_save :: Nil = Enum(3)
   val status                                = RegInit(s_idle)
 
-  val read_next_addr = (status === s_idle || status === s_save)
-  val pc             = Cat(io.cpu.addr(read_next_addr)(31, 2), 0.U(2.W))
+  val read_next_addr = true.B // 未接入cache时默认使用下一个地址
+  val araddr         = Cat(io.cpu.addr(read_next_addr)(31, 2), 0.U(2.W))
 
   // default
   val arvalid = RegInit(false.B)
-  val araddr  = RegInit(0.U(AXI_ADDR_WID.W))
   io.axi.ar.id    := 0.U
   io.axi.ar.addr  := araddr
   io.axi.ar.len   := 0.U
@@ -61,7 +60,6 @@ class ICache(implicit config: CpuConfig) extends Module {
           saved(0).valid := true.B
           status         := s_save
         }.otherwise {
-          araddr         := pc
           arvalid        := true.B
           io.axi.ar.len  := 0.U
           io.axi.ar.size := 2.U
