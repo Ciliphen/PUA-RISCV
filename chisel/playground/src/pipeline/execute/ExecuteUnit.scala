@@ -46,9 +46,9 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     (io.executeStage.inst0.jb_info.jump_regiser || fu.branch.pred_fail)
 
   val csr_sel0 = valid(0) && io.executeStage.inst0.inst_info.fusel === FuType.csr &&
-    !io.executeStage.inst0.ex.exception.asUInt.orR
+    !(io.executeStage.inst0.ex.exception.asUInt.orR|| io.executeStage.inst0.ex.interrupt.asUInt.orR)
   val csr_sel1 = valid(1) && io.executeStage.inst1.inst_info.fusel === FuType.csr &&
-    !io.executeStage.inst1.ex.exception.asUInt.orR
+    !(io.executeStage.inst1.ex.exception.asUInt.orR|| io.executeStage.inst1.ex.interrupt.asUInt.orR)
   io.csr.in.valid := csr_sel0 || csr_sel1
   io.csr.in.inst_info := Mux(
     csr_sel0 && !csr_sel1,

@@ -18,7 +18,6 @@ class ICache(implicit config: CpuConfig) extends Module {
   val status                                = RegInit(s_idle)
 
   val read_next_addr = (status === s_idle || status === s_save)
-  val addr_err       = io.cpu.addr(read_next_addr)(63, 32).orR
   val pc             = Cat(io.cpu.addr(read_next_addr)(31, 2), 0.U(2.W))
 
   // default
@@ -47,7 +46,9 @@ class ICache(implicit config: CpuConfig) extends Module {
     io.cpu.inst(i)       := saved(i).inst
     io.cpu.inst_valid(i) := saved(i).valid || acc_err
   })
-  io.cpu.addr_err := io.cpu.addr(read_next_addr)(1, 0).orR
+
+  val addr_err = io.cpu.addr(read_next_addr)(63, 32).orR
+  io.cpu.addr_err := addr_err
 
   io.cpu.icache_stall := Mux(status === s_idle, io.cpu.req, status =/= s_save)
 

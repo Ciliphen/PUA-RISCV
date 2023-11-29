@@ -89,6 +89,19 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val tselect = RegInit(1.U(XLEN.W)) // 跟踪寄存器选择寄存器
   val tdata1  = RegInit(0.U(XLEN.W)) // 跟踪寄存器数据1寄存器
 
+  // 仅供调试使用
+  val satp = RegInit(UInt(XLEN.W), 0.U)
+
+  val pmpcfg0      = RegInit(UInt(XLEN.W), 0.U)
+  val pmpcfg1      = RegInit(UInt(XLEN.W), 0.U)
+  val pmpcfg2      = RegInit(UInt(XLEN.W), 0.U)
+  val pmpcfg3      = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddr0     = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddr1     = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddr2     = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddr3     = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddrWmask = "h3fffffff".U(64.W) // 32bit physical address
+
   // Side Effect
   def mstatusUpdateSideEffect(mstatus: UInt): UInt = {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
@@ -133,9 +146,8 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     // MaskedRegMap(Scause, scause),
     // MaskedRegMap(Stval, stval),
     // MaskedRegMap(Sip, mip.asUInt, sipMask, MaskedRegMap.Unwritable, sipMask),
-    // // Supervisor Protection and Translation
-    // MaskedRegMap(Satp, satp),
-
+    // Supervisor Protection and Translation
+    MaskedRegMap(Satp, satp),
     // Machine Information Registers
     MaskedRegMap(Mvendorid, mvendorid, 0.U, MaskedRegMap.Unwritable),
     MaskedRegMap(Marchid, marchid, 0.U, MaskedRegMap.Unwritable),
@@ -156,7 +168,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Mcause, mcause),
     MaskedRegMap(Mtval, mtval),
     MaskedRegMap(Mip, mip.asUInt, 0.U, MaskedRegMap.Unwritable)
-    // // Machine Memory Protection TODO
+    // Machine Memory Protection
     // MaskedRegMap(Pmpcfg0, pmpcfg0),
     // MaskedRegMap(Pmpcfg1, pmpcfg1),
     // MaskedRegMap(Pmpcfg2, pmpcfg2),
@@ -187,8 +199,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   io.decoderUnit.interrupt := mie(11, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
 
   // 优先使用inst0的信息
-  val exc_sel = io.memoryUnit.in.inst(0).ex.exception.asUInt.orR ||
-    !io.memoryUnit.in.inst(1).ex.exception.asUInt.orR
+  val exc_sel =
+    (io.memoryUnit.in.inst(0).ex.exception.asUInt.orR || io.memoryUnit.in.inst(0).ex.interrupt.asUInt.orR) ||
+      !(io.memoryUnit.in.inst(1).ex.exception.asUInt.orR || io.memoryUnit.in.inst(1).ex.interrupt.asUInt.orR)
   val pc        = Mux(exc_sel, io.memoryUnit.in.inst(0).pc, io.memoryUnit.in.inst(1).pc)
   val exc       = Mux(exc_sel, io.memoryUnit.in.inst(0).ex, io.memoryUnit.in.inst(1).ex)
   val valid     = io.executeUnit.in.valid
@@ -212,11 +225,11 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     )
   )
 
-  //val satp_legal  = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
-  val wen            = (valid && op =/= CSROpType.jmp) //&& (addr =/= Satp.U || satp_legal)
+  val satp_legal     = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
+  val wen            = (valid && op =/= CSROpType.jmp) && (addr =/= Satp.U || satp_legal)
+  val ren            = (op === CSROpType.set || op === CSROpType.seti) && src1 === 0.U
   val illegal_mode   = priv_mode < addr(9, 8)
-  val csr_ren        = (op === CSROpType.set || op === CSROpType.seti) && src1 === 0.U
-  val illegal_write  = wen && (addr(11, 10) === "b11".U) && !csr_ren
+  val illegal_write  = wen && (addr(11, 10) === "b11".U) && !ren
   val illegal_access = illegal_mode || illegal_write
 
   MaskedRegMap.generate(mapping, addr, rdata, wen && !illegal_access, wdata)

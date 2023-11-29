@@ -67,7 +67,8 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst1.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
   io.writeBackStage.inst1.ex                        := io.memoryStage.inst1.ex
   io.writeBackStage.inst1.ex.exception              := io.memoryStage.inst1.ex.exception
-  io.writeBackStage.inst1.commit                    := io.memoryStage.inst1.inst_info.valid
+  io.writeBackStage.inst1.commit := io.memoryStage.inst1.inst_info.valid &&
+    !(io.writeBackStage.inst0.ex.exception.asUInt.orR || io.writeBackStage.inst0.ex.interrupt.asUInt.orR)
 
   io.csr.in.inst(0).pc := io.writeBackStage.inst0.pc
   io.csr.in.inst(0).ex := io.writeBackStage.inst0.ex
