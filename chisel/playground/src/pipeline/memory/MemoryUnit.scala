@@ -65,14 +65,22 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst1.commit := io.memoryStage.inst1.inst_info.valid &&
     !(io.writeBackStage.inst0.ex.exception.asUInt.orR || io.writeBackStage.inst0.ex.interrupt.asUInt.orR)
 
-  io.csr.in.inst(0).pc        := io.writeBackStage.inst0.pc
-  io.csr.in.inst(0).ex        := io.writeBackStage.inst0.ex
-  io.csr.in.inst(0).inst_info := io.writeBackStage.inst0.inst_info
-  io.csr.in.inst(1).pc        := io.writeBackStage.inst1.pc
-  io.csr.in.inst(1).ex        := io.writeBackStage.inst1.ex
-  io.csr.in.inst(1).inst_info := io.writeBackStage.inst1.inst_info
+  io.csr.in.inst(0).pc := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst0.pc, 0.U)
+  io.csr.in.inst(0).ex := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst0.ex, 0.U.asTypeOf(new ExceptionInfo()))
+  io.csr.in.inst(0).inst_info := Mux(
+    io.ctrl.allow_to_go,
+    io.writeBackStage.inst0.inst_info,
+    0.U.asTypeOf(new InstInfo())
+  )
+  io.csr.in.inst(1).pc := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst1.pc, 0.U)
+  io.csr.in.inst(1).ex := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst1.ex, 0.U.asTypeOf(new ExceptionInfo()))
+  io.csr.in.inst(1).inst_info := Mux(
+    io.ctrl.allow_to_go,
+    io.writeBackStage.inst1.inst_info,
+    0.U.asTypeOf(new InstInfo())
+  )
 
-  io.fetchUnit.flush    := io.csr.out.flush
+  io.fetchUnit.flush    := io.csr.out.flush && io.ctrl.allow_to_go
   io.fetchUnit.flush_pc := Mux(io.csr.out.flush, io.csr.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)
 
   io.ctrl.flush_req := io.fetchUnit.flush
