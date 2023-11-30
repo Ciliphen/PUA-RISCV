@@ -249,7 +249,9 @@ trait HasCSRConst {
   // 0xB80 - 0x89F are also used as perfcnt csr
 
   // Machine Counter Setup (not implemented)
-  // Debug/Trace Registers (shared with Debug Mode) (not implemented)
+  // Debug/Trace Registers (shared with Debug Mode) (simply implemented)
+  val Tselect = 0x7a0
+  val Tdata1  = 0x7a1
   // Debug Mode Registers (not implemented)
 
   def privEcall  = 0x000.U

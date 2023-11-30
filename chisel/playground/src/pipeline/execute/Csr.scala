@@ -168,7 +168,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Mepc, mepc),
     MaskedRegMap(Mcause, mcause),
     MaskedRegMap(Mtval, mtval),
-    MaskedRegMap(Mip, mip.asUInt, 0.U, MaskedRegMap.Unwritable)
+    MaskedRegMap(Mip, mip.asUInt, 0.U, MaskedRegMap.Unwritable),
     // Machine Memory Protection
     // MaskedRegMap(Pmpcfg0, pmpcfg0),
     // MaskedRegMap(Pmpcfg1, pmpcfg1),
@@ -178,6 +178,10 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     // MaskedRegMap(PmpaddrBase + 1, pmpaddr1, pmpaddrWmask),
     // MaskedRegMap(PmpaddrBase + 2, pmpaddr2, pmpaddrWmask),
     // MaskedRegMap(PmpaddrBase + 3, pmpaddr3, pmpaddrWmask)
+
+    // Debug/Trace Registers (shared with Debug Mode)
+    MaskedRegMap(Tselect, tselect, 0.U, MaskedRegMap.Unwritable), // 用于通过 risc-v test
+    MaskedRegMap(Tdata1, tdata1, 0.U, MaskedRegMap.Unwritable)
   ) //++ perfCntsLoMapping
 
   val priv_mode = RegInit(Priv.m) // 当前特权模式
@@ -210,15 +214,15 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val mem_valid     = mem_inst_info.valid
   val mem_addr      = mem_inst(31, 20)
   // 不带前缀的信号为exe阶段的信号
-  val valid         = io.executeUnit.in.valid
-  val op            = io.executeUnit.in.inst_info.op
-  val fusel         = io.executeUnit.in.inst_info.fusel
-  val addr          = io.executeUnit.in.inst_info.inst(31, 20)
-  val rdata         = Wire(UInt(XLEN.W))
-  val src1          = io.executeUnit.in.src_info.src1_data
-  val csri          = ZeroExtend(io.executeUnit.in.inst_info.inst(19, 15), XLEN)
-  val exe_stall     = io.ctrl.exe_stall
-  val mem_stall     = io.ctrl.mem_stall
+  val valid     = io.executeUnit.in.valid
+  val op        = io.executeUnit.in.inst_info.op
+  val fusel     = io.executeUnit.in.inst_info.fusel
+  val addr      = io.executeUnit.in.inst_info.inst(31, 20)
+  val rdata     = Wire(UInt(XLEN.W))
+  val src1      = io.executeUnit.in.src_info.src1_data
+  val csri      = ZeroExtend(io.executeUnit.in.inst_info.inst(19, 15), XLEN)
+  val exe_stall = io.ctrl.exe_stall
+  val mem_stall = io.ctrl.mem_stall
   val wdata = LookupTree(
     op,
     List(
