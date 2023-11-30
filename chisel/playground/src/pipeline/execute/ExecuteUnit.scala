@@ -53,20 +53,26 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   val csr_sel1 = valid(1) && io.executeStage.inst1.inst_info.fusel === FuType.csr &&
     !(io.executeStage.inst1.ex.exception.asUInt.orR || io.executeStage.inst1.ex.interrupt.asUInt.orR)
   io.csr.in.valid := (csr_sel0 || csr_sel1)
-  io.csr.in.inst_info := Mux(
-    csr_sel0 && !csr_sel1,
-    io.executeStage.inst0.inst_info,
-    io.executeStage.inst1.inst_info
+  io.csr.in.inst_info := MuxCase(
+    0.U.asTypeOf(new InstInfo()),
+    Seq(
+      csr_sel0 -> io.executeStage.inst0.inst_info,
+      csr_sel1 -> io.executeStage.inst1.inst_info
+    )
   )
-  io.csr.in.src_info := Mux(
-    csr_sel0 && !csr_sel1,
-    io.executeStage.inst0.src_info,
-    io.executeStage.inst1.src_info
+  io.csr.in.src_info := MuxCase(
+    0.U.asTypeOf(new SrcInfo()),
+    Seq(
+      csr_sel0 -> io.executeStage.inst0.src_info,
+      csr_sel1 -> io.executeStage.inst1.src_info
+    )
   )
-  io.csr.in.ex := Mux(
-    csr_sel0 && !csr_sel1,
-    io.executeStage.inst0.ex,
-    io.executeStage.inst1.ex
+  io.csr.in.ex := MuxCase(
+    0.U.asTypeOf(new ExceptionInfo()),
+    Seq(
+      csr_sel0 -> io.executeStage.inst0.ex,
+      csr_sel1 -> io.executeStage.inst1.ex
+    )
   )
 
   // input accessMemCtrl
@@ -130,10 +136,18 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst0.rd_info.wdata(FuType.csr) := io.csr.out.rdata
   io.memoryStage.inst0.rd_info.wdata(FuType.lsu) := 0.U
   io.memoryStage.inst0.rd_info.wdata(FuType.mou) := 0.U
-  io.memoryStage.inst0.ex := MuxLookup(io.executeStage.inst0.inst_info.fusel, fu.inst(0).ex.out)(
-    Seq(
-      FuType.lsu -> accessMemCtrl.inst(0).ex.out,
-      FuType.csr -> io.csr.out.ex
+  val has_ex0 =
+    (io.executeStage.inst0.ex.exception.asUInt.orR || io.executeStage.inst0.ex.interrupt.asUInt.orR) && io.executeStage.inst0.inst_info.valid
+  io.memoryStage.inst0.ex := Mux(
+    has_ex0,
+    io.executeStage.inst0.ex,
+    MuxLookup(io.executeStage.inst0.inst_info.fusel, io.executeStage.inst0.ex)(
+      Seq(
+        FuType.alu -> fu.inst(0).ex.out,
+        FuType.mdu -> fu.inst(0).ex.out,
+        FuType.lsu -> accessMemCtrl.inst(0).ex.out,
+        FuType.csr -> io.csr.out.ex
+      )
     )
   )
 
@@ -144,10 +158,18 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst1.rd_info.wdata(FuType.csr) := io.csr.out.rdata
   io.memoryStage.inst1.rd_info.wdata(FuType.lsu) := 0.U
   io.memoryStage.inst1.rd_info.wdata(FuType.mou) := 0.U
-  io.memoryStage.inst1.ex := MuxLookup(io.executeStage.inst1.inst_info.fusel, fu.inst(1).ex.out)(
-    Seq(
-      FuType.lsu -> accessMemCtrl.inst(1).ex.out,
-      FuType.csr -> io.csr.out.ex
+  val has_ex1 =
+    (io.executeStage.inst1.ex.exception.asUInt.orR || io.executeStage.inst1.ex.interrupt.asUInt.orR) && io.executeStage.inst1.inst_info.valid
+  io.memoryStage.inst1.ex := Mux(
+    has_ex1,
+    io.executeStage.inst1.ex,
+    MuxLookup(io.executeStage.inst1.inst_info.fusel, io.executeStage.inst1.ex)(
+      Seq(
+        FuType.alu -> fu.inst(1).ex.out,
+        FuType.mdu -> fu.inst(1).ex.out,
+        FuType.lsu -> accessMemCtrl.inst(1).ex.out,
+        FuType.csr -> io.csr.out.ex
+      )
     )
   )
 

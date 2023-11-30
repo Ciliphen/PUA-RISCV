@@ -243,7 +243,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   // Fix Mip/Sip write
   val fixMapping = Map(
     MaskedRegMap(Mip, mipReg.asUInt, mipFixMask)
-    // MaskedRegMap(Sip, mipReg.asUInt, sipMask, MaskedRegMap.NoSideEffect, sipMask) TODO
+    // MaskedRegMap(Sip, mipReg.asUInt, sipMask, MaskedRegMap.NoSideEffect, sipMask) //TODO
   )
   val rdataDummy = Wire(UInt(XLEN.W))
   MaskedRegMap.generate(fixMapping, addr, rdataDummy, wen && !illegal_access, wdata)
@@ -303,10 +303,11 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     ret_target := mepc(VADDR_WID - 1, 0)
   }
 
-  io.decoderUnit.priv_mode                      := priv_mode
-  io.executeUnit.out.ex                         := io.executeUnit.in.ex
-  io.executeUnit.out.ex.exception(illegalInstr) := (illegal_addr || illegal_access) && wen
-  io.executeUnit.out.rdata                      := rdata
-  io.memoryUnit.out.flush                       := has_exc_int || ret
-  io.memoryUnit.out.flush_pc                    := Mux(has_exc_int, trap_target, ret_target)
+  io.decoderUnit.priv_mode := priv_mode
+  io.executeUnit.out.ex    := io.executeUnit.in.ex
+  io.executeUnit.out.ex.exception(illegalInstr) :=
+    (illegal_addr || illegal_access) && wen | io.executeUnit.in.ex.exception(illegalInstr)
+  io.executeUnit.out.rdata   := rdata
+  io.memoryUnit.out.flush    := has_exc_int || ret
+  io.memoryUnit.out.flush_pc := Mux(has_exc_int, trap_target, ret_target)
 }
