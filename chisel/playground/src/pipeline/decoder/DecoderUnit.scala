@@ -60,7 +60,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
 
   val pc        = io.instFifo.inst.map(_.pc)
   val inst      = io.instFifo.inst.map(_.inst)
-  val info = decoder.map(_.io.out.info)
+  val info      = decoder.map(_.io.out.info)
   val priv_mode = io.csr.priv_mode
 
   issue.allow_to_go          := io.ctrl.allow_to_go
@@ -81,7 +81,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   forwardCtrl.in.forward   := io.forward
   forwardCtrl.in.regfile   := io.regfile // TODO:这里的连接可能有问题
   jumpCtrl.in.allow_to_go  := io.ctrl.allow_to_go
-  jumpCtrl.in.info    := decoder(0).io.out.info
+  jumpCtrl.in.info         := decoder(0).io.out.info
   jumpCtrl.in.forward      := io.forward
   jumpCtrl.in.pc           := io.instFifo.inst(0).pc
   jumpCtrl.in.src_info     := io.executeStage.inst0.src_info
@@ -103,13 +103,15 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.ctrl.inst0.src2.raddr := decoder(0).io.out.info.reg2_raddr
   io.ctrl.branch           := inst0_branch
 
-  io.executeStage.inst0.pc              := pc(0)
+  io.executeStage.inst0.pc         := pc(0)
   io.executeStage.inst0.info       := info(0)
   io.executeStage.inst0.info.valid := !io.instFifo.info.empty
-  io.executeStage.inst0.src_info.src1_data := Mux(
-    info(0).reg1_ren,
-    forwardCtrl.out.inst(0).src1.rdata,
-    SignedExtend(pc(0), INST_ADDR_WID)
+  io.executeStage.inst0.src_info.src1_data := MuxCase(
+    SignedExtend(pc(0), INST_ADDR_WID),
+    Seq(
+      info(0).reg1_ren                      -> forwardCtrl.out.inst(0).src1.rdata,
+      (info(0).inst(6, 0) === "b0110111".U) -> 0.U
+    )
   )
   io.executeStage.inst0.src_info.src2_data := Mux(
     info(0).reg2_ren,
@@ -141,7 +143,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.jb_info.branch_target    := io.bpu.branch_target
   io.executeStage.inst0.jb_info.update_pht_index := io.bpu.update_pht_index
 
-  io.executeStage.inst1.pc              := pc(1)
+  io.executeStage.inst1.pc         := pc(1)
   io.executeStage.inst1.info       := info(1)
   io.executeStage.inst1.info.valid := !io.instFifo.info.almost_empty && !io.instFifo.info.empty
   io.executeStage.inst1.src_info.src1_data := Mux(
