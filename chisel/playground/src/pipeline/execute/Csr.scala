@@ -100,12 +100,21 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val pmpaddr3     = RegInit(UInt(XLEN.W), 0.U)
   val pmpaddrWmask = "h3fffffff".U(64.W) // 32bit physical address
 
+  val rdata = Wire(UInt(XLEN.W))
+  val wdata = Wire(UInt(XLEN.W))
+
   // Side Effect
   def mstatusUpdateSideEffect(mstatus: UInt): UInt = {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
     val mstatusNew = Cat(mstatusOld.fs === "b11".U, mstatus(XLEN - 2, 0))
     mstatusNew
   }
+
+  val mstatus_wmask = Mux(
+    wdata.asTypeOf(new Mstatus).mpp === ModeM || wdata.asTypeOf(new Mstatus).mpp === ModeU,
+    "h0000000000021888".U(64.W),
+    "h0000000000020088".U(64.W)
+  )
 
   // CSR reg map
   val mapping = Map(
@@ -151,7 +160,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Mimpid, mimpid, 0.U, MaskedRegMap.Unwritable),
     MaskedRegMap(Mhartid, mhartid, 0.U, MaskedRegMap.Unwritable),
     // Machine Trap Setup
-    MaskedRegMap(Mstatus, mstatus, "h0000000000021888".U(64.W)),
+    MaskedRegMap(Mstatus, mstatus, mstatus_wmask),
     MaskedRegMap(Misa, misa), // now MXL, EXT is not changeable
     // MaskedRegMap(Medeleg, medeleg, "hbbff".U(64.W)), TODO
     // MaskedRegMap(Mideleg, mideleg, "h222".U(64.W)),
@@ -214,12 +223,11 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val op        = io.executeUnit.in.inst_info.op
   val fusel     = io.executeUnit.in.inst_info.fusel
   val addr      = io.executeUnit.in.inst_info.inst(31, 20)
-  val rdata     = Wire(UInt(XLEN.W))
   val src1      = io.executeUnit.in.src_info.src1_data
   val csri      = ZeroExtend(io.executeUnit.in.inst_info.inst(19, 15), XLEN)
   val exe_stall = io.ctrl.exe_stall
   val mem_stall = io.ctrl.mem_stall
-  val wdata = LookupTree(
+  wdata := LookupTree(
     op,
     List(
       CSROpType.wrt  -> src1,
