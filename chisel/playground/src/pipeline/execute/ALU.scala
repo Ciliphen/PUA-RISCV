@@ -21,11 +21,11 @@ class MultSignal extends Bundle {
 }
 class Alu extends Module {
   val io = IO(new Bundle {
-    val inst_info = Input(new InstInfo())
+    val info = Input(new InstInfo())
     val src_info  = Input(new SrcInfo())
     val result    = Output(UInt(DATA_WID.W))
   })
-  val op     = io.inst_info.op
+  val op     = io.info.op
   val src1   = io.src_info.src1_data
   val src2   = io.src_info.src2_data
   val is_sub = !ALUOpType.isAdd(op)

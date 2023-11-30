@@ -60,7 +60,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
 
   val pc        = io.instFifo.inst.map(_.pc)
   val inst      = io.instFifo.inst.map(_.inst)
-  val inst_info = decoder.map(_.io.out.inst_info)
+  val info = decoder.map(_.io.out.info)
   val priv_mode = io.csr.priv_mode
 
   issue.allow_to_go          := io.ctrl.allow_to_go
@@ -68,20 +68,20 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.instFifo.allow_to_go(1) := issue.inst1.allow_to_go
   for (i <- 0 until (config.decoderNum)) {
     decoder(i).io.in.inst      := inst(i)
-    issue.decodeInst(i)        := inst_info(i)
+    issue.decodeInst(i)        := info(i)
     issue.execute(i).mem_wreg  := io.forward(i).mem_wreg
     issue.execute(i).reg_waddr := io.forward(i).exe.waddr
   }
   io.executeStage.inst1.allow_to_go := issue.inst1.allow_to_go
 
-  io.regfile(0).src1.raddr := decoder(0).io.out.inst_info.reg1_raddr
-  io.regfile(0).src2.raddr := decoder(0).io.out.inst_info.reg2_raddr
-  io.regfile(1).src1.raddr := decoder(1).io.out.inst_info.reg1_raddr
-  io.regfile(1).src2.raddr := decoder(1).io.out.inst_info.reg2_raddr
+  io.regfile(0).src1.raddr := decoder(0).io.out.info.reg1_raddr
+  io.regfile(0).src2.raddr := decoder(0).io.out.info.reg2_raddr
+  io.regfile(1).src1.raddr := decoder(1).io.out.info.reg1_raddr
+  io.regfile(1).src2.raddr := decoder(1).io.out.info.reg2_raddr
   forwardCtrl.in.forward   := io.forward
   forwardCtrl.in.regfile   := io.regfile // TODO:这里的连接可能有问题
   jumpCtrl.in.allow_to_go  := io.ctrl.allow_to_go
-  jumpCtrl.in.inst_info    := decoder(0).io.out.inst_info
+  jumpCtrl.in.info    := decoder(0).io.out.info
   jumpCtrl.in.forward      := io.forward
   jumpCtrl.in.pc           := io.instFifo.inst(0).pc
   jumpCtrl.in.src_info     := io.executeStage.inst0.src_info
@@ -94,41 +94,41 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.instFifo.allow_to_go(0) := io.ctrl.allow_to_go
   io.bpu.id_allow_to_go      := io.ctrl.allow_to_go
   io.bpu.pc                  := io.instFifo.inst(0).pc
-  io.bpu.decoded_inst0       := decoder(0).io.out.inst_info
+  io.bpu.decoded_inst0       := decoder(0).io.out.info
   io.bpu.pht_index           := io.instFifo.inst(0).pht_index
 
-  io.ctrl.inst0.src1.ren   := decoder(0).io.out.inst_info.reg1_ren
-  io.ctrl.inst0.src1.raddr := decoder(0).io.out.inst_info.reg1_raddr
-  io.ctrl.inst0.src2.ren   := decoder(0).io.out.inst_info.reg2_ren
-  io.ctrl.inst0.src2.raddr := decoder(0).io.out.inst_info.reg2_raddr
+  io.ctrl.inst0.src1.ren   := decoder(0).io.out.info.reg1_ren
+  io.ctrl.inst0.src1.raddr := decoder(0).io.out.info.reg1_raddr
+  io.ctrl.inst0.src2.ren   := decoder(0).io.out.info.reg2_ren
+  io.ctrl.inst0.src2.raddr := decoder(0).io.out.info.reg2_raddr
   io.ctrl.branch           := inst0_branch
 
   io.executeStage.inst0.pc              := pc(0)
-  io.executeStage.inst0.inst_info       := inst_info(0)
-  io.executeStage.inst0.inst_info.valid := !io.instFifo.info.empty
+  io.executeStage.inst0.info       := info(0)
+  io.executeStage.inst0.info.valid := !io.instFifo.info.empty
   io.executeStage.inst0.src_info.src1_data := Mux(
-    inst_info(0).reg1_ren,
+    info(0).reg1_ren,
     forwardCtrl.out.inst(0).src1.rdata,
     SignedExtend(pc(0), INST_ADDR_WID)
   )
   io.executeStage.inst0.src_info.src2_data := Mux(
-    inst_info(0).reg2_ren,
+    info(0).reg2_ren,
     forwardCtrl.out.inst(0).src2.rdata,
-    decoder(0).io.out.inst_info.imm
+    decoder(0).io.out.info.imm
   )
   (0 until (INT_WID)).foreach(i => io.executeStage.inst0.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst0.ex.exception.map(_                := false.B)
-  io.executeStage.inst0.ex.exception(illegalInstr)        := !inst_info(0).inst_legal
+  io.executeStage.inst0.ex.exception(illegalInstr)        := !info(0).inst_legal
   io.executeStage.inst0.ex.exception(instrAccessFault)    := io.instFifo.inst(0).acc_err
   io.executeStage.inst0.ex.exception(instrAddrMisaligned) := io.instFifo.inst(0).addr_err
-  io.executeStage.inst0.ex.exception(breakPoint) := inst_info(0).inst(31, 20) === privEbreak &&
-    inst_info(0).op === CSROpType.jmp
-  io.executeStage.inst0.ex.exception(ecallM) := inst_info(0).inst(31, 20) === privEcall &&
-    inst_info(0).op === CSROpType.jmp && priv_mode === ModeM && inst_info(0).fusel === FuType.csr
-  io.executeStage.inst0.ex.exception(ecallS) := inst_info(0).inst(31, 20) === privEcall &&
-    inst_info(0).op === CSROpType.jmp && priv_mode === ModeS && inst_info(0).fusel === FuType.csr
-  io.executeStage.inst0.ex.exception(ecallU) := inst_info(0).inst(31, 20) === privEcall &&
-    inst_info(0).op === CSROpType.jmp && priv_mode === ModeU && inst_info(0).fusel === FuType.csr
+  io.executeStage.inst0.ex.exception(breakPoint) := info(0).inst(31, 20) === privEbreak &&
+    info(0).op === CSROpType.jmp
+  io.executeStage.inst0.ex.exception(ecallM) := info(0).inst(31, 20) === privEcall &&
+    info(0).op === CSROpType.jmp && priv_mode === ModeM && info(0).fusel === FuType.csr
+  io.executeStage.inst0.ex.exception(ecallS) := info(0).inst(31, 20) === privEcall &&
+    info(0).op === CSROpType.jmp && priv_mode === ModeS && info(0).fusel === FuType.csr
+  io.executeStage.inst0.ex.exception(ecallU) := info(0).inst(31, 20) === privEcall &&
+    info(0).op === CSROpType.jmp && priv_mode === ModeU && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.tval := Mux(
     io.executeStage.inst0.ex.exception(instrAccessFault) || io.executeStage.inst0.ex.exception(instrAddrMisaligned),
     io.instFifo.inst(0).pc,
@@ -142,31 +142,31 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.jb_info.update_pht_index := io.bpu.update_pht_index
 
   io.executeStage.inst1.pc              := pc(1)
-  io.executeStage.inst1.inst_info       := inst_info(1)
-  io.executeStage.inst1.inst_info.valid := !io.instFifo.info.almost_empty && !io.instFifo.info.empty
+  io.executeStage.inst1.info       := info(1)
+  io.executeStage.inst1.info.valid := !io.instFifo.info.almost_empty && !io.instFifo.info.empty
   io.executeStage.inst1.src_info.src1_data := Mux(
-    inst_info(1).reg1_ren,
+    info(1).reg1_ren,
     forwardCtrl.out.inst(1).src1.rdata,
     SignedExtend(pc(1), INST_ADDR_WID)
   )
   io.executeStage.inst1.src_info.src2_data := Mux(
-    inst_info(1).reg2_ren,
+    info(1).reg2_ren,
     forwardCtrl.out.inst(1).src2.rdata,
-    decoder(1).io.out.inst_info.imm
+    decoder(1).io.out.info.imm
   )
   (0 until (INT_WID)).foreach(i => io.executeStage.inst1.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst1.ex.exception.map(_                := false.B)
-  io.executeStage.inst1.ex.exception(illegalInstr)        := !inst_info(1).inst_legal
+  io.executeStage.inst1.ex.exception(illegalInstr)        := !info(1).inst_legal
   io.executeStage.inst1.ex.exception(instrAccessFault)    := io.instFifo.inst(1).acc_err
   io.executeStage.inst1.ex.exception(instrAddrMisaligned) := io.instFifo.inst(1).addr_err
-  io.executeStage.inst1.ex.exception(breakPoint) := inst_info(1).inst(31, 20) === privEbreak &&
-    inst_info(1).op === CSROpType.jmp
-  io.executeStage.inst1.ex.exception(ecallM) := inst_info(1).inst(31, 20) === privEcall &&
-    inst_info(1).op === CSROpType.jmp && priv_mode === ModeM && inst_info(1).fusel === FuType.csr
-  io.executeStage.inst1.ex.exception(ecallS) := inst_info(1).inst(31, 20) === privEcall &&
-    inst_info(1).op === CSROpType.jmp && priv_mode === ModeS && inst_info(1).fusel === FuType.csr
-  io.executeStage.inst1.ex.exception(ecallU) := inst_info(1).inst(31, 20) === privEcall &&
-    inst_info(1).op === CSROpType.jmp && priv_mode === ModeU && inst_info(1).fusel === FuType.csr
+  io.executeStage.inst1.ex.exception(breakPoint) := info(1).inst(31, 20) === privEbreak &&
+    info(1).op === CSROpType.jmp
+  io.executeStage.inst1.ex.exception(ecallM) := info(1).inst(31, 20) === privEcall &&
+    info(1).op === CSROpType.jmp && priv_mode === ModeM && info(1).fusel === FuType.csr
+  io.executeStage.inst1.ex.exception(ecallS) := info(1).inst(31, 20) === privEcall &&
+    info(1).op === CSROpType.jmp && priv_mode === ModeS && info(1).fusel === FuType.csr
+  io.executeStage.inst1.ex.exception(ecallU) := info(1).inst(31, 20) === privEcall &&
+    info(1).op === CSROpType.jmp && priv_mode === ModeU && info(1).fusel === FuType.csr
 
   io.executeStage.inst1.ex.tval := Mux(
     io.executeStage.inst1.ex.exception(instrAccessFault) || io.executeStage.inst1.ex.exception(instrAddrMisaligned),

@@ -13,7 +13,7 @@ class Decoder extends Module with HasInstrType {
     })
     // outputs
     val out = Output(new Bundle {
-      val inst_info = new InstInfo()
+      val info = new InstInfo()
     })
   })
 
@@ -36,25 +36,25 @@ class Decoder extends Module with HasInstrType {
 
   val (rs, rt, rd) = (inst(19, 15), inst(24, 20), inst(11, 7))
 
-  io.out.inst_info.valid      := false.B
-  io.out.inst_info.inst_legal := instrType =/= InstrN
-  io.out.inst_info.reg1_ren   := src1Type === SrcType.reg || inst(6, 0) === "b0110111".U // fix LUI
-  io.out.inst_info.reg1_raddr := Mux(io.out.inst_info.reg1_ren, rs, 0.U)
-  io.out.inst_info.reg2_ren   := src2Type === SrcType.reg
-  io.out.inst_info.reg2_raddr := Mux(io.out.inst_info.reg2_ren, rt, 0.U)
-  io.out.inst_info.fusel      := fuType
-  io.out.inst_info.op         := fuOpType
+  io.out.info.valid      := false.B
+  io.out.info.inst_legal := instrType =/= InstrN
+  io.out.info.reg1_ren   := src1Type === SrcType.reg || inst(6, 0) === "b0110111".U // fix LUI
+  io.out.info.reg1_raddr := Mux(io.out.info.reg1_ren, rs, 0.U)
+  io.out.info.reg2_ren   := src2Type === SrcType.reg
+  io.out.info.reg2_raddr := Mux(io.out.info.reg2_ren, rt, 0.U)
+  io.out.info.fusel      := fuType
+  io.out.info.op         := fuOpType
   // when(fuType === FuType.bru) {
   //   def isLink(reg: UInt) = (reg === 1.U || reg === 5.U)
-  //   when(isLink(rd) && fuOpType === ALUOpType.jal) { io.out.inst_info.op := ALUOpType.call }
+  //   when(isLink(rd) && fuOpType === ALUOpType.jal) { io.out.info.op := ALUOpType.call }
   //   when(fuOpType === ALUOpType.jalr) {
-  //     when(isLink(rs)) { io.out.inst_info.op := ALUOpType.ret }
-  //     when(isLink(rd)) { io.out.inst_info.op := ALUOpType.call }
+  //     when(isLink(rs)) { io.out.info.op := ALUOpType.ret }
+  //     when(isLink(rd)) { io.out.info.op := ALUOpType.call }
   //   }
   // }
-  io.out.inst_info.reg_wen   := isrfWen(instrType)
-  io.out.inst_info.reg_waddr := Mux(isrfWen(instrType), rd, 0.U)
-  io.out.inst_info.imm := LookupTree(
+  io.out.info.reg_wen   := isrfWen(instrType)
+  io.out.info.reg_waddr := Mux(isrfWen(instrType), rd, 0.U)
+  io.out.info.imm := LookupTree(
     instrType,
     Seq(
       InstrI  -> SignedExtend(inst(31, 20), XLEN),
@@ -65,6 +65,6 @@ class Decoder extends Module with HasInstrType {
       InstrJ  -> SignedExtend(Cat(inst(31), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W)), XLEN)
     )
   )
-  io.out.inst_info.inst     := inst
-  io.out.inst_info.mem_wreg := fuType === FuType.lsu && LSUOpType.isLoad(fuOpType)
+  io.out.info.inst     := inst
+  io.out.info.mem_wreg := fuType === FuType.lsu && LSUOpType.isLoad(fuOpType)
 }

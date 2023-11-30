@@ -8,7 +8,7 @@ import cpu.CpuConfig
 
 class MemWbInst extends Bundle {
   val pc        = UInt(PC_WID.W)
-  val inst_info = new InstInfo()
+  val info = new InstInfo()
   val rd_info   = new RdInfo()
   val commit     = Bool()
   val ex        = new ExceptionInfo()

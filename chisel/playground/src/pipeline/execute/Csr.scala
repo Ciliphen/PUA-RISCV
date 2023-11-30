@@ -14,7 +14,7 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
       new Bundle {
         val pc        = UInt(PC_WID.W)
         val ex        = new ExceptionInfo()
-        val inst_info = new InstInfo()
+        val info = new InstInfo()
       }
     )
   })
@@ -27,7 +27,7 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
 class CsrExecuteUnit(implicit val config: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
     val valid     = Bool()
-    val inst_info = new InstInfo()
+    val info = new InstInfo()
     val src_info  = new SrcInfo()
     val ex        = new ExceptionInfo()
   })
@@ -213,18 +213,18 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
       !(io.memoryUnit.in.inst(1).ex.exception.asUInt.orR || io.memoryUnit.in.inst(1).ex.interrupt.asUInt.orR)
   val mem_pc        = Mux(exc_sel, io.memoryUnit.in.inst(0).pc, io.memoryUnit.in.inst(1).pc)
   val mem_ex        = Mux(exc_sel, io.memoryUnit.in.inst(0).ex, io.memoryUnit.in.inst(1).ex)
-  val mem_inst_info = Mux(exc_sel, io.memoryUnit.in.inst(0).inst_info, io.memoryUnit.in.inst(1).inst_info)
+  val mem_inst_info = Mux(exc_sel, io.memoryUnit.in.inst(0).info, io.memoryUnit.in.inst(1).info)
   val mem_inst      = mem_inst_info.inst
   val mem_valid     = mem_inst_info.valid
   val mem_addr      = mem_inst(31, 20)
   // 不带前缀的信号为exe阶段的信号
   val valid     = io.executeUnit.in.valid
-  val inst_info = io.executeUnit.in.inst_info
-  val op        = io.executeUnit.in.inst_info.op
-  val fusel     = io.executeUnit.in.inst_info.fusel
-  val addr      = io.executeUnit.in.inst_info.inst(31, 20)
+  val info = io.executeUnit.in.info
+  val op        = io.executeUnit.in.info.op
+  val fusel     = io.executeUnit.in.info.fusel
+  val addr      = io.executeUnit.in.info.inst(31, 20)
   val src1      = io.executeUnit.in.src_info.src1_data
-  val csri      = ZeroExtend(io.executeUnit.in.inst_info.inst(19, 15), XLEN)
+  val csri      = ZeroExtend(io.executeUnit.in.info.inst(19, 15), XLEN)
   val exe_stall = io.ctrl.exe_stall
   val mem_stall = io.ctrl.mem_stall
   wdata := LookupTree(

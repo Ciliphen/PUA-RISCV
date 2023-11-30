@@ -15,7 +15,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
         val pc        = Input(UInt(PC_WID.W))
         val mul_en    = Input(Bool())
         val div_en    = Input(Bool())
-        val inst_info = Input(new InstInfo())
+        val info = Input(new InstInfo())
         val src_info  = Input(new SrcInfo())
         val ex = new Bundle {
           val in  = Input(new ExceptionInfo())
@@ -40,14 +40,14 @@ class Fu(implicit val config: CpuConfig) extends Module {
 //   val div        = Module(new Div()).io
   val branchCtrl = Module(new BranchCtrl()).io
 
-  branchCtrl.in.inst_info   := io.inst(0).inst_info
+  branchCtrl.in.info   := io.inst(0).info
   branchCtrl.in.src_info    := io.inst(0).src_info
   branchCtrl.in.pred_branch := io.branch.pred_branch
   io.branch.branch          := branchCtrl.out.branch
   io.branch.pred_fail       := branchCtrl.out.pred_fail
 
   for (i <- 0 until (config.fuNum)) {
-    alu(i).io.inst_info := io.inst(i).inst_info
+    alu(i).io.info := io.inst(i).info
     alu(i).io.src_info  := io.inst(i).src_info
     // alu(i).io.mul.result        := mul.result
     // alu(i).io.mul.ready         := mul.ready
@@ -74,7 +74,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
   io.stall_req := false.B
 
   io.inst(0).result.alu := Mux(
-    ALUOpType.isBru(io.inst(0).inst_info.op),
+    ALUOpType.isBru(io.inst(0).info.op),
     io.inst(0).pc + 4.U,
     alu(0).io.result
   )

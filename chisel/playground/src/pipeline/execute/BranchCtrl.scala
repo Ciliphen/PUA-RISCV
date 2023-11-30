@@ -8,7 +8,7 @@ import cpu.defines.Const._
 class BranchCtrl extends Module {
   val io = IO(new Bundle {
     val in = new Bundle {
-      val inst_info   = Input(new InstInfo())
+      val info   = Input(new InstInfo())
       val src_info    = Input(new SrcInfo())
       val pred_branch = Input(Bool())
     }
@@ -18,10 +18,10 @@ class BranchCtrl extends Module {
     }
   })
   val valid =
-    io.in.inst_info.fusel === FuType.bru && ALUOpType.isBranch(io.in.inst_info.op) && io.in.inst_info.valid
+    io.in.info.fusel === FuType.bru && ALUOpType.isBranch(io.in.info.op) && io.in.info.valid
   val src1   = io.in.src_info.src1_data
   val src2   = io.in.src_info.src2_data
-  val op     = io.in.inst_info.op
+  val op     = io.in.info.op
   val is_sub = !ALUOpType.isAdd(op)
   val adder  = (src1 +& (src2 ^ Fill(XLEN, is_sub))) + is_sub
   val xor    = src1 ^ src2
