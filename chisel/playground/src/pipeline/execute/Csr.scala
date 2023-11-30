@@ -55,10 +55,6 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   })
 
   /* CSR寄存器定义 */
-  val cycle = RegInit(0.U(XLEN.W)) // 时钟周期计数器
-
-  val instret = RegInit(0.U(XLEN.W)) // 指令计数器
-
   val mvendorid    = RegInit(0.U(XLEN.W)) // 厂商ID
   val marchid      = RegInit(0.U(XLEN.W)) // 架构ID
   val mimpid       = RegInit(0.U(XLEN.W)) // 实现ID
@@ -84,8 +80,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val mipReg     = RegInit(0.U(64.W))
   val mipFixMask = "h77f".U(64.W)
   val mip        = (mipWire.asUInt | mipReg).asTypeOf(new Interrupt) // 中断挂起寄存器
-  val mcycle     = cycle // 时钟周期计数器
-  val minstret   = instret // 指令计数器
+  val mcycle     = RegInit(0.U(XLEN.W)) // 时钟周期计数器
+  mcycle := mcycle + 1.U
+  val minstret = RegInit(0.U(XLEN.W)) // 指令计数器
 
   val tselect = RegInit(1.U(XLEN.W)) // 跟踪寄存器选择寄存器
   val tdata1  = RegInit(0.U(XLEN.W)) // 跟踪寄存器数据1寄存器
@@ -130,10 +127,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     // MaskedRegMap(Fcsr, fcsr),
 
     // User Counter/Timers
-    // MaskedRegMap(Cycle, cycle),
+    MaskedRegMap(Cycle, mcycle),
     // MaskedRegMap(Time, time),
-    // MaskedRegMap(Instret, instret),
-
+    // MaskedRegMap(Instret, minstret),
     // // Supervisor Trap Setup TODO
     // MaskedRegMap(Sstatus, mstatus, sstatusWmask, mstatusUpdateSideEffect, sstatusRmask),
     // // MaskedRegMap(Sedeleg, Sedeleg),
@@ -155,8 +151,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Mimpid, mimpid, 0.U, MaskedRegMap.Unwritable),
     MaskedRegMap(Mhartid, mhartid, 0.U, MaskedRegMap.Unwritable),
     // Machine Trap Setup
-    // MaskedRegMap(Mstatus, mstatus, "hffffffffffffffee".U, (x=>{printf("mstatus write: %x time: %d\n", x, GTimer()); x})),
-    MaskedRegMap(Mstatus, mstatus, "hffffffffffffffff".U(64.W), mstatusUpdateSideEffect),
+    MaskedRegMap(Mstatus, mstatus, "h0000000000021888".U(64.W)),
     MaskedRegMap(Misa, misa), // now MXL, EXT is not changeable
     // MaskedRegMap(Medeleg, medeleg, "hbbff".U(64.W)), TODO
     // MaskedRegMap(Mideleg, mideleg, "h222".U(64.W)),
@@ -215,6 +210,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val mem_addr      = mem_inst(31, 20)
   // 不带前缀的信号为exe阶段的信号
   val valid     = io.executeUnit.in.valid
+  val inst_info = io.executeUnit.in.inst_info
   val op        = io.executeUnit.in.inst_info.op
   val fusel     = io.executeUnit.in.inst_info.fusel
   val addr      = io.executeUnit.in.inst_info.inst(31, 20)
@@ -237,9 +233,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
 
   val satp_legal     = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
   val wen            = (valid && op =/= CSROpType.jmp) && (addr =/= Satp.U || satp_legal)
-  val ren            = (op === CSROpType.set || op === CSROpType.seti) && src1 === 0.U
+  val only_read      = VecInit(CSROpType.set, CSROpType.seti, CSROpType.clr, CSROpType.clri).contains(op) && src1 === 0.U
   val illegal_mode   = priv_mode < addr(9, 8)
-  val illegal_write  = wen && (addr(11, 10) === "b11".U) && !ren
+  val illegal_write  = wen && (addr(11, 10) === "b11".U) && !only_read
   val illegal_access = illegal_mode || illegal_write
 
   MaskedRegMap.generate(mapping, addr, rdata, wen && !illegal_access, wdata)
