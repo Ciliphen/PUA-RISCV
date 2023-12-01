@@ -95,10 +95,10 @@ class Core(implicit val config: CpuConfig) extends Module {
   decoderUnit.csr <> csr.decoderUnit
   decoderUnit.executeStage <> executeStage.decoderUnit
 
-  executeStage.ctrl.clear(0) := ctrl.memoryUnit.flush_req ||
+  executeStage.ctrl.clear(0) := ctrl.memoryUnit.flush ||
     ctrl.executeUnit.do_flush && ctrl.executeUnit.allow_to_go ||
     !ctrl.decoderUnit.allow_to_go && ctrl.executeUnit.allow_to_go
-  executeStage.ctrl.clear(1) := ctrl.memoryUnit.flush_req ||
+  executeStage.ctrl.clear(1) := ctrl.memoryUnit.flush ||
     (ctrl.executeUnit.do_flush && decoderUnit.executeStage.inst1.allow_to_go) ||
     (ctrl.executeUnit.allow_to_go && !decoderUnit.executeStage.inst1.allow_to_go)
   executeStage.ctrl.inst0_allow_to_go := ctrl.executeUnit.allow_to_go
@@ -137,8 +137,7 @@ class Core(implicit val config: CpuConfig) extends Module {
 
   io.debug <> writeBackUnit.debug
 
-  io.inst.fence := executeUnit.executeStage.inst0.info.fusel === FuType.mou &&
-    executeUnit.executeStage.inst0.info.op === MOUOpType.fencei
+  io.inst.fence     := false.B
   io.data.fence     := false.B
   io.inst.req       := !instFifo.full && !reset.asBool
   io.inst.cpu_ready := ctrl.fetchUnit.allow_to_go

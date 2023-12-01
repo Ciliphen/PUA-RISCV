@@ -31,12 +31,12 @@ class Ctrl(implicit val config: CpuConfig) extends Module {
   io.decoderUnit.allow_to_go   := !(lw_stall || longest_stall)
   io.executeUnit.allow_to_go   := !longest_stall
   io.memoryUnit.allow_to_go    := !longest_stall
-  io.writeBackUnit.allow_to_go := !longest_stall || io.memoryUnit.flush_req
+  io.writeBackUnit.allow_to_go := !longest_stall || io.memoryUnit.flush
 
   io.fetchUnit.do_flush     := false.B
-  io.decoderUnit.do_flush   := io.memoryUnit.flush_req || io.executeUnit.branch || io.decoderUnit.branch
-  io.executeUnit.do_flush   := io.memoryUnit.flush_req || io.executeUnit.branch
-  io.memoryUnit.do_flush    := io.memoryUnit.flush_req
+  io.decoderUnit.do_flush   := io.memoryUnit.flush || io.executeUnit.flush || io.decoderUnit.branch
+  io.executeUnit.do_flush   := io.memoryUnit.flush || io.executeUnit.flush
+  io.memoryUnit.do_flush    := io.memoryUnit.flush
   io.writeBackUnit.do_flush := false.B
 
   io.executeUnit.fu.allow_to_go := io.memoryUnit.allow_to_go

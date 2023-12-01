@@ -83,5 +83,5 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.fetchUnit.flush  := io.csr.out.flush && io.ctrl.allow_to_go
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)
 
-  io.ctrl.flush_req := io.fetchUnit.flush
+  io.ctrl.flush := io.fetchUnit.flush
 }

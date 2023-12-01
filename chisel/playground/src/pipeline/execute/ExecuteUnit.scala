@@ -57,7 +57,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.ctrl.inst(0).reg_waddr := io.executeStage.inst0.info.reg_waddr
   io.ctrl.inst(1).mem_wreg  := io.executeStage.inst1.info.mem_wreg
   io.ctrl.inst(1).reg_waddr := io.executeStage.inst1.info.reg_waddr
-  io.ctrl.branch            := io.fetchUnit.flush
+  io.ctrl.flush            := io.fetchUnit.flush
 
   io.csr.in.valid := is_csr.asUInt.orR
   io.csr.in.info := MuxCase(
