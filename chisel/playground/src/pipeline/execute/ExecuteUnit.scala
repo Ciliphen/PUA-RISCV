@@ -16,7 +16,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     val csr          = Flipped(new CsrExecuteUnit())
     val bpu          = new ExecuteUnitBranchPredictor()
     val fetchUnit = Output(new Bundle {
-      val branch = Bool()
+      val flush  = Bool()
       val target = UInt(PC_WID.W)
     })
     val decoderUnit = new Bundle {
@@ -57,8 +57,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.ctrl.inst(0).reg_waddr := io.executeStage.inst0.info.reg_waddr
   io.ctrl.inst(1).mem_wreg  := io.executeStage.inst1.info.mem_wreg
   io.ctrl.inst(1).reg_waddr := io.executeStage.inst1.info.reg_waddr
-  io.ctrl.branch := valid(0) && io.ctrl.allow_to_go &&
-    (fu.branch.jump_regiser || fu.branch.pred_fail)
+  io.ctrl.branch            := io.fetchUnit.flush
 
   io.csr.in.valid := is_csr.asUInt.orR
   io.csr.in.info := MuxCase(
@@ -116,7 +115,8 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.bpu.branch           := fu.branch.branch
   io.bpu.branch_inst      := io.executeStage.inst0.jb_info.branch_inst
 
-  io.fetchUnit.branch := io.ctrl.branch
+  io.fetchUnit.flush := valid(0) && io.ctrl.allow_to_go &&
+    fu.branch.flush
   io.fetchUnit.target := fu.branch.target
 
   io.ctrl.fu_stall := fu.stall_req
@@ -151,8 +151,8 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     )
   )
   io.memoryStage.inst0.ex.exception(instrAddrMisaligned) := io.executeStage.inst0.ex.exception(instrAddrMisaligned) ||
-    io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR
-  when(io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR) {
+    io.fetchUnit.flush && io.fetchUnit.target(1, 0).orR
+  when(io.fetchUnit.flush && io.fetchUnit.target(1, 0).orR) {
     io.memoryStage.inst0.ex.tval := io.fetchUnit.target
   }
 
@@ -178,8 +178,8 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     )
   )
   io.memoryStage.inst1.ex.exception(instrAddrMisaligned) := io.executeStage.inst1.ex.exception(instrAddrMisaligned) ||
-    io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR
-  when(io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR) {
+    io.fetchUnit.flush && io.fetchUnit.target(1, 0).orR
+  when(io.fetchUnit.flush && io.fetchUnit.target(1, 0).orR) {
     io.memoryStage.inst1.ex.tval := io.fetchUnit.target
   }
 

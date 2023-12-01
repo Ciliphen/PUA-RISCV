@@ -5,20 +5,21 @@ import chisel3.util._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class FetchUnit(implicit
-    val config: CpuConfig,
-) extends Module {
+class FetchUnit(
+  implicit
+  val config: CpuConfig)
+    extends Module {
   val io = IO(new Bundle {
     val memory = new Bundle {
-      val flush    = Input(Bool())
-      val flush_pc = Input(UInt(PC_WID.W))
+      val flush  = Input(Bool())
+      val target = Input(UInt(PC_WID.W))
     }
     val decoder = new Bundle {
       val branch = Input(Bool())
       val target = Input(UInt(PC_WID.W))
     }
     val execute = new Bundle {
-      val branch = Input(Bool())
+      val flush  = Input(Bool())
       val target = Input(UInt(PC_WID.W))
     }
     val instFifo = new Bundle {
@@ -48,10 +49,10 @@ class FetchUnit(implicit
   io.iCache.pc_next := MuxCase(
     pc_next_temp,
     Seq(
-      io.memory.flush   -> io.memory.flush_pc,
-      io.execute.branch -> io.execute.target,
+      io.memory.flush   -> io.memory.target,
+      io.execute.flush  -> io.execute.target,
       io.decoder.branch -> io.decoder.target,
-      io.instFifo.full  -> pc,
-    ),
+      io.instFifo.full  -> pc
+    )
   )
 }

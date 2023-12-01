@@ -31,7 +31,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
       val jump_regiser  = Input(Bool())
       val branch_target = Input(UInt(PC_WID.W))
       val branch        = Output(Bool())
-      val pred_fail     = Output(Bool())
+      val flush         = Output(Bool())
       val target        = Output(UInt(PC_WID.W))
     }
   })
@@ -46,7 +46,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
   branchCtrl.in.jump_regiser  := io.branch.jump_regiser
   branchCtrl.in.branch_target := io.branch.branch_target
   io.branch.branch            := branchCtrl.out.branch
-  io.branch.pred_fail         := branchCtrl.out.pred_fail
+  io.branch.flush             := (branchCtrl.out.pred_fail || io.branch.jump_regiser)
   io.branch.target            := branchCtrl.out.target
 
   for (i <- 0 until (config.fuNum)) {

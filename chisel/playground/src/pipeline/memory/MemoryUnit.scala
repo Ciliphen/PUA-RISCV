@@ -14,8 +14,8 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     val ctrl        = new MemoryCtrl()
     val memoryStage = Input(new ExecuteUnitMemoryUnit())
     val fetchUnit = Output(new Bundle {
-      val flush    = Bool()
-      val flush_pc = UInt(PC_WID.W)
+      val flush  = Bool()
+      val target = UInt(PC_WID.W)
     })
     val decoderUnit    = Output(Vec(config.fuNum, new RegWrite()))
     val csr            = Flipped(new CsrMemoryUnit())
@@ -25,7 +25,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
 
   val dataMemoryAccess = Module(new DataMemoryAccess()).io
   dataMemoryAccess.memoryUnit.in.mem_en    := io.memoryStage.inst0.mem.en
-  dataMemoryAccess.memoryUnit.in.info := io.memoryStage.inst0.mem.info
+  dataMemoryAccess.memoryUnit.in.info      := io.memoryStage.inst0.mem.info
   dataMemoryAccess.memoryUnit.in.mem_wdata := io.memoryStage.inst0.mem.wdata
   dataMemoryAccess.memoryUnit.in.mem_addr  := io.memoryStage.inst0.mem.addr
   dataMemoryAccess.memoryUnit.in.mem_sel   := io.memoryStage.inst0.mem.sel
@@ -43,7 +43,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.decoderUnit(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.info.fusel)
 
   io.writeBackStage.inst0.pc                        := io.memoryStage.inst0.pc
-  io.writeBackStage.inst0.info                 := io.memoryStage.inst0.info
+  io.writeBackStage.inst0.info                      := io.memoryStage.inst0.info
   io.writeBackStage.inst0.rd_info.wdata             := io.memoryStage.inst0.rd_info.wdata
   io.writeBackStage.inst0.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
   io.writeBackStage.inst0.ex                        := io.memoryStage.inst0.ex
@@ -54,7 +54,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst0.commit := io.memoryStage.inst0.info.valid
 
   io.writeBackStage.inst1.pc                        := io.memoryStage.inst1.pc
-  io.writeBackStage.inst1.info                 := io.memoryStage.inst1.info
+  io.writeBackStage.inst1.info                      := io.memoryStage.inst1.info
   io.writeBackStage.inst1.rd_info.wdata             := io.memoryStage.inst1.rd_info.wdata
   io.writeBackStage.inst1.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
   io.writeBackStage.inst1.ex                        := io.memoryStage.inst1.ex
@@ -80,8 +80,8 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     0.U.asTypeOf(new InstInfo())
   )
 
-  io.fetchUnit.flush    := io.csr.out.flush && io.ctrl.allow_to_go
-  io.fetchUnit.flush_pc := Mux(io.csr.out.flush, io.csr.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)
+  io.fetchUnit.flush  := io.csr.out.flush && io.ctrl.allow_to_go
+  io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)
 
   io.ctrl.flush_req := io.fetchUnit.flush
 }
