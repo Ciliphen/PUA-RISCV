@@ -125,7 +125,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.ex.exception(instrAddrMisaligned) := pc(0)(1, 0).orR ||
     io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst0.ex.exception(breakPoint) := info(0).inst(31, 20) === privEbreak &&
-    info(0).op === CSROpType.jmp
+    info(0).op === CSROpType.jmp && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallM) := info(0).inst(31, 20) === privEcall &&
     info(0).op === CSROpType.jmp && priv_mode === ModeM && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallS) := info(0).inst(31, 20) === privEcall &&
@@ -166,7 +166,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.ex.exception(instrAddrMisaligned) := pc(1)(1, 0).orR ||
     io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst1.ex.exception(breakPoint) := info(1).inst(31, 20) === privEbreak &&
-    info(1).op === CSROpType.jmp
+    info(1).op === CSROpType.jmp && info(0).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallM) := info(1).inst(31, 20) === privEcall &&
     info(1).op === CSROpType.jmp && priv_mode === ModeM && info(1).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallS) := info(1).inst(31, 20) === privEcall &&
