@@ -71,7 +71,7 @@ class DCache(implicit config: CpuConfig) extends Module {
   val cached_stall     = false.B
   io.cpu.dcache_stall := Mux(
     status === s_idle && !acc_err,
-    Mux(io.cpu.en, (cached_stall || mmio_read_stall || mmio_write_stall), io.cpu.fence_i),
+    Mux(io.cpu.en, (cached_stall || mmio_read_stall || mmio_write_stall), io.cpu.fence),
     status =/= s_save
   )
   io.cpu.rdata   := saved_rdata

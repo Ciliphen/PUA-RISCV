@@ -111,7 +111,7 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   val req       = Output(Bool())
   val cpu_ready = Output(Bool()) // !cpu_stall
   val addr      = Output(Vec(config.instFetchNum, UInt(INST_ADDR_WID.W))) // virtual address and next virtual address
-  val fence_i   = Output(Bool())
+  val fence     = Output(Bool())
 
   // read inst result
   val inst         = Input(Vec(config.instFetchNum, UInt(INST_WID.W)))
@@ -128,7 +128,7 @@ class Cache_DCache extends Bundle {
   val wen       = Output(Bool())
   val wdata     = Output(UInt(XLEN.W))
   val cpu_ready = Output(Bool())
-  val fence_i   = Output(Bool())
+  val fence     = Output(Bool())
   val wstrb     = Output(UInt(AXI_STRB_WID.W))
 
   val rdata        = Input(UInt(XLEN.W))

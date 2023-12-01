@@ -137,10 +137,9 @@ class Core(implicit val config: CpuConfig) extends Module {
 
   io.debug <> writeBackUnit.debug
 
-  io.inst.fence_i := executeUnit.executeStage.inst0.info.fusel === FuType.mou &&
+  io.inst.fence := executeUnit.executeStage.inst0.info.fusel === FuType.mou &&
     executeUnit.executeStage.inst0.info.op === MOUOpType.fencei
-  io.data.fence_i := memoryUnit.memoryStage.inst0.info.fusel === FuType.mou &&
-    memoryUnit.memoryStage.inst0.info.op === MOUOpType.fencei
+  io.data.fence     := false.B
   io.inst.req       := !instFifo.full && !reset.asBool
   io.inst.cpu_ready := ctrl.fetchUnit.allow_to_go
   io.data.cpu_ready := ctrl.memoryUnit.allow_to_go

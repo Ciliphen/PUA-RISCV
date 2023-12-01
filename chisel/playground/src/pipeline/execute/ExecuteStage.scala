@@ -7,11 +7,11 @@ import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
 
 class IdExeInst0 extends Bundle {
-  val config    = new BranchPredictorConfig()
-  val pc        = UInt(PC_WID.W)
-  val info = new InstInfo()
-  val src_info  = new SrcInfo()
-  val ex        = new ExceptionInfo()
+  val config   = new BranchPredictorConfig()
+  val pc       = UInt(PC_WID.W)
+  val info     = new InstInfo()
+  val src_info = new SrcInfo()
+  val ex       = new ExceptionInfo()
   val jb_info = new Bundle {
     // jump ctrl
     val jump_regiser = Bool()
@@ -26,7 +26,7 @@ class IdExeInst0 extends Bundle {
 class IdExeInst1 extends Bundle {
   val allow_to_go = Bool()
   val pc          = UInt(PC_WID.W)
-  val info   = new InstInfo()
+  val info        = new InstInfo()
   val src_info    = new SrcInfo()
   val ex          = new ExceptionInfo()
 }
