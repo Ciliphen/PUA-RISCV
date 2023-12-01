@@ -113,9 +113,10 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.fetchUnit.target := MuxCase(
     io.executeStage.inst0.pc + 4.U, // 默认顺序运行吧
     Seq(
-      (fu.branch.pred_fail && fu.branch.branch)    -> io.executeStage.inst0.jb_info.branch_target,
-      (fu.branch.pred_fail && !fu.branch.branch)   -> (io.executeStage.inst0.pc + 4.U),
-      (io.executeStage.inst0.jb_info.jump_regiser) -> ((io.executeStage.inst0.src_info.src1_data + io.executeStage.inst0.src_info.src2_data) & ~1.U(XLEN.W)),
+      (fu.branch.pred_fail && fu.branch.branch)  -> io.executeStage.inst0.jb_info.branch_target,
+      (fu.branch.pred_fail && !fu.branch.branch) -> (io.executeStage.inst0.pc + 4.U),
+      (io.executeStage.inst0.jb_info.jump_regiser) -> ((io.executeStage.inst0.src_info.src1_data + io.executeStage.inst0.src_info.src2_data) & ~1
+        .U(XLEN.W))
     )
   )
 
@@ -152,13 +153,9 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   )
   io.memoryStage.inst0.ex.exception(instrAddrMisaligned) := io.executeStage.inst0.ex.exception(instrAddrMisaligned) ||
     io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR
-  io.memoryStage.inst0.ex.tval := MuxCase(
-    io.executeStage.inst0.ex.tval,
-    Seq(
-      (io.executeStage.inst0.ex.exception(instrAddrMisaligned)) -> io.executeStage.inst0.ex.tval,
-      (io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR)    -> io.fetchUnit.target
-    )
-  )
+  when(io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR) {
+    io.memoryStage.inst0.ex.tval := io.fetchUnit.target
+  }
 
   io.memoryStage.inst1.pc                        := io.executeStage.inst1.pc
   io.memoryStage.inst1.info                      := io.executeStage.inst1.info
@@ -183,13 +180,9 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   )
   io.memoryStage.inst1.ex.exception(instrAddrMisaligned) := io.executeStage.inst1.ex.exception(instrAddrMisaligned) ||
     io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR
-  io.memoryStage.inst1.ex.tval := MuxCase(
-    io.executeStage.inst1.ex.tval,
-    Seq(
-      (io.executeStage.inst1.ex.exception(instrAddrMisaligned)) -> io.executeStage.inst1.ex.tval,
-      (io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR)    -> io.fetchUnit.target
-    )
-  )
+  when(io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR) {
+    io.memoryStage.inst1.ex.tval := io.fetchUnit.target
+  }
 
   io.decoderUnit.forward(0).exe.wen      := io.memoryStage.inst0.info.reg_wen
   io.decoderUnit.forward(0).exe.waddr    := io.memoryStage.inst0.info.reg_waddr
