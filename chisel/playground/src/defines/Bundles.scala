@@ -117,7 +117,6 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   val inst         = Input(Vec(config.instFetchNum, UInt(INST_WID.W)))
   val inst_valid   = Input(Vec(config.instFetchNum, Bool()))
   val acc_err      = Input(Bool())
-  val addr_err     = Input(Bool())
   val icache_stall = Input(Bool()) // icache_stall
 }
 

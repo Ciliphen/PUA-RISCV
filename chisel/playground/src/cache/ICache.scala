@@ -48,7 +48,6 @@ class ICache(implicit config: CpuConfig) extends Module {
     io.cpu.inst_valid(i) := Mux(status === s_idle && !acc_err, false.B, saved(i).valid) && io.cpu.req
   })
 
-  io.cpu.addr_err     := addr_err
   io.cpu.acc_err      := acc_err
   io.cpu.icache_stall := Mux(status === s_idle && !acc_err, io.cpu.req, status =/= s_save)
 

@@ -82,7 +82,6 @@ class Core(implicit val config: CpuConfig) extends Module {
     instFifo.write(i).pc        := io.inst.addr(0) + (i * 4).U
     instFifo.write(i).inst      := io.inst.inst(i)
     instFifo.write(i).acc_err   := io.inst.acc_err
-    instFifo.write(i).addr_err  := io.inst.addr_err
   }
 
   decoderUnit.instFifo.info.empty        := instFifo.empty
