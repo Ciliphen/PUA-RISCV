@@ -149,10 +149,12 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.pc         := pc(1)
   io.executeStage.inst1.info       := info(1)
   io.executeStage.inst1.info.valid := !io.instFifo.info.almost_empty && !io.instFifo.info.empty
-  io.executeStage.inst1.src_info.src1_data := Mux(
-    info(1).reg1_ren,
-    forwardCtrl.out.inst(1).src1.rdata,
-    SignedExtend(pc(1), INST_ADDR_WID)
+  io.executeStage.inst1.src_info.src1_data := MuxCase(
+    SignedExtend(pc(1), INST_ADDR_WID),
+    Seq(
+      info(1).reg1_ren                      -> forwardCtrl.out.inst(1).src1.rdata,
+      (info(1).inst(6, 0) === "b0110111".U) -> 0.U
+    )
   )
   io.executeStage.inst1.src_info.src2_data := Mux(
     info(1).reg2_ren,
