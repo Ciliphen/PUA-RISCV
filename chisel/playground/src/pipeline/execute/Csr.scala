@@ -12,8 +12,8 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
     val inst = Vec(
       config.fuNum,
       new Bundle {
-        val pc        = UInt(PC_WID.W)
-        val ex        = new ExceptionInfo()
+        val pc   = UInt(PC_WID.W)
+        val ex   = new ExceptionInfo()
         val info = new InstInfo()
       }
     )
@@ -26,10 +26,10 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
 
 class CsrExecuteUnit(implicit val config: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
-    val valid     = Bool()
-    val info = new InstInfo()
-    val src_info  = new SrcInfo()
-    val ex        = new ExceptionInfo()
+    val valid    = Bool()
+    val info     = new InstInfo()
+    val src_info = new SrcInfo()
+    val ex       = new ExceptionInfo()
   })
   val out = Output(new Bundle {
     val rdata = UInt(DATA_WID.W)
@@ -219,7 +219,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val mem_addr      = mem_inst(31, 20)
   // 不带前缀的信号为exe阶段的信号
   val valid     = io.executeUnit.in.valid
-  val info = io.executeUnit.in.info
+  val info      = io.executeUnit.in.info
   val op        = io.executeUnit.in.info.op
   val fusel     = io.executeUnit.in.info.fusel
   val addr      = io.executeUnit.in.info.inst(31, 20)
@@ -273,12 +273,31 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val interruptNO   = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
   val causeNO       = (has_interrupt << (XLEN - 1)) | Mux(has_interrupt, interruptNO, exceptionNO)
 
+  val has_instrPageFault      = mem_ex.exception(instrPageFault)
+  val has_loadPageFault       = mem_ex.exception(loadPageFault)
+  val has_storePageFault      = mem_ex.exception(storePageFault)
+  val has_loadAddrMisaligned  = mem_ex.exception(loadAddrMisaligned)
+  val has_storeAddrMisaligned = mem_ex.exception(storeAddrMisaligned)
+  val has_instrAddrMisaligned = mem_ex.exception(instrAddrMisaligned)
+
   val tval_wen = has_interrupt ||
-    !(mem_ex.exception(instrPageFault) ||
-      mem_ex.exception(loadPageFault) ||
-      mem_ex.exception(storePageFault) ||
-      mem_ex.exception(loadAddrMisaligned) ||
-      mem_ex.exception(storeAddrMisaligned))
+    !(has_instrPageFault ||
+      has_loadPageFault ||
+      has_storePageFault ||
+      has_instrAddrMisaligned ||
+      has_loadAddrMisaligned ||
+      has_storeAddrMisaligned)
+
+  when(
+    has_instrPageFault ||
+      has_loadPageFault ||
+      has_storePageFault ||
+      has_instrAddrMisaligned ||
+      has_loadAddrMisaligned ||
+      has_storeAddrMisaligned
+  ) {
+    mtval := SignedExtend(mem_ex.tval, XLEN)
+  }
 
   when(has_exc_int) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))

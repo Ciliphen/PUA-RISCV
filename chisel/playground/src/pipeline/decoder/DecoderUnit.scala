@@ -119,10 +119,11 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     decoder(0).io.out.info.imm
   )
   (0 until (INT_WID)).foreach(i => io.executeStage.inst0.ex.interrupt(i) := io.csr.interrupt(i))
-  io.executeStage.inst0.ex.exception.map(_                := false.B)
-  io.executeStage.inst0.ex.exception(illegalInstr)        := !info(0).inst_legal
-  io.executeStage.inst0.ex.exception(instrAccessFault)    := io.instFifo.inst(0).acc_err
-  io.executeStage.inst0.ex.exception(instrAddrMisaligned) := io.instFifo.inst(0).addr_err
+  io.executeStage.inst0.ex.exception.map(_             := false.B)
+  io.executeStage.inst0.ex.exception(illegalInstr)     := !info(0).inst_legal
+  io.executeStage.inst0.ex.exception(instrAccessFault) := io.instFifo.inst(0).acc_err
+  io.executeStage.inst0.ex.exception(instrAddrMisaligned) := pc(0)(1, 0).orR ||
+    io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst0.ex.exception(breakPoint) := info(0).inst(31, 20) === privEbreak &&
     info(0).op === CSROpType.jmp
   io.executeStage.inst0.ex.exception(ecallM) := info(0).inst(31, 20) === privEcall &&
@@ -131,10 +132,12 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     info(0).op === CSROpType.jmp && priv_mode === ModeS && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallU) := info(0).inst(31, 20) === privEcall &&
     info(0).op === CSROpType.jmp && priv_mode === ModeU && info(0).fusel === FuType.csr
-  io.executeStage.inst0.ex.tval := Mux(
-    io.executeStage.inst0.ex.exception(instrAccessFault) || io.executeStage.inst0.ex.exception(instrAddrMisaligned),
-    io.instFifo.inst(0).pc,
-    0.U
+  io.executeStage.inst0.ex.tval := MuxCase(
+    0.U,
+    Seq(
+      pc(0)(1, 0).orR                                        -> pc(0),
+      (io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch) -> io.fetchUnit.target
+    )
   )
 
   io.executeStage.inst0.jb_info.jump_regiser     := jumpCtrl.out.jump_register
@@ -157,10 +160,11 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     decoder(1).io.out.info.imm
   )
   (0 until (INT_WID)).foreach(i => io.executeStage.inst1.ex.interrupt(i) := io.csr.interrupt(i))
-  io.executeStage.inst1.ex.exception.map(_                := false.B)
-  io.executeStage.inst1.ex.exception(illegalInstr)        := !info(1).inst_legal
-  io.executeStage.inst1.ex.exception(instrAccessFault)    := io.instFifo.inst(1).acc_err
-  io.executeStage.inst1.ex.exception(instrAddrMisaligned) := io.instFifo.inst(1).addr_err
+  io.executeStage.inst1.ex.exception.map(_             := false.B)
+  io.executeStage.inst1.ex.exception(illegalInstr)     := !info(1).inst_legal
+  io.executeStage.inst1.ex.exception(instrAccessFault) := io.instFifo.inst(1).acc_err
+  io.executeStage.inst1.ex.exception(instrAddrMisaligned) := pc(1)(1, 0).orR ||
+    io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst1.ex.exception(breakPoint) := info(1).inst(31, 20) === privEbreak &&
     info(1).op === CSROpType.jmp
   io.executeStage.inst1.ex.exception(ecallM) := info(1).inst(31, 20) === privEcall &&
@@ -170,10 +174,12 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.ex.exception(ecallU) := info(1).inst(31, 20) === privEcall &&
     info(1).op === CSROpType.jmp && priv_mode === ModeU && info(1).fusel === FuType.csr
 
-  io.executeStage.inst1.ex.tval := Mux(
-    io.executeStage.inst1.ex.exception(instrAccessFault) || io.executeStage.inst1.ex.exception(instrAddrMisaligned),
-    io.instFifo.inst(1).pc,
-    0.U
+  io.executeStage.inst1.ex.tval := MuxCase(
+    0.U,
+    Seq(
+      pc(1)(1, 0).orR                                        -> pc(1),
+      (io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch) -> io.fetchUnit.target
+    )
   )
 
 }

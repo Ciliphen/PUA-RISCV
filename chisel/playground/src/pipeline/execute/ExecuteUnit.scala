@@ -76,12 +76,12 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   )
 
   // input accessMemCtrl
-  accessMemCtrl.inst(0).info := io.executeStage.inst0.info
-  accessMemCtrl.inst(0).src_info  := io.executeStage.inst0.src_info
-  accessMemCtrl.inst(0).ex.in     := io.executeStage.inst0.ex
-  accessMemCtrl.inst(1).info := io.executeStage.inst1.info
-  accessMemCtrl.inst(1).src_info  := io.executeStage.inst1.src_info
-  accessMemCtrl.inst(1).ex.in     := io.executeStage.inst1.ex
+  accessMemCtrl.inst(0).info     := io.executeStage.inst0.info
+  accessMemCtrl.inst(0).src_info := io.executeStage.inst0.src_info
+  accessMemCtrl.inst(0).ex.in    := io.executeStage.inst0.ex
+  accessMemCtrl.inst(1).info     := io.executeStage.inst1.info
+  accessMemCtrl.inst(1).src_info := io.executeStage.inst1.src_info
+  accessMemCtrl.inst(1).ex.in    := io.executeStage.inst1.ex
 
   // input fu
   fu.ctrl <> io.ctrl.fu
@@ -90,8 +90,8 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     !MDUOpType.isDiv(io.executeStage.inst0.info.op)
   fu.inst(0).div_en := io.executeStage.inst0.info.fusel === FuType.mdu &&
     MDUOpType.isDiv(io.executeStage.inst0.info.op)
-  fu.inst(0).info := io.executeStage.inst0.info
-  fu.inst(0).src_info  := io.executeStage.inst0.src_info
+  fu.inst(0).info     := io.executeStage.inst0.info
+  fu.inst(0).src_info := io.executeStage.inst0.src_info
   fu.inst(0).ex.in :=
     Mux(io.executeStage.inst0.info.fusel === FuType.lsu, accessMemCtrl.inst(0).ex.out, io.executeStage.inst0.ex)
   fu.inst(1).pc := io.executeStage.inst1.pc
@@ -99,7 +99,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     !MDUOpType.isDiv(io.executeStage.inst1.info.op)
   fu.inst(1).div_en := io.executeStage.inst1.info.fusel === FuType.mdu &&
     MDUOpType.isDiv(io.executeStage.inst1.info.op)
-  fu.inst(1).info  := io.executeStage.inst1.info
+  fu.inst(1).info       := io.executeStage.inst1.info
   fu.inst(1).src_info   := io.executeStage.inst1.src_info
   fu.inst(1).ex.in      := io.executeStage.inst1.ex
   fu.branch.pred_branch := io.executeStage.inst0.jb_info.pred_branch
@@ -121,16 +121,16 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
 
   io.ctrl.fu_stall := fu.stall_req
 
-  io.memoryStage.inst0.mem.en        := accessMemCtrl.mem.out.en
-  io.memoryStage.inst0.mem.ren       := accessMemCtrl.mem.out.ren
-  io.memoryStage.inst0.mem.wen       := accessMemCtrl.mem.out.wen
-  io.memoryStage.inst0.mem.addr      := accessMemCtrl.mem.out.addr
-  io.memoryStage.inst0.mem.wdata     := accessMemCtrl.mem.out.wdata
-  io.memoryStage.inst0.mem.sel       := accessMemCtrl.inst.map(_.mem_sel)
-  io.memoryStage.inst0.mem.info := accessMemCtrl.mem.out.info
+  io.memoryStage.inst0.mem.en    := accessMemCtrl.mem.out.en
+  io.memoryStage.inst0.mem.ren   := accessMemCtrl.mem.out.ren
+  io.memoryStage.inst0.mem.wen   := accessMemCtrl.mem.out.wen
+  io.memoryStage.inst0.mem.addr  := accessMemCtrl.mem.out.addr
+  io.memoryStage.inst0.mem.wdata := accessMemCtrl.mem.out.wdata
+  io.memoryStage.inst0.mem.sel   := accessMemCtrl.inst.map(_.mem_sel)
+  io.memoryStage.inst0.mem.info  := accessMemCtrl.mem.out.info
 
   io.memoryStage.inst0.pc                        := io.executeStage.inst0.pc
-  io.memoryStage.inst0.info                 := io.executeStage.inst0.info
+  io.memoryStage.inst0.info                      := io.executeStage.inst0.info
   io.memoryStage.inst0.rd_info.wdata(FuType.alu) := fu.inst(0).result.alu
   io.memoryStage.inst0.rd_info.wdata(FuType.mdu) := fu.inst(0).result.mdu
   io.memoryStage.inst0.rd_info.wdata(FuType.csr) := io.csr.out.rdata
@@ -150,9 +150,18 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
       )
     )
   )
+  io.memoryStage.inst0.ex.exception(instrAddrMisaligned) := io.executeStage.inst0.ex.exception(instrAddrMisaligned) ||
+    io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR
+  io.memoryStage.inst0.ex.tval := MuxCase(
+    io.executeStage.inst0.ex.tval,
+    Seq(
+      (io.executeStage.inst0.ex.exception(instrAddrMisaligned)) -> io.executeStage.inst0.ex.tval,
+      (io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR)    -> io.fetchUnit.target
+    )
+  )
 
   io.memoryStage.inst1.pc                        := io.executeStage.inst1.pc
-  io.memoryStage.inst1.info                 := io.executeStage.inst1.info
+  io.memoryStage.inst1.info                      := io.executeStage.inst1.info
   io.memoryStage.inst1.rd_info.wdata(FuType.alu) := fu.inst(1).result.alu
   io.memoryStage.inst1.rd_info.wdata(FuType.mdu) := fu.inst(1).result.mdu
   io.memoryStage.inst1.rd_info.wdata(FuType.csr) := io.csr.out.rdata
@@ -170,6 +179,15 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
         FuType.lsu -> accessMemCtrl.inst(1).ex.out,
         FuType.csr -> io.csr.out.ex
       )
+    )
+  )
+  io.memoryStage.inst1.ex.exception(instrAddrMisaligned) := io.executeStage.inst1.ex.exception(instrAddrMisaligned) ||
+    io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR
+  io.memoryStage.inst1.ex.tval := MuxCase(
+    io.executeStage.inst1.ex.tval,
+    Seq(
+      (io.executeStage.inst1.ex.exception(instrAddrMisaligned)) -> io.executeStage.inst1.ex.tval,
+      (io.fetchUnit.branch && io.fetchUnit.target(1, 0).orR)    -> io.fetchUnit.target
     )
   )
 
