@@ -115,7 +115,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     Seq(
       (fu.branch.pred_fail && fu.branch.branch)    -> io.executeStage.inst0.jb_info.branch_target,
       (fu.branch.pred_fail && !fu.branch.branch)   -> (io.executeStage.inst0.pc + 4.U),
-      (io.executeStage.inst0.jb_info.jump_regiser) -> (io.executeStage.inst0.src_info.src1_data + io.executeStage.inst0.src_info.src2_data)
+      (io.executeStage.inst0.jb_info.jump_regiser) -> ((io.executeStage.inst0.src_info.src1_data + io.executeStage.inst0.src_info.src2_data) & ~1.U(XLEN.W)),
     )
   )
 

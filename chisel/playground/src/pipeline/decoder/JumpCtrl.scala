@@ -12,7 +12,7 @@ class JumpCtrl(implicit val config: CpuConfig) extends Module {
     val in = Input(new Bundle {
       val allow_to_go = Bool()
       val pc          = UInt(PC_WID.W)
-      val info   = new InstInfo()
+      val info        = new InstInfo()
       val src_info    = new SrcInfo()
       val forward     = Vec(config.fuNum, new DataForwardToDecoderUnit())
     })
@@ -44,6 +44,6 @@ class JumpCtrl(implicit val config: CpuConfig) extends Module {
   io.out.jump_target := Mux(
     jump_inst,
     io.in.src_info.src1_data + io.in.src_info.src2_data,
-    io.in.src_info.src1_data
+    (io.in.src_info.src1_data + io.in.src_info.src2_data) & ~1.U(XLEN.W)
   )
 }
