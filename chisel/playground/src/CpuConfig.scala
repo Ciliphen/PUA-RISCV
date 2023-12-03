@@ -6,7 +6,7 @@ case class CpuConfig(
   val build: Boolean = false, // 是否为build模式
   // 指令集
   val isRV32:        Boolean = false, // 是否为RV32
-  val hasMExtension: Boolean = false, // 是否有乘除法单元
+  val hasMExtension: Boolean = true, // 是否有乘除法单元
   // 特权模式
   val hasSMode: Boolean = false, // 是否有S模式
   val hasUMode: Boolean = false, // 是否有U模式

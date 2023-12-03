@@ -10,23 +10,22 @@ class SignedMul extends BlackBox with HasBlackBoxResource {
   val io = IO(new Bundle {
     val CLK = Input(Clock())
     val CE  = Input(Bool())
-    val A   = Input(UInt((DATA_WID + 1).W))
-    val B   = Input(UInt((DATA_WID + 1).W))
+    val A   = Input(UInt((XLEN + 1).W))
+    val B   = Input(UInt((XLEN + 1).W))
 
-    val P = Output(UInt((64 + 2).W))
+    val P = Output(UInt(((2 * XLEN) + 2).W))
   })
 }
 
 class Mul(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val src1        = Input(UInt(DATA_WID.W))
-    val src2        = Input(UInt(DATA_WID.W))
-    val signed      = Input(Bool())
+    val src1        = Input(UInt((XLEN + 1).W))
+    val src2        = Input(UInt((XLEN + 1).W))
     val start       = Input(Bool())
     val allow_to_go = Input(Bool())
 
     val ready  = Output(Bool())
-    val result = Output(UInt(64.W))
+    val result = Output(UInt((2 * XLEN).W))
   })
 
   if (config.build) {
@@ -43,15 +42,11 @@ class Mul(implicit val config: CpuConfig) extends Module {
 
     signedMul.CLK := clock
     signedMul.CE  := io.start
-    when(io.signed) {
-      signedMul.A := Cat(io.src1(DATA_WID - 1), io.src1)
-      signedMul.B := Cat(io.src2(DATA_WID - 1), io.src2)
-    }.otherwise {
-      signedMul.A := Cat(0.U(1.W), io.src1)
-      signedMul.B := Cat(0.U(1.W), io.src2)
-    }
-    io.ready  := cnt >= config.mulClockNum.U
-    io.result := signedMul.P(64 - 1, 0)
+
+    signedMul.A := io.src1
+    signedMul.B := io.src2
+    io.ready    := cnt >= config.mulClockNum.U
+    io.result   := signedMul.P((2 * XLEN) - 1, 0)
   } else {
     val cnt = RegInit(0.U(log2Ceil(config.mulClockNum + 1).W))
     cnt := MuxCase(
@@ -62,13 +57,11 @@ class Mul(implicit val config: CpuConfig) extends Module {
       )
     )
 
-    val signed   = RegInit(0.U(64.W))
-    val unsigned = RegInit(0.U(64.W))
+    val signed = RegInit(0.U((2 * XLEN).W))
     when(io.start) {
-      signed   := (io.src1.asSInt * io.src2.asSInt).asUInt
-      unsigned := io.src1 * io.src2
+      signed := (io.src1.asSInt * io.src2.asSInt).asUInt
     }
-    io.result := Mux(io.signed, signed, unsigned)
+    io.result := signed
     io.ready  := cnt >= config.mulClockNum.U
   }
 }

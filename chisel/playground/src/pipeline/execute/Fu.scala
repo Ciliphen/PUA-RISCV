@@ -35,6 +35,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
   val alu        = Seq.fill(config.decoderNum)(Module(new Alu()))
   val branchCtrl = Module(new BranchCtrl()).io
   val mou        = Module(new Mou()).io
+  val mdu        = Module(new Mdu()).io
 
   mou.in.info := io.inst(0).info
   mou.in.pc   := io.inst(0).pc
@@ -52,18 +53,34 @@ class Fu(implicit val config: CpuConfig) extends Module {
   io.branch.target := Mux(branchCtrl_flush, branchCtrl.out.target, mou.out.target)
 
   for (i <- 0 until (config.fuNum)) {
-    alu(i).io.info              := io.inst(i).info
-    alu(i).io.src_info          := io.inst(i).src_info
+    alu(i).io.info     := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).info, 0.U.asTypeOf(new InstInfo()))
+    alu(i).io.src_info := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).src_info, 0.U.asTypeOf(new SrcInfo()))
   }
 
-  io.stall_req := false.B
+  val mdu_sel = VecInit(
+    io.inst(0).info.fusel === FuType.mdu,
+    io.inst(1).info.fusel === FuType.mdu
+  )
+
+  mdu.info := MuxCase(
+    0.U.asTypeOf(new InstInfo()),
+    Seq(mdu_sel(0) -> io.inst(0).info, mdu_sel(1) -> io.inst(1).info)
+  )
+  mdu.src_info := MuxCase(
+    0.U.asTypeOf(new SrcInfo()),
+    Seq(mdu_sel(0) -> io.inst(0).src_info, mdu_sel(1) -> io.inst(1).src_info)
+  )
+  mdu.allow_to_go := io.ctrl.allow_to_go
+
+  io.stall_req := io.inst.map(_.info.fusel === FuType.mdu).reduce(_ || _) && !mdu.ready
 
   io.inst(0).result.alu := Mux(
     ALUOpType.isBru(io.inst(0).info.op),
     io.inst(0).pc + 4.U,
     alu(0).io.result
   )
-  io.inst(0).result.mdu := DontCare
+  io.inst(0).result.mdu := mdu.result
+
   io.inst(1).result.alu := alu(1).io.result
-  io.inst(1).result.mdu := DontCare
+  io.inst(1).result.mdu := mdu.result
 }

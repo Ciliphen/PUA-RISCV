@@ -12,14 +12,14 @@ class SignedDiv extends BlackBox with HasBlackBoxResource {
     // 除数
     val s_axis_divisor_tvalid = Input(Bool())
     val s_axis_divisor_tready = Output(Bool())
-    val s_axis_divisor_tdata  = Input(UInt(DATA_WID.W))
+    val s_axis_divisor_tdata  = Input(UInt(XLEN.W))
     // 被除数
     val s_axis_dividend_tvalid = Input(Bool())
     val s_axis_dividend_tready = Output(Bool())
-    val s_axis_dividend_tdata  = Input(UInt(DATA_WID.W))
+    val s_axis_dividend_tdata  = Input(UInt(XLEN.W))
     // 结果
     val m_axis_dout_tvalid = Output(Bool())
-    val m_axis_dout_tdata  = Output(UInt(64.W))
+    val m_axis_dout_tdata  = Output(UInt((2 * XLEN).W))
   })
 }
 
@@ -29,27 +29,27 @@ class UnsignedDiv extends BlackBox with HasBlackBoxResource {
     // 除数
     val s_axis_divisor_tvalid = Input(Bool())
     val s_axis_divisor_tready = Output(Bool())
-    val s_axis_divisor_tdata  = Input(UInt(DATA_WID.W))
+    val s_axis_divisor_tdata  = Input(UInt(XLEN.W))
     // 被除数
     val s_axis_dividend_tvalid = Input(Bool())
     val s_axis_dividend_tready = Output(Bool())
-    val s_axis_dividend_tdata  = Input(UInt(DATA_WID.W))
+    val s_axis_dividend_tdata  = Input(UInt(XLEN.W))
     // 结果
     val m_axis_dout_tvalid = Output(Bool())
-    val m_axis_dout_tdata  = Output(UInt(64.W))
+    val m_axis_dout_tdata  = Output(UInt((2 * XLEN).W))
   })
 }
 
 class Div(implicit config: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val src1        = Input(UInt(DATA_WID.W))
-    val src2        = Input(UInt(DATA_WID.W))
+    val src1        = Input(UInt(XLEN.W))
+    val src2        = Input(UInt(XLEN.W))
     val signed      = Input(Bool())
     val start       = Input(Bool())
     val allow_to_go = Input(Bool())
 
     val ready  = Output(Bool())
-    val result = Output(UInt(64.W))
+    val result = Output(UInt((2 * XLEN).W))
   })
 
   if (config.build) {
@@ -118,9 +118,9 @@ class Div(implicit config: CpuConfig) extends Module {
       unsignedDiv.m_axis_dout_tvalid || unsignedDiv_done
     )
     val signedRes =
-      Cat(signedDiv.m_axis_dout_tdata(DATA_WID - 1, 0), signedDiv.m_axis_dout_tdata(64 - 1, DATA_WID))
+      Cat(signedDiv.m_axis_dout_tdata(XLEN - 1, 0), signedDiv.m_axis_dout_tdata((2 * XLEN) - 1, XLEN))
     val unsignedRes =
-      Cat(unsignedDiv.m_axis_dout_tdata(DATA_WID - 1, 0), unsignedDiv.m_axis_dout_tdata(64 - 1, DATA_WID))
+      Cat(unsignedDiv.m_axis_dout_tdata(XLEN - 1, 0), unsignedDiv.m_axis_dout_tdata((2 * XLEN) - 1, XLEN))
     io.result := Mux(io.signed, signedRes, unsignedRes)
   } else {
     val cnt = RegInit(0.U(log2Ceil(config.divClockNum + 1).W))
@@ -134,24 +134,28 @@ class Div(implicit config: CpuConfig) extends Module {
 
     val div_signed = io.signed
 
-    val dividend_signed = io.src1(31) & div_signed
-    val divisor_signed  = io.src2(31) & div_signed
+    val dividend_signed = io.src1(XLEN - 1) & div_signed
+    val divisor_signed  = io.src2(XLEN - 1) & div_signed
 
     val dividend_abs = Mux(dividend_signed, (-io.src1).asUInt, io.src1.asUInt)
     val divisor_abs  = Mux(divisor_signed, (-io.src2).asUInt, io.src2.asUInt)
 
-    val quotient_signed  = (io.src1(31) ^ io.src2(31)) & div_signed
-    val remainder_signed = io.src1(31) & div_signed
+    val quotient_signed  = (io.src1(XLEN - 1) ^ io.src2(XLEN - 1)) & div_signed
+    val remainder_signed = io.src1(XLEN - 1) & div_signed
 
     val quotient_abs  = dividend_abs / divisor_abs
     val remainder_abs = dividend_abs - quotient_abs * divisor_abs
 
-    val quotient  = RegInit(0.S(32.W))
-    val remainder = RegInit(0.S(32.W))
+    val quotient  = RegInit(0.S(XLEN.W))
+    val remainder = RegInit(0.S(XLEN.W))
 
     when(io.start) {
       quotient  := Mux(quotient_signed, (-quotient_abs).asSInt, quotient_abs.asSInt)
       remainder := Mux(remainder_signed, (-remainder_abs).asSInt, remainder_abs.asSInt)
+      when(io.src2 === 0.U) {
+        quotient  := (~0.U).asSInt
+        remainder := io.src1.asSInt
+      }
     }
 
     io.ready  := cnt >= config.divClockNum.U

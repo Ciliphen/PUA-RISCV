@@ -21,7 +21,7 @@ class Decoder extends Module with HasInstrType {
   val instrType :: fuType :: fuOpType :: Nil =
     ListLookup(inst, Instructions.DecodeDefault, Instructions.DecodeTable)
 
-  val SrcTypeTable = Seq(
+  val srcTypeTable = Seq(
     InstrI  -> (SrcType.reg, SrcType.imm),
     InstrR  -> (SrcType.reg, SrcType.reg),
     InstrS  -> (SrcType.reg, SrcType.reg),
@@ -31,8 +31,8 @@ class Decoder extends Module with HasInstrType {
     InstrJ  -> (SrcType.pc, SrcType.imm),
     InstrN  -> (SrcType.pc, SrcType.imm)
   )
-  val src1Type = LookupTree(instrType, SrcTypeTable.map(p => (p._1, p._2._1)))
-  val src2Type = LookupTree(instrType, SrcTypeTable.map(p => (p._1, p._2._2)))
+  val src1Type = LookupTree(instrType, srcTypeTable.map(p => (p._1, p._2._1)))
+  val src2Type = LookupTree(instrType, srcTypeTable.map(p => (p._1, p._2._2)))
 
   val (rs, rt, rd) = (inst(19, 15), inst(24, 20), inst(11, 7))
 
@@ -44,8 +44,8 @@ class Decoder extends Module with HasInstrType {
   io.out.info.reg2_raddr := Mux(io.out.info.reg2_ren, rt, 0.U)
   io.out.info.fusel      := fuType
   io.out.info.op         := fuOpType
-  io.out.info.reg_wen   := isrfWen(instrType)
-  io.out.info.reg_waddr := Mux(isrfWen(instrType), rd, 0.U)
+  io.out.info.reg_wen    := isrfWen(instrType)
+  io.out.info.reg_waddr  := Mux(isrfWen(instrType), rd, 0.U)
   io.out.info.imm := LookupTree(
     instrType,
     Seq(
