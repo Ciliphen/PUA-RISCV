@@ -15,10 +15,6 @@ class Fu(implicit val config: CpuConfig) extends Module {
         val pc       = Input(UInt(PC_WID.W))
         val info     = Input(new InstInfo())
         val src_info = Input(new SrcInfo())
-        val ex = new Bundle {
-          val in  = Input(new ExceptionInfo())
-          val out = Output(new ExceptionInfo())
-        }
         val result = Output(new Bundle {
           val mdu = UInt(DATA_WID.W)
           val alu = UInt(DATA_WID.W)
@@ -58,8 +54,6 @@ class Fu(implicit val config: CpuConfig) extends Module {
   for (i <- 0 until (config.fuNum)) {
     alu(i).io.info              := io.inst(i).info
     alu(i).io.src_info          := io.inst(i).src_info
-    io.inst(i).ex.out           := io.inst(i).ex.in
-    io.inst(i).ex.out.exception := io.inst(i).ex.in.exception
   }
 
   io.stall_req := false.B

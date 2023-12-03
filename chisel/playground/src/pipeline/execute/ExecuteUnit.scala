@@ -57,7 +57,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.ctrl.inst(0).reg_waddr := io.executeStage.inst0.info.reg_waddr
   io.ctrl.inst(1).mem_wreg  := io.executeStage.inst1.info.mem_wreg
   io.ctrl.inst(1).reg_waddr := io.executeStage.inst1.info.reg_waddr
-  io.ctrl.flush            := io.fetchUnit.flush
+  io.ctrl.flush             := io.fetchUnit.flush
 
   io.csr.in.valid := is_csr.asUInt.orR
   io.csr.in.info := MuxCase(
@@ -101,11 +101,9 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   fu.inst(0).pc           := io.executeStage.inst0.pc
   fu.inst(0).info         := io.executeStage.inst0.info
   fu.inst(0).src_info     := io.executeStage.inst0.src_info
-  fu.inst(0).ex.in        := io.executeStage.inst0.ex
   fu.inst(1).pc           := io.executeStage.inst1.pc
   fu.inst(1).info         := io.executeStage.inst1.info
   fu.inst(1).src_info     := io.executeStage.inst1.src_info
-  fu.inst(1).ex.in        := io.executeStage.inst1.ex
   fu.branch.pred_branch   := io.executeStage.inst0.jb_info.pred_branch
   fu.branch.jump_regiser  := io.executeStage.inst0.jb_info.jump_regiser
   fu.branch.branch_target := io.executeStage.inst0.jb_info.branch_target
@@ -143,8 +141,6 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     io.executeStage.inst0.ex,
     MuxLookup(io.executeStage.inst0.info.fusel, io.executeStage.inst0.ex)(
       Seq(
-        FuType.alu -> fu.inst(0).ex.out,
-        FuType.mdu -> fu.inst(0).ex.out,
         FuType.lsu -> accessMemCtrl.inst(0).ex.out,
         FuType.csr -> io.csr.out.ex
       )
@@ -170,8 +166,6 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     io.executeStage.inst1.ex,
     MuxLookup(io.executeStage.inst1.info.fusel, io.executeStage.inst1.ex)(
       Seq(
-        FuType.alu -> fu.inst(1).ex.out,
-        FuType.mdu -> fu.inst(1).ex.out,
         FuType.lsu -> accessMemCtrl.inst(1).ex.out,
         FuType.csr -> io.csr.out.ex
       )
