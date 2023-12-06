@@ -26,7 +26,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
     val memoryUnit = new Bundle {
       val in = Input(new Bundle {
         val mem_en    = Bool()
-        val info = new InstInfo()
+        val info      = new InstInfo()
         val mem_wdata = UInt(DATA_WID.W)
         val mem_addr  = UInt(DATA_ADDR_WID.W)
         val mem_sel   = Vec(config.fuNum, Bool())
@@ -47,10 +47,9 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   val op        = io.memoryUnit.in.info.op
   io.dataMemory.out.en := io.memoryUnit.in.mem_en &&
     (io.memoryUnit.in.mem_sel(0) &&
-      !(io.memoryUnit.in.ex(0).exception.asUInt.orR || io.memoryUnit.in.ex(0).interrupt.asUInt.orR) ||
+      !(HasExcInt(io.memoryUnit.in.ex(0))) ||
       io.memoryUnit.in.mem_sel(1) &&
-        !(io.memoryUnit.in.ex(0).exception.asUInt.orR || io.memoryUnit.in.ex(0).interrupt.asUInt.orR) &&
-        !(io.memoryUnit.in.ex(1).exception.asUInt.orR || io.memoryUnit.in.ex(1).interrupt.asUInt.orR))
+        !(HasExcInt(io.memoryUnit.in.ex(0))) && !(HasExcInt(io.memoryUnit.in.ex(1))))
   io.dataMemory.out.addr := mem_addr
   val rdata = LookupTree(
     mem_addr(2, 0),

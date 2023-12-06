@@ -10,20 +10,20 @@ class ExeAccessMemCtrl(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val mem = new Bundle {
       val out = Output(new Bundle {
-        val en        = Bool()
-        val ren       = Bool()
-        val wen       = Bool()
-        val info = new InstInfo()
-        val addr      = UInt(DATA_ADDR_WID.W)
-        val wdata     = UInt(DATA_WID.W)
+        val en    = Bool()
+        val ren   = Bool()
+        val wen   = Bool()
+        val info  = new InstInfo()
+        val addr  = UInt(DATA_ADDR_WID.W)
+        val wdata = UInt(DATA_WID.W)
       })
     }
 
     val inst = Vec(
       config.fuNum,
       new Bundle {
-        val info = Input(new InstInfo())
-        val src_info  = Input(new SrcInfo())
+        val info     = Input(new InstInfo())
+        val src_info = Input(new SrcInfo())
         val ex = new Bundle {
           val in  = Input(new ExceptionInfo())
           val out = Output(new ExceptionInfo())
@@ -78,18 +78,15 @@ class ExeAccessMemCtrl(implicit val config: CpuConfig) extends Module {
     io.inst(i).ex.out                                := io.inst(i).ex.in
     io.inst(i).ex.out.exception(loadAddrMisaligned)  := !store_inst && !addr_aligned(i)
     io.inst(i).ex.out.exception(storeAddrMisaligned) := store_inst && !addr_aligned(i)
-    io.inst(i).ex.out.tval                           := Mux(
+    io.inst(i).ex.out.tval := Mux(
       io.inst(i).ex.in.exception.asUInt.orR,
       io.inst(i).ex.in.tval,
       mem_addr(i)
     )
   }
   io.inst(0).mem_sel := (io.inst(0).info.fusel === FuType.lsu) &&
-    !(io.inst(0).ex.out.exception.asUInt.orR || io.inst(0).ex.out.interrupt.asUInt.orR) &&
-    io.inst(0).info.valid
+    !(HasExcInt(io.inst(0).ex.out)) && io.inst(0).info.valid
   io.inst(1).mem_sel := (io.inst(1).info.fusel === FuType.lsu) &&
-    !(io.inst(0).ex.out.exception.asUInt.orR || io.inst(0).ex.out.interrupt.asUInt.orR) &&
-    !(io.inst(1).ex.out.exception.asUInt.orR || io.inst(1).ex.out.interrupt.asUInt.orR) &&
-    io.inst(1).info.valid
+    !(HasExcInt(io.inst(0).ex.out)) && !(HasExcInt(io.inst(1).ex.out)) && io.inst(1).info.valid
 
 }

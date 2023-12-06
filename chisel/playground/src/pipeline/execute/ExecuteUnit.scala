@@ -48,9 +48,9 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
 
   val is_csr = VecInit(
     fusel(0) === FuType.csr && valid(0) &&
-      !(io.executeStage.inst0.ex.exception.asUInt.orR || io.executeStage.inst0.ex.interrupt.asUInt.orR),
+      !(HasExcInt(io.executeStage.inst0.ex)),
     fusel(1) === FuType.csr && valid(1) &&
-      !(io.executeStage.inst1.ex.exception.asUInt.orR || io.executeStage.inst1.ex.interrupt.asUInt.orR)
+      !(HasExcInt(io.executeStage.inst1.ex))
   )
 
   io.ctrl.inst(0).mem_wreg  := io.executeStage.inst0.info.mem_wreg
@@ -84,9 +84,9 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
 
   val is_lsu = VecInit(
     fusel(0) === FuType.lsu && valid(0) &&
-      !(io.executeStage.inst0.ex.exception.asUInt.orR || io.executeStage.inst0.ex.interrupt.asUInt.orR),
+      !(HasExcInt(io.executeStage.inst0.ex)),
     fusel(1) === FuType.lsu && valid(1) &&
-      !(io.executeStage.inst1.ex.exception.asUInt.orR || io.executeStage.inst1.ex.interrupt.asUInt.orR)
+      !(HasExcInt(io.executeStage.inst1.ex))
   )
   // input accessMemCtrl
   accessMemCtrl.inst(0).info     := Mux(is_lsu(0), io.executeStage.inst0.info, 0.U.asTypeOf(new InstInfo()))
@@ -135,7 +135,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst0.rd_info.wdata(FuType.lsu) := 0.U
   io.memoryStage.inst0.rd_info.wdata(FuType.mou) := 0.U
   val has_ex0 =
-    (io.executeStage.inst0.ex.exception.asUInt.orR || io.executeStage.inst0.ex.interrupt.asUInt.orR) && io.executeStage.inst0.info.valid
+    (HasExcInt(io.executeStage.inst0.ex)) && io.executeStage.inst0.info.valid
   io.memoryStage.inst0.ex := Mux(
     has_ex0,
     io.executeStage.inst0.ex,
@@ -160,7 +160,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst1.rd_info.wdata(FuType.lsu) := 0.U
   io.memoryStage.inst1.rd_info.wdata(FuType.mou) := 0.U
   val has_ex1 =
-    (io.executeStage.inst1.ex.exception.asUInt.orR || io.executeStage.inst1.ex.interrupt.asUInt.orR) && io.executeStage.inst1.info.valid
+    (HasExcInt(io.executeStage.inst1.ex)) && io.executeStage.inst1.info.valid
   io.memoryStage.inst1.ex := Mux(
     has_ex1,
     io.executeStage.inst1.ex,

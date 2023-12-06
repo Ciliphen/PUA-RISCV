@@ -63,7 +63,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst1.ex.exception(storeAccessFault) := io.memoryStage.inst0.mem.sel(1) &&
     LSUOpType.isStore(io.memoryStage.inst1.info.op) && dataMemoryAccess.memoryUnit.out.acc_err
   io.writeBackStage.inst1.commit := io.memoryStage.inst1.info.valid &&
-    !(io.writeBackStage.inst0.ex.exception.asUInt.orR || io.writeBackStage.inst0.ex.interrupt.asUInt.orR)
+    !(HasExcInt(io.writeBackStage.inst0.ex))
 
   io.csr.in.inst(0).pc := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst0.pc, 0.U)
   io.csr.in.inst(0).ex := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst0.ex, 0.U.asTypeOf(new ExceptionInfo()))

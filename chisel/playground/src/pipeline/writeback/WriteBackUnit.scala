@@ -16,15 +16,14 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
   })
 
   io.regfile(0).wen := io.writeBackStage.inst0.info.reg_wen &&
-    io.ctrl.allow_to_go &&
-    !(io.writeBackStage.inst0.ex.exception.asUInt.orR || io.writeBackStage.inst0.ex.interrupt.asUInt.orR)
+    io.ctrl.allow_to_go && !(HasExcInt(io.writeBackStage.inst0.ex))
   io.regfile(0).waddr := io.writeBackStage.inst0.info.reg_waddr
   io.regfile(0).wdata := io.writeBackStage.inst0.rd_info.wdata(io.writeBackStage.inst0.info.fusel)
 
   io.regfile(1).wen :=
     io.writeBackStage.inst1.info.reg_wen && io.ctrl.allow_to_go &&
-      !(io.writeBackStage.inst0.ex.exception.asUInt.orR || io.writeBackStage.inst0.ex.interrupt.asUInt.orR) &&
-      !(io.writeBackStage.inst1.ex.exception.asUInt.orR || io.writeBackStage.inst1.ex.interrupt.asUInt.orR)
+      !(HasExcInt(io.writeBackStage.inst0.ex)) &&
+      !(HasExcInt(io.writeBackStage.inst1.ex))
   io.regfile(1).waddr := io.writeBackStage.inst1.info.reg_waddr
   io.regfile(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.info.fusel)
 
@@ -49,7 +48,7 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
       clock.asBool,
       io.writeBackStage.inst0.pc,
       Mux(
-        io.writeBackStage.inst0.ex.exception.asUInt.orR || io.writeBackStage.inst0.ex.interrupt.asUInt.orR,
+        HasExcInt(io.writeBackStage.inst0.ex),
         0.U,
         io.writeBackStage.inst1.pc
       )

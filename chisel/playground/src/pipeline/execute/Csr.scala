@@ -209,8 +209,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
 
   // 优先使用inst0的信息
   val exc_sel =
-    (io.memoryUnit.in.inst(0).ex.exception.asUInt.orR || io.memoryUnit.in.inst(0).ex.interrupt.asUInt.orR) ||
-      !(io.memoryUnit.in.inst(1).ex.exception.asUInt.orR || io.memoryUnit.in.inst(1).ex.interrupt.asUInt.orR)
+    (HasExcInt(io.memoryUnit.in.inst(0).ex)) || !(HasExcInt(io.memoryUnit.in.inst(1).ex))
   val mem_pc        = Mux(exc_sel, io.memoryUnit.in.inst(0).pc, io.memoryUnit.in.inst(1).pc)
   val mem_ex        = Mux(exc_sel, io.memoryUnit.in.inst(0).ex, io.memoryUnit.in.inst(1).ex)
   val mem_inst_info = Mux(exc_sel, io.memoryUnit.in.inst(0).info, io.memoryUnit.in.inst(1).info)
