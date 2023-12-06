@@ -7,21 +7,21 @@ import cpu.defines.Const._
 import cpu.CpuConfig
 
 class ExeMemInst1 extends Bundle {
-  val pc        = UInt(PC_WID.W)
-  val info = new InstInfo()
-  val rd_info   = new RdInfo()
-  val ex        = new ExceptionInfo()
+  val pc      = UInt(PC_WID.W)
+  val info    = new InstInfo()
+  val rd_info = new RdInfo()
+  val ex      = new ExceptionInfo()
 }
 
 class ExeMemInst0(implicit val config: CpuConfig) extends ExeMemInst1 {
   val mem = new Bundle {
-    val en        = Bool()
-    val ren       = Bool()
-    val wen       = Bool()
-    val info = new InstInfo()
-    val addr      = UInt(DATA_ADDR_WID.W)
-    val wdata     = UInt(DATA_WID.W)
-    val sel       = Vec(config.fuNum, Bool())
+    val en    = Bool()
+    val ren   = Bool()
+    val wen   = Bool()
+    val info  = new InstInfo()
+    val addr  = UInt(DATA_ADDR_WID.W)
+    val wdata = UInt(DATA_WID.W)
+    val sel   = Vec(config.fuNum, Bool())
   }
 }
 
