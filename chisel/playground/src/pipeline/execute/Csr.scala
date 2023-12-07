@@ -17,10 +17,16 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
         val info = new InstInfo()
       }
     )
+    val set_lr      = Bool()
+    val set_lr_val  = Bool()
+    val set_lr_addr = UInt(DATA_ADDR_WID.W)
   })
   val out = Output(new Bundle {
     val flush    = Bool()
     val flush_pc = UInt(PC_WID.W)
+
+    val lr      = Bool()
+    val lr_addr = UInt(DATA_ADDR_WID.W)
   })
 }
 
@@ -104,20 +110,20 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val wdata = Wire(UInt(XLEN.W))
 
   // Atom LR/SC Control Bits
-  val setLr     = WireInit(Bool(), false.B)
-  val setLrVal  = WireInit(Bool(), false.B)
-  val setLrAddr = WireInit(UInt(XLEN.W), DontCare) //TODO : need check
-  val lr        = RegInit(Bool(), false.B)
-  val lrAddr    = RegInit(UInt(XLEN.W), 0.U)
-  BoringUtils.addSink(setLr, "set_lr")
-  BoringUtils.addSink(setLrVal, "set_lr_val")
-  BoringUtils.addSink(setLrAddr, "set_lr_addr")
-  BoringUtils.addSource(lr, "lr")
-  BoringUtils.addSource(lrAddr, "lr_addr")
+  val set_lr      = WireInit(Bool(), false.B)
+  val set_lr_val  = WireInit(Bool(), false.B)
+  val set_lr_addr = WireInit(UInt(DATA_ADDR_WID.W), 0.U)
+  val lr          = RegInit(Bool(), false.B)
+  val lr_addr     = RegInit(UInt(DATA_ADDR_WID.W), 0.U)
+  set_lr                    := io.memoryUnit.in.set_lr
+  set_lr_val                := io.memoryUnit.in.set_lr_val
+  set_lr_addr               := io.memoryUnit.in.set_lr_addr
+  io.memoryUnit.out.lr      := lr
+  io.memoryUnit.out.lr_addr := lr_addr
 
-  when(setLr) {
-    lr     := setLrVal
-    lrAddr := setLrAddr
+  when(set_lr) {
+    lr      := set_lr_val
+    lr_addr := set_lr_addr
   }
 
   // Side Effect

@@ -44,7 +44,6 @@ class Core(implicit val config: CpuConfig) extends Module {
   ctrl.memoryUnit <> memoryUnit.ctrl
   ctrl.writeBackUnit <> writeBackUnit.ctrl
   ctrl.cacheCtrl.iCache_stall := io.inst.icache_stall
-  ctrl.cacheCtrl.dCache_stall := io.data.dcache_stall
 
   fetchUnit.memory <> memoryUnit.fetchUnit
   fetchUnit.execute <> executeUnit.fetchUnit
@@ -120,6 +119,7 @@ class Core(implicit val config: CpuConfig) extends Module {
 
   memoryUnit.dataMemory.in.rdata   := io.data.rdata
   memoryUnit.dataMemory.in.acc_err := io.data.acc_err
+  memoryUnit.dataMemory.in.ready   := !io.data.dcache_stall
   io.data.en                       := memoryUnit.dataMemory.out.en
   io.data.size                     := memoryUnit.dataMemory.out.rlen
   io.data.wen                      := memoryUnit.dataMemory.out.wen

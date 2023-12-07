@@ -55,7 +55,6 @@ class SrcReadSignal extends Bundle {
 
 class CacheCtrl extends Bundle {
   val iCache_stall = Output(Bool())
-  val dCache_stall = Output(Bool())
 }
 
 class FetchUnitCtrl extends Bundle {
@@ -85,7 +84,7 @@ class ExecuteFuCtrl extends Bundle {
 class ExecuteCtrl(implicit val config: CpuConfig) extends Bundle {
   val inst     = Output(Vec(config.fuNum, new MemRead()))
   val fu_stall = Output(Bool())
-  val flush   = Output(Bool())
+  val flush    = Output(Bool())
 
   val allow_to_go = Input(Bool())
   val do_flush    = Input(Bool())
@@ -94,7 +93,8 @@ class ExecuteCtrl(implicit val config: CpuConfig) extends Bundle {
 }
 
 class MemoryCtrl extends Bundle {
-  val flush = Output(Bool())
+  val flush     = Output(Bool())
+  val mem_stall = Output(Bool())
 
   val allow_to_go = Input(Bool())
   val do_flush    = Input(Bool())

@@ -24,16 +24,37 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   })
 
   val dataMemoryAccess = Module(new DataMemoryAccess()).io
-  dataMemoryAccess.memoryUnit.in.mem_en    := io.memoryStage.inst0.mem.en
-  dataMemoryAccess.memoryUnit.in.info      := io.memoryStage.inst0.mem.info
-  dataMemoryAccess.memoryUnit.in.mem_wdata := io.memoryStage.inst0.mem.wdata
-  dataMemoryAccess.memoryUnit.in.mem_addr  := io.memoryStage.inst0.mem.addr
-  dataMemoryAccess.memoryUnit.in.mem_sel   := io.memoryStage.inst0.mem.sel
-  dataMemoryAccess.memoryUnit.in.ex(0)     := io.memoryStage.inst0.ex
-  dataMemoryAccess.memoryUnit.in.ex(1)     := io.memoryStage.inst1.ex
-  dataMemoryAccess.dataMemory.in.acc_err   := io.dataMemory.in.acc_err
-  dataMemoryAccess.dataMemory.in.rdata     := io.dataMemory.in.rdata
-  io.dataMemory.out                        := dataMemoryAccess.dataMemory.out
+  val mem_sel = VecInit(
+    io.memoryStage.inst0.info.valid &&
+      io.memoryStage.inst0.info.fusel === FuType.lsu &&
+      !HasExcInt(io.memoryStage.inst0.ex),
+    io.memoryStage.inst1.info.valid &&
+      io.memoryStage.inst1.info.fusel === FuType.lsu &&
+      !HasExcInt(io.memoryStage.inst1.ex) && !HasExcInt(io.memoryStage.inst0.ex)
+  )
+  dataMemoryAccess.memoryUnit.in.mem_en := mem_sel.reduce(_ || _)
+  dataMemoryAccess.memoryUnit.in.info := MuxCase(
+    0.U.asTypeOf(new InstInfo()),
+    Seq(
+      mem_sel(0) -> io.memoryStage.inst0.info,
+      mem_sel(1) -> io.memoryStage.inst1.info
+    )
+  )
+  dataMemoryAccess.memoryUnit.in.src_info := MuxCase(
+    0.U.asTypeOf(new SrcInfo()),
+    Seq(
+      mem_sel(0) -> io.memoryStage.inst0.src_info,
+      mem_sel(1) -> io.memoryStage.inst1.src_info
+    )
+  )
+  dataMemoryAccess.memoryUnit.in.ex := MuxCase(
+    0.U.asTypeOf(new ExceptionInfo()),
+    Seq(
+      mem_sel(0) -> io.memoryStage.inst0.ex,
+      mem_sel(1) -> io.memoryStage.inst1.ex
+    )
+  )
+  dataMemoryAccess.dataMemory <> io.dataMemory
 
   io.decoderUnit(0).wen   := io.writeBackStage.inst0.info.reg_wen
   io.decoderUnit(0).waddr := io.writeBackStage.inst0.info.reg_waddr
@@ -46,22 +67,22 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst0.info                      := io.memoryStage.inst0.info
   io.writeBackStage.inst0.rd_info.wdata             := io.memoryStage.inst0.rd_info.wdata
   io.writeBackStage.inst0.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
-  io.writeBackStage.inst0.ex                        := io.memoryStage.inst0.ex
-  io.writeBackStage.inst0.ex.exception(loadAccessFault) := io.memoryStage.inst0.mem.sel(0) &&
-    LSUOpType.isLoad(io.memoryStage.inst0.info.op) && dataMemoryAccess.memoryUnit.out.acc_err
-  io.writeBackStage.inst0.ex.exception(storeAccessFault) := io.memoryStage.inst0.mem.sel(0) &&
-    LSUOpType.isStore(io.memoryStage.inst0.info.op) && dataMemoryAccess.memoryUnit.out.acc_err
+  io.writeBackStage.inst0.ex := Mux(
+    mem_sel(0),
+    dataMemoryAccess.memoryUnit.out.ex,
+    io.memoryStage.inst0.ex
+  )
   io.writeBackStage.inst0.commit := io.memoryStage.inst0.info.valid
 
   io.writeBackStage.inst1.pc                        := io.memoryStage.inst1.pc
   io.writeBackStage.inst1.info                      := io.memoryStage.inst1.info
   io.writeBackStage.inst1.rd_info.wdata             := io.memoryStage.inst1.rd_info.wdata
   io.writeBackStage.inst1.rd_info.wdata(FuType.lsu) := dataMemoryAccess.memoryUnit.out.rdata
-  io.writeBackStage.inst1.ex                        := io.memoryStage.inst1.ex
-  io.writeBackStage.inst1.ex.exception(loadAccessFault) := io.memoryStage.inst0.mem.sel(1) &&
-    LSUOpType.isLoad(io.memoryStage.inst1.info.op) && dataMemoryAccess.memoryUnit.out.acc_err
-  io.writeBackStage.inst1.ex.exception(storeAccessFault) := io.memoryStage.inst0.mem.sel(1) &&
-    LSUOpType.isStore(io.memoryStage.inst1.info.op) && dataMemoryAccess.memoryUnit.out.acc_err
+  io.writeBackStage.inst1.ex := Mux(
+    mem_sel(1),
+    dataMemoryAccess.memoryUnit.out.ex,
+    io.memoryStage.inst1.ex
+  )
   io.writeBackStage.inst1.commit := io.memoryStage.inst1.info.valid &&
     !(HasExcInt(io.writeBackStage.inst0.ex))
 
@@ -80,8 +101,15 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     0.U.asTypeOf(new InstInfo())
   )
 
+  io.csr.in.set_lr                       := dataMemoryAccess.memoryUnit.out.set_lr && io.ctrl.allow_to_go
+  io.csr.in.set_lr_val                   := dataMemoryAccess.memoryUnit.out.set_lr_val
+  io.csr.in.set_lr_addr                  := dataMemoryAccess.memoryUnit.out.set_lr_addr
+  dataMemoryAccess.memoryUnit.in.lr      := io.csr.out.lr
+  dataMemoryAccess.memoryUnit.in.lr_addr := io.csr.out.lr_addr
+
   io.fetchUnit.flush  := io.csr.out.flush && io.ctrl.allow_to_go
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)
 
-  io.ctrl.flush := io.fetchUnit.flush
+  io.ctrl.flush     := io.fetchUnit.flush
+  io.ctrl.mem_stall := !dataMemoryAccess.memoryUnit.out.ready && dataMemoryAccess.memoryUnit.in.mem_en
 }

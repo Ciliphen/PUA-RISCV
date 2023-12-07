@@ -113,6 +113,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
 
   io.memoryStage.inst0.pc                        := io.executeStage.inst0.pc
   io.memoryStage.inst0.info                      := io.executeStage.inst0.info
+  io.memoryStage.inst0.src_info                  := io.executeStage.inst0.src_info
   io.memoryStage.inst0.rd_info.wdata(FuType.alu) := fu.inst(0).result.alu
   io.memoryStage.inst0.rd_info.wdata(FuType.mdu) := fu.inst(0).result.mdu
   io.memoryStage.inst0.rd_info.wdata(FuType.csr) := io.csr.out.rdata
@@ -137,6 +138,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
 
   io.memoryStage.inst1.pc                        := io.executeStage.inst1.pc
   io.memoryStage.inst1.info                      := io.executeStage.inst1.info
+  io.memoryStage.inst1.src_info                  := io.executeStage.inst1.src_info
   io.memoryStage.inst1.rd_info.wdata(FuType.alu) := fu.inst(1).result.alu
   io.memoryStage.inst1.rd_info.wdata(FuType.mdu) := fu.inst(1).result.mdu
   io.memoryStage.inst1.rd_info.wdata(FuType.csr) := io.csr.out.rdata

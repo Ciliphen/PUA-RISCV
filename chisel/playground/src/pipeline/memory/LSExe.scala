@@ -18,6 +18,8 @@ class LSExe extends Module {
     val out = Output(new Bundle {
       val loadAddrMisaligned  = Bool()
       val storeAddrMisaligned = Bool()
+      val loadAccessFault     = Bool()
+      val storeAccessFault    = Bool()
       val rdata               = UInt(DATA_WID.W)
     })
   })
@@ -136,5 +138,7 @@ class LSExe extends Module {
   val is_amo = valid && LSUOpType.isAMO(op)
   io.out.rdata               := Mux(partialLoad, rdataPartialLoad, rdataSel)
   io.out.loadAddrMisaligned  := valid && !isStore && !is_amo && !addrAligned
+  io.out.loadAccessFault     := valid && !isStore && !is_amo && acc_err
   io.out.storeAddrMisaligned := valid && (isStore || is_amo) && !addrAligned
+  io.out.storeAccessFault    := valid && (isStore || is_amo) && acc_err
 }
