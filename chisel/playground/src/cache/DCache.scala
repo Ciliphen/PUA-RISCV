@@ -15,10 +15,8 @@ class DCache(implicit config: CpuConfig) extends Module {
   })
 
   // * fsm * //
-  val s_idle :: s_uncached :: s_writeback :: s_save :: Nil = Enum(4)
-  val status                                               = RegInit(s_idle)
-
-  io.cpu.valid := status === s_save
+  val s_idle :: s_uncached :: s_writeback :: Nil = Enum(3)
+  val status                                     = RegInit(s_idle)
 
   val addr_err = io.cpu.addr(63, 32).orR
 
@@ -69,13 +67,9 @@ class DCache(implicit config: CpuConfig) extends Module {
   val mmio_read_stall  = !io.cpu.wen.orR
   val mmio_write_stall = io.cpu.wen.orR && !io.axi.w.ready
   val cached_stall     = false.B
-  io.cpu.dcache_stall := Mux(
-    status === s_idle && !acc_err,
-    Mux(io.cpu.en, (cached_stall || mmio_read_stall || mmio_write_stall), io.cpu.fence),
-    status =/= s_save
-  )
-  io.cpu.rdata   := saved_rdata
-  io.cpu.acc_err := acc_err
+  io.cpu.dcache_ready := status === s_idle
+  io.cpu.rdata        := saved_rdata
+  io.cpu.acc_err      := acc_err
 
   switch(status) {
     is(s_idle) {
@@ -83,7 +77,7 @@ class DCache(implicit config: CpuConfig) extends Module {
       when(io.cpu.en) {
         when(addr_err) {
           acc_err := true.B
-          status  := s_save
+          status  := s_idle
         }.otherwise {
           when(io.cpu.wen) {
             awaddr  := io.cpu.addr(31, 0)
@@ -110,7 +104,7 @@ class DCache(implicit config: CpuConfig) extends Module {
       when(io.axi.r.valid) {
         saved_rdata := io.axi.r.data
         acc_err     := io.axi.r.resp =/= RESP_OKEY.U
-        status      := s_save
+        status      := s_idle
       }
     }
     is(s_writeback) {
@@ -122,12 +116,7 @@ class DCache(implicit config: CpuConfig) extends Module {
       }
       when(io.axi.b.valid) {
         acc_err := io.axi.b.resp =/= RESP_OKEY.U
-        status  := s_save
-      }
-    }
-    is(s_save) {
-      when(!io.cpu.dcache_stall) {
-        status := s_idle
+        status  := s_idle
       }
     }
   }

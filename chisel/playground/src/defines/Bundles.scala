@@ -132,9 +132,8 @@ class Cache_DCache extends Bundle {
   val wstrb     = Output(UInt(AXI_STRB_WID.W))
 
   val rdata        = Input(UInt(XLEN.W))
-  val valid        = Input(Bool())
   val acc_err      = Input(Bool())
-  val dcache_stall = Input(Bool())
+  val dcache_ready = Input(Bool())
 }
 
 // axi

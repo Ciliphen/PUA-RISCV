@@ -32,6 +32,8 @@ class DataMemoryAccess_MemoryUnit extends Bundle {
 
     val lr      = Bool()
     val lr_addr = UInt(DATA_ADDR_WID.W)
+
+    val allow_to_go = Bool()
   })
   val out = Output(new Bundle {
     val ready = Bool()
@@ -86,7 +88,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   lr                            := io.memoryUnit.in.lr
   lrAddr                        := io.memoryUnit.in.lr_addr
 
-  val s_idle :: s_lr :: s_sc :: s_amo_l :: s_amo_a :: s_amo_s :: Nil = Enum(6)
+  val s_idle :: s_load :: s_sc :: s_amo_l :: s_amo_l_wait :: s_amo_a :: s_amo_s :: s_wait_allow :: Nil = Enum(8)
 
   val state      = RegInit(s_idle)
   val atomMemReg = Reg(UInt(XLEN.W))
@@ -97,11 +99,13 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
 
   val scInvalid = (src1 =/= lrAddr || !lr) && scReq
 
-  lsExe.in.info           := io.memoryUnit.in.info
-  lsExe.in.mem_addr       := 0.U
+  lsExe.in.info           := DontCare
+  lsExe.in.mem_addr       := DontCare
   lsExe.in.mem_en         := false.B
-  lsExe.in.wdata          := 0.U
+  lsExe.in.wdata          := DontCare
   io.memoryUnit.out.ready := false.B
+
+  val allow_to_go = io.memoryUnit.in.allow_to_go
 
   switch(state) {
     is(s_idle) { // calculate address
@@ -109,13 +113,28 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.mem_addr       := src1 + imm
       lsExe.in.info.op        := func
       lsExe.in.wdata          := src2
-      io.memoryUnit.out.ready := lsExe.out.ready || scInvalid
-      state                   := s_idle
-
+      io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en || scInvalid
+      when(io.memoryUnit.out.ready) {
+        when(allow_to_go) {
+          state := s_idle
+        }
+        state := s_wait_allow;
+      }
       when(amoReq) { state := s_amo_l }
-      when(lrReq) { state := s_lr }
+      when(lrReq) {
+        lsExe.in.mem_en         := true.B
+        lsExe.in.mem_addr       := src1
+        lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
+        lsExe.in.wdata          := DontCare
+        io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
+        when(lsExe.out.ready) {
+          when(allow_to_go) {
+            state := s_idle
+          }
+          state := s_wait_allow;
+        }
+      }
       when(scReq) { state := Mux(scInvalid, s_idle, s_sc) }
-
     }
 
     is(s_amo_l) {
@@ -125,10 +144,21 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.wdata          := DontCare
       io.memoryUnit.out.ready := false.B
       when(lsExe.out.ready) {
+        state := s_amo_l_wait;
+      }
+    }
+
+    is(s_amo_l_wait) {
+      lsExe.in.mem_en         := false.B
+      lsExe.in.mem_addr       := src1
+      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
+      lsExe.in.wdata          := DontCare
+      io.memoryUnit.out.ready := false.B
+      atomMemReg              := lsExe.out.rdata
+      atomRegReg              := lsExe.out.rdata
+      when(lsExe.out.ready) {
         state := s_amo_a;
       }
-      atomMemReg := lsExe.out.rdata
-      atomRegReg := lsExe.out.rdata
     }
 
     is(s_amo_a) {
@@ -146,19 +176,12 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.mem_addr       := src1
       lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
       lsExe.in.wdata          := atomMemReg
-      io.memoryUnit.out.ready := lsExe.out.ready
+      io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
       when(lsExe.out.ready) {
-        state := s_idle;
-      }
-    }
-    is(s_lr) {
-      lsExe.in.mem_en         := true.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
-      lsExe.in.wdata          := DontCare
-      io.memoryUnit.out.ready := lsExe.out.ready
-      when(lsExe.out.ready) {
-        state := s_idle;
+        when(allow_to_go) {
+          state := s_idle
+        }
+        state := s_wait_allow;
       }
     }
     is(s_sc) {
@@ -166,15 +189,38 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.mem_addr       := src1
       lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
       lsExe.in.wdata          := src2
-      io.memoryUnit.out.ready := lsExe.out.ready
+      io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
       when(lsExe.out.ready) {
-        state := s_idle;
+        when(allow_to_go) {
+          state := s_idle
+        }
+        state := s_wait_allow;
+      }
+    }
+    is(s_wait_allow) {
+      lsExe.in.mem_en := false.B
+      lsExe.in.info.op := MuxCase(
+        func,
+        Seq(
+          lrReq -> Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw),
+          scReq -> Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
+        )
+      )
+      lsExe.in.mem_addr       := Mux(amoReq || lrReq || scReq, src1, src1 + imm)
+      lsExe.in.wdata          := DontCare
+      io.memoryUnit.out.ready := io.dataMemory.in.ready
+      when(allow_to_go && io.dataMemory.in.ready) {
+        state := s_idle
       }
     }
   }
-  when(lsExe.out.loadAddrMisaligned || lsExe.out.storeAddrMisaligned) {
+  when(
+    lsExe.out.loadAddrMisaligned ||
+      lsExe.out.storeAddrMisaligned ||
+      lsExe.out.loadAccessFault ||
+      lsExe.out.storeAccessFault
+  ) {
     state                   := s_idle
-    io.memoryUnit.out.ready := true.B
     io.memoryUnit.out.ready := true.B
   }
 
@@ -189,6 +235,13 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   io.memoryUnit.out.ex.exception(storeAddrMisaligned) := lsExe.out.storeAddrMisaligned
   io.memoryUnit.out.ex.exception(loadAccessFault)     := lsExe.out.loadAccessFault
   io.memoryUnit.out.ex.exception(storeAccessFault)    := lsExe.out.storeAccessFault
-  io.memoryUnit.out.ex.tval                           := io.dataMemory.out.addr
-  io.memoryUnit.out.rdata                             := lsExe.out.rdata
+
+  io.memoryUnit.out.ex.tval := io.dataMemory.out.addr
+  io.memoryUnit.out.rdata := MuxCase(
+    lsExe.out.rdata,
+    Seq(
+      (scReq)  -> scInvalid,
+      (amoReq) -> atomRegReg
+    )
+  )
 }

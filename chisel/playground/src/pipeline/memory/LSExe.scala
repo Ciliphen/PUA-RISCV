@@ -69,10 +69,9 @@ class LSExe extends Module {
     )
   }
 
-  val valid     = io.in.mem_en
-  val addr      = io.in.mem_addr
-  val addrLatch = RegNext(addr)
-  val op        = io.in.info.op
+  val valid = io.in.mem_en
+  val addr  = io.in.mem_addr
+  val op    = io.in.info.op
 
   val isStore     = valid && LSUOpType.isStore(op)
   val partialLoad = !isStore && (op =/= LSUOpType.ld)
@@ -88,7 +87,7 @@ class LSExe extends Module {
   val acc_err = io.dataMemory.in.acc_err
 
   val rdataSel64 = LookupTree(
-    addrLatch(2, 0),
+    addr(2, 0),
     List(
       "b000".U -> rdata(63, 0),
       "b001".U -> rdata(63, 8),
@@ -101,7 +100,7 @@ class LSExe extends Module {
     )
   )
   val rdataSel32 = LookupTree(
-    addrLatch(1, 0),
+    addr(1, 0),
     List(
       "b00".U -> rdata(31, 0),
       "b01".U -> rdata(31, 8),
@@ -130,19 +129,6 @@ class LSExe extends Module {
       "b11".U -> (addr(2, 0) === 0.U) //d
     )
   )
-
-  // val s_idle :: s_wait_resp :: Nil = Enum(2)
-  // val state                        = RegInit(s_idle)
-
-  // switch(state) {
-  //   is(s_idle) {
-  //     when(io.dataMemory.in.ready && io.dataMemory.out.en) { state := s_wait_resp }
-  //   }
-
-  //   is(s_wait_resp) {
-  //     when(io.dataMemory.in.ready) { state := s_idle }
-  //   }
-  // }
 
   io.dataMemory.out.en    := valid && !io.out.storeAddrMisaligned && !io.out.loadAddrMisaligned && !has_acc_err
   io.dataMemory.out.rlen  := size

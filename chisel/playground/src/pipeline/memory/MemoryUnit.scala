@@ -24,6 +24,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   })
 
   val dataMemoryAccess = Module(new DataMemoryAccess()).io
+  dataMemoryAccess.memoryUnit.in.allow_to_go := io.ctrl.allow_to_go
   val mem_sel = VecInit(
     io.memoryStage.inst0.info.valid &&
       io.memoryStage.inst0.info.fusel === FuType.lsu &&
