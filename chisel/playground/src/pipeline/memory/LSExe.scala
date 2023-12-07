@@ -21,6 +21,7 @@ class LSExe extends Module {
       val loadAccessFault     = Bool()
       val storeAccessFault    = Bool()
       val rdata               = UInt(DATA_WID.W)
+      val ready               = Bool()
     })
   })
 
@@ -83,13 +84,6 @@ class LSExe extends Module {
   val reqWdata = if (XLEN == 32) genWdata32(io.in.wdata, size) else genWdata(io.in.wdata, size)
   val reqWmask = if (XLEN == 32) genWmask32(addr, size) else genWmask(addr, size)
 
-  io.dataMemory.out.en    := valid && !io.out.storeAddrMisaligned && !io.out.loadAddrMisaligned && !has_acc_err
-  io.dataMemory.out.rlen  := size
-  io.dataMemory.out.wen   := isStore
-  io.dataMemory.out.wstrb := reqWmask
-  io.dataMemory.out.addr  := reqAddr
-  io.dataMemory.out.wdata := reqWdata
-
   val rdata   = io.dataMemory.in.rdata
   val acc_err = io.dataMemory.in.acc_err
 
@@ -137,7 +131,28 @@ class LSExe extends Module {
     )
   )
 
+  // val s_idle :: s_wait_resp :: Nil = Enum(2)
+  // val state                        = RegInit(s_idle)
+
+  // switch(state) {
+  //   is(s_idle) {
+  //     when(io.dataMemory.in.ready && io.dataMemory.out.en) { state := s_wait_resp }
+  //   }
+
+  //   is(s_wait_resp) {
+  //     when(io.dataMemory.in.ready) { state := s_idle }
+  //   }
+  // }
+
+  io.dataMemory.out.en    := valid && !io.out.storeAddrMisaligned && !io.out.loadAddrMisaligned && !has_acc_err
+  io.dataMemory.out.rlen  := size
+  io.dataMemory.out.wen   := isStore
+  io.dataMemory.out.wstrb := reqWmask
+  io.dataMemory.out.addr  := reqAddr
+  io.dataMemory.out.wdata := reqWdata
+
   val is_amo = valid && LSUOpType.isAMO(op)
+  io.out.ready               := io.dataMemory.in.ready
   io.out.rdata               := Mux(partialLoad, rdataPartialLoad, rdataSel)
   io.out.loadAddrMisaligned  := valid && !isStore && !is_amo && !addrAligned
   io.out.loadAccessFault     := valid && !isStore && !is_amo && (acc_err || has_acc_err)

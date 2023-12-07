@@ -109,7 +109,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.mem_addr       := src1 + imm
       lsExe.in.info.op        := func
       lsExe.in.wdata          := src2
-      io.memoryUnit.out.ready := lsExe.dataMemory.in.ready || scInvalid
+      io.memoryUnit.out.ready := lsExe.out.ready || scInvalid
       state                   := s_idle
 
       when(amoReq) { state := s_amo_l }
@@ -124,7 +124,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
       lsExe.in.wdata          := DontCare
       io.memoryUnit.out.ready := false.B
-      when(lsExe.dataMemory.in.ready) {
+      when(lsExe.out.ready) {
         state := s_amo_a;
       }
       atomMemReg := lsExe.out.rdata
@@ -146,8 +146,8 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.mem_addr       := src1
       lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
       lsExe.in.wdata          := atomMemReg
-      io.memoryUnit.out.ready := lsExe.dataMemory.in.ready
-      when(lsExe.dataMemory.in.ready) {
+      io.memoryUnit.out.ready := lsExe.out.ready
+      when(lsExe.out.ready) {
         state := s_idle;
       }
     }
@@ -156,8 +156,8 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.mem_addr       := src1
       lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
       lsExe.in.wdata          := DontCare
-      io.memoryUnit.out.ready := lsExe.dataMemory.in.ready
-      when(lsExe.dataMemory.in.ready) {
+      io.memoryUnit.out.ready := lsExe.out.ready
+      when(lsExe.out.ready) {
         state := s_idle;
       }
     }
@@ -166,8 +166,8 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.mem_addr       := src1
       lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
       lsExe.in.wdata          := src2
-      io.memoryUnit.out.ready := lsExe.dataMemory.in.ready
-      when(lsExe.dataMemory.in.ready) {
+      io.memoryUnit.out.ready := lsExe.out.ready
+      when(lsExe.out.ready) {
         state := s_idle;
       }
     }

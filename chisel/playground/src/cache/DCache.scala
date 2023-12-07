@@ -126,7 +126,7 @@ class DCache(implicit config: CpuConfig) extends Module {
       }
     }
     is(s_save) {
-      when(!io.cpu.dcache_stall && io.cpu.cpu_ready) {
+      when(!io.cpu.dcache_stall) {
         status := s_idle
       }
     }
