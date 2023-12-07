@@ -122,7 +122,7 @@ class DCache(implicit config: CpuConfig) extends Module {
       }
       when(io.axi.b.valid) {
         acc_err := io.axi.b.resp =/= RESP_OKEY.U
-        status  := s_idle
+        status  := s_save
       }
     }
     is(s_save) {

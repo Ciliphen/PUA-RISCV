@@ -10,7 +10,7 @@ class AtomAlu extends Module {
   val io = IO(new Bundle {
     val in = Input(new Bundle {
       val rdata = Input(UInt(XLEN.W)) // load data
-      val wdata = Input(UInt(XLEN.W)) // reg data
+      val src2  = Input(UInt(XLEN.W)) // reg data
       val info  = new InstInfo()
     })
     val out = Output(new Bundle {
@@ -19,7 +19,7 @@ class AtomAlu extends Module {
   })
 
   val src1    = io.in.rdata
-  val src2    = io.in.wdata
+  val src2    = io.in.src2
   val op      = io.in.info.op
   val is_sub  = !LSUOpType.isAdd(op)
   val sum     = (src1 +& (src2 ^ Fill(XLEN, is_sub))) + is_sub

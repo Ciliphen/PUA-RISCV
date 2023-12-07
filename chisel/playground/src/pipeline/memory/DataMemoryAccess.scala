@@ -92,7 +92,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   val atomMemReg = Reg(UInt(XLEN.W))
   val atomRegReg = Reg(UInt(XLEN.W))
   atomAlu.in.rdata := atomMemReg
-  atomAlu.in.wdata := io.dataMemory.out.wdata
+  atomAlu.in.src2  := src2
   atomAlu.in.info  := io.memoryUnit.in.info
 
   val scInvalid = (src1 =/= lrAddr || !lr) && scReq
