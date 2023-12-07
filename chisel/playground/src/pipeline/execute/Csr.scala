@@ -103,6 +103,23 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val rdata = Wire(UInt(XLEN.W))
   val wdata = Wire(UInt(XLEN.W))
 
+  // Atom LR/SC Control Bits
+  val setLr     = WireInit(Bool(), false.B)
+  val setLrVal  = WireInit(Bool(), false.B)
+  val setLrAddr = WireInit(UInt(XLEN.W), DontCare) //TODO : need check
+  val lr        = RegInit(Bool(), false.B)
+  val lrAddr    = RegInit(UInt(XLEN.W), 0.U)
+  BoringUtils.addSink(setLr, "set_lr")
+  BoringUtils.addSink(setLrVal, "set_lr_val")
+  BoringUtils.addSink(setLrAddr, "set_lr_addr")
+  BoringUtils.addSource(lr, "lr")
+  BoringUtils.addSource(lrAddr, "lr_addr")
+
+  when(setLr) {
+    lr     := setLrVal
+    lrAddr := setLrAddr
+  }
+
   // Side Effect
   def mstatusUpdateSideEffect(mstatus: UInt): UInt = {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
@@ -325,8 +342,8 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     mstatusNew.pie.m := true.B
     mstatusNew.mpp   := ModeU
     mstatus          := mstatusNew.asUInt
-    // lr := false.B //TODO: add原子操作
-    ret_target := mepc(VADDR_WID - 1, 0)
+    lr               := false.B
+    ret_target       := mepc(VADDR_WID - 1, 0)
   }
 
   io.decoderUnit.priv_mode := priv_mode

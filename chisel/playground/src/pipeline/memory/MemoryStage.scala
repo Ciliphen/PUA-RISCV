@@ -6,29 +6,17 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class ExeMemInst1 extends Bundle {
-  val pc      = UInt(PC_WID.W)
-  val info    = new InstInfo()
-  val rd_info = new RdInfo()
-  val ex      = new ExceptionInfo()
-}
-
-class ExeMemInst0(implicit val config: CpuConfig) extends ExeMemInst1 {
-  val mem = new Bundle {
-    val en    = Bool()
-    val ren   = Bool()
-    val wen   = Bool()
-    val info  = new InstInfo()
-    val addr  = UInt(DATA_ADDR_WID.W)
-    val wdata = UInt(DATA_WID.W)
-    val sel   = Vec(config.fuNum, Bool())
-  }
+class ExeMemInst extends Bundle {
+  val pc       = UInt(PC_WID.W)
+  val info     = new InstInfo()
+  val rd_info  = new RdInfo()
+  val src_info = new SrcInfo()
+  val ex       = new ExceptionInfo()
 }
 
 class ExecuteUnitMemoryUnit(implicit val config: CpuConfig) extends Bundle {
-
-  val inst0 = new ExeMemInst0()
-  val inst1 = new ExeMemInst1()
+  val inst0 = new ExeMemInst()
+  val inst1 = new ExeMemInst()
 }
 
 class MemoryStage(implicit val config: CpuConfig) extends Module {
@@ -40,12 +28,12 @@ class MemoryStage(implicit val config: CpuConfig) extends Module {
     val executeUnit = Input(new ExecuteUnitMemoryUnit())
     val memoryUnit  = Output(new ExecuteUnitMemoryUnit())
   })
-  val inst0 = RegInit(0.U.asTypeOf(new ExeMemInst0()))
-  val inst1 = RegInit(0.U.asTypeOf(new ExeMemInst1()))
+  val inst0 = RegInit(0.U.asTypeOf(new ExeMemInst()))
+  val inst1 = RegInit(0.U.asTypeOf(new ExeMemInst()))
 
   when(io.ctrl.clear) {
-    inst0 := 0.U.asTypeOf(new ExeMemInst0())
-    inst1 := 0.U.asTypeOf(new ExeMemInst1())
+    inst0 := 0.U.asTypeOf(new ExeMemInst())
+    inst1 := 0.U.asTypeOf(new ExeMemInst())
   }.elsewhen(io.ctrl.allow_to_go) {
     inst0 := io.executeUnit.inst0
     inst1 := io.executeUnit.inst1
