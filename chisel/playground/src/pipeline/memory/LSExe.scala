@@ -76,12 +76,14 @@ class LSExe extends Module {
   val isStore     = valid && LSUOpType.isStore(op)
   val partialLoad = !isStore && (op =/= LSUOpType.ld)
 
+  val has_acc_err = addr(XLEN - 1, VADDR_WID).orR
+
   val size     = op(1, 0)
   val reqAddr  = if (XLEN == 32) SignedExtend(addr, VADDR_WID) else addr(VADDR_WID - 1, 0)
   val reqWdata = if (XLEN == 32) genWdata32(io.in.wdata, size) else genWdata(io.in.wdata, size)
   val reqWmask = if (XLEN == 32) genWmask32(addr, size) else genWmask(addr, size)
 
-  io.dataMemory.out.en    := valid && !io.out.storeAddrMisaligned && !io.out.loadAddrMisaligned
+  io.dataMemory.out.en    := valid && !io.out.storeAddrMisaligned && !io.out.loadAddrMisaligned && !has_acc_err
   io.dataMemory.out.rlen  := size
   io.dataMemory.out.wen   := isStore
   io.dataMemory.out.wstrb := reqWmask
@@ -138,7 +140,7 @@ class LSExe extends Module {
   val is_amo = valid && LSUOpType.isAMO(op)
   io.out.rdata               := Mux(partialLoad, rdataPartialLoad, rdataSel)
   io.out.loadAddrMisaligned  := valid && !isStore && !is_amo && !addrAligned
-  io.out.loadAccessFault     := valid && !isStore && !is_amo && acc_err
+  io.out.loadAccessFault     := valid && !isStore && !is_amo && (acc_err || has_acc_err)
   io.out.storeAddrMisaligned := valid && (isStore || is_amo) && !addrAligned
-  io.out.storeAccessFault    := valid && (isStore || is_amo) && acc_err
+  io.out.storeAccessFault    := valid && (isStore || is_amo) && (acc_err || has_acc_err)
 }
