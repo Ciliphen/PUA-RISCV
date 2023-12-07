@@ -56,6 +56,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   val valid = io.memoryUnit.in.mem_en
   val src1  = io.memoryUnit.in.src_info.src1_data
   val src2  = io.memoryUnit.in.src_info.src2_data
+  val imm   = io.memoryUnit.in.info.imm
   val func  = io.memoryUnit.in.info.op
   val inst  = io.memoryUnit.in.info.inst
 
@@ -105,9 +106,9 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   switch(state) {
     is(s_idle) { // calculate address
       lsExe.in.mem_en         := io.memoryUnit.in.mem_en && !atomReq
-      lsExe.in.mem_addr       := src1 + src2
+      lsExe.in.mem_addr       := src1 + imm
       lsExe.in.info.op        := func
-      lsExe.in.wdata          := io.memoryUnit.in.src_info.src2_data
+      lsExe.in.wdata          := src2
       io.memoryUnit.out.ready := lsExe.dataMemory.in.ready || scInvalid
       state                   := s_idle
 
@@ -164,7 +165,7 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.mem_en         := true.B
       lsExe.in.mem_addr       := src1
       lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
-      lsExe.in.wdata          := io.memoryUnit.in.src_info.src2_data
+      lsExe.in.wdata          := src2
       io.memoryUnit.out.ready := lsExe.dataMemory.in.ready
       when(lsExe.dataMemory.in.ready) {
         state := s_idle;
@@ -188,5 +189,6 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
   io.memoryUnit.out.ex.exception(storeAddrMisaligned) := lsExe.out.storeAddrMisaligned
   io.memoryUnit.out.ex.exception(loadAccessFault)     := lsExe.out.loadAccessFault
   io.memoryUnit.out.ex.exception(storeAccessFault)    := lsExe.out.storeAccessFault
+  io.memoryUnit.out.ex.tval                           := io.dataMemory.out.addr
   io.memoryUnit.out.rdata                             := lsExe.out.rdata
 }
