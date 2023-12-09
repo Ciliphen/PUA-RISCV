@@ -239,8 +239,12 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val mem_inst      = mem_inst_info.inst
   val mem_valid     = mem_inst_info.valid
   val mem_addr      = mem_inst(31, 20)
+
+  val has_exception = mem_ex.exception.asUInt.orR
+  val has_interrupt = mem_ex.interrupt.asUInt.orR
+  val has_exc_int   = has_exception || has_interrupt
   // 不带前缀的信号为exe阶段的信号
-  val valid     = io.executeUnit.in.valid
+  val valid     = io.executeUnit.in.valid && !has_exc_int
   val info      = io.executeUnit.in.info
   val op        = io.executeUnit.in.info.op
   val fusel     = io.executeUnit.in.info.fusel
@@ -288,12 +292,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     mem_addr === privUret && mem_inst_info.op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
   ret := isMret || isSret || isUret
 
-  val has_exception = mem_ex.exception.asUInt.orR
-  val has_interrupt = mem_ex.interrupt.asUInt.orR
-  val has_exc_int   = has_exception || has_interrupt
-  val exceptionNO   = ExcPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.exception(i), i.U, sum))
-  val interruptNO   = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
-  val causeNO       = (has_interrupt << (XLEN - 1)) | Mux(has_interrupt, interruptNO, exceptionNO)
+  val exceptionNO = ExcPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.exception(i), i.U, sum))
+  val interruptNO = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
+  val causeNO     = (has_interrupt << (XLEN - 1)) | Mux(has_interrupt, interruptNO, exceptionNO)
 
   val has_instrPageFault      = mem_ex.exception(instrPageFault)
   val has_loadPageFault       = mem_ex.exception(loadPageFault)
