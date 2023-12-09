@@ -24,6 +24,11 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   })
 
   val dataMemoryAccess = Module(new DataMemoryAccess()).io
+  val mou              = Module(new Mou()).io
+
+  mou.in.info := io.memoryStage.inst0.info
+  mou.in.pc   := io.memoryStage.inst0.pc
+
   dataMemoryAccess.memoryUnit.in.allow_to_go := io.ctrl.allow_to_go
   val mem_sel = VecInit(
     io.memoryStage.inst0.info.valid &&
@@ -108,9 +113,9 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   dataMemoryAccess.memoryUnit.in.lr      := io.csr.out.lr
   dataMemoryAccess.memoryUnit.in.lr_addr := io.csr.out.lr_addr
 
-  io.fetchUnit.flush  := io.csr.out.flush && io.ctrl.allow_to_go
-  io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.flush_pc, io.writeBackStage.inst0.pc + 4.U)
-
   io.ctrl.flush     := io.fetchUnit.flush
   io.ctrl.mem_stall := !dataMemoryAccess.memoryUnit.out.ready && dataMemoryAccess.memoryUnit.in.mem_en
+
+  io.fetchUnit.flush  := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.flush)
+  io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.flush_pc, mou.out.target)
 }

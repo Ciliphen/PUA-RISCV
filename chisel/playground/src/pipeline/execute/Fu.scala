@@ -34,11 +34,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
 
   val alu        = Seq.fill(config.decoderNum)(Module(new Alu()))
   val branchCtrl = Module(new BranchCtrl()).io
-  val mou        = Module(new Mou()).io
   val mdu        = Module(new Mdu()).io
-
-  mou.in.info := io.inst(0).info
-  mou.in.pc   := io.inst(0).pc
 
   branchCtrl.in.pc            := io.inst(0).pc
   branchCtrl.in.info          := io.inst(0).info
@@ -49,8 +45,8 @@ class Fu(implicit val config: CpuConfig) extends Module {
   io.branch.branch            := branchCtrl.out.branch
 
   val branchCtrl_flush = (branchCtrl.out.pred_fail || io.branch.jump_regiser)
-  io.branch.flush  := branchCtrl_flush || mou.out.flush
-  io.branch.target := Mux(branchCtrl_flush, branchCtrl.out.target, mou.out.target)
+  io.branch.flush  := branchCtrl_flush
+  io.branch.target := branchCtrl.out.target
 
   for (i <- 0 until (config.fuNum)) {
     alu(i).io.info     := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).info, 0.U.asTypeOf(new InstInfo()))
