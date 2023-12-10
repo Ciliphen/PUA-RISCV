@@ -58,10 +58,10 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   val forwardCtrl = Module(new ForwardCtrl()).io
   val issue       = Module(new Issue()).io
 
-  val pc        = io.instFifo.inst.map(_.pc)
-  val inst      = io.instFifo.inst.map(_.inst)
-  val info      = decoder.map(_.io.out.info)
-  val priv_mode = io.csr.priv_mode
+  val pc   = io.instFifo.inst.map(_.pc)
+  val inst = io.instFifo.inst.map(_.inst)
+  val info = decoder.map(_.io.out.info)
+  val mode = io.csr.mode
 
   issue.allow_to_go          := io.ctrl.allow_to_go
   issue.instFifo             := io.instFifo.info
@@ -127,11 +127,11 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.ex.exception(breakPoint) := info(0).inst(31, 20) === privEbreak &&
     info(0).op === CSROpType.jmp && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallM) := info(0).inst(31, 20) === privEcall &&
-    info(0).op === CSROpType.jmp && priv_mode === ModeM && info(0).fusel === FuType.csr
+    info(0).op === CSROpType.jmp && mode === ModeM && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallS) := info(0).inst(31, 20) === privEcall &&
-    info(0).op === CSROpType.jmp && priv_mode === ModeS && info(0).fusel === FuType.csr
+    info(0).op === CSROpType.jmp && mode === ModeS && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallU) := info(0).inst(31, 20) === privEcall &&
-    info(0).op === CSROpType.jmp && priv_mode === ModeU && info(0).fusel === FuType.csr
+    info(0).op === CSROpType.jmp && mode === ModeU && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.tval := MuxCase(
     0.U,
     Seq(
@@ -170,11 +170,11 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.ex.exception(breakPoint) := info(1).inst(31, 20) === privEbreak &&
     info(1).op === CSROpType.jmp && info(0).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallM) := info(1).inst(31, 20) === privEcall &&
-    info(1).op === CSROpType.jmp && priv_mode === ModeM && info(1).fusel === FuType.csr
+    info(1).op === CSROpType.jmp && mode === ModeM && info(1).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallS) := info(1).inst(31, 20) === privEcall &&
-    info(1).op === CSROpType.jmp && priv_mode === ModeS && info(1).fusel === FuType.csr
+    info(1).op === CSROpType.jmp && mode === ModeS && info(1).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallU) := info(1).inst(31, 20) === privEcall &&
-    info(1).op === CSROpType.jmp && priv_mode === ModeU && info(1).fusel === FuType.csr
+    info(1).op === CSROpType.jmp && mode === ModeU && info(1).fusel === FuType.csr
 
   io.executeStage.inst1.ex.tval := MuxCase(
     0.U,

@@ -44,7 +44,7 @@ class CsrExecuteUnit(implicit val config: CpuConfig) extends Bundle {
 }
 
 class CsrDecoderUnit extends Bundle {
-  val priv_mode = Output(Priv())
+  val mode      = Output(Priv())
   val interrupt = Output(UInt(INT_WID.W))
 }
 
@@ -211,7 +211,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Tdata1, tdata1, 0.U, MaskedRegMap.Unwritable)
   ) //++ perfCntsLoMapping
 
-  val priv_mode = RegInit(Priv.m) // 当前特权模式
+  val mode = RegInit(Priv.m) // 当前特权模式
 
   // interrupts
   val mtip = io.ext_int.ti
@@ -226,7 +226,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val interrupt_enable = Wire(UInt(INT_WID.W)) // 不用考虑ideleg
   interrupt_enable := Fill(
     INT_WID,
-    (((priv_mode === ModeM) && mstatus.asTypeOf(new Mstatus()).ie.m) || (priv_mode < ModeM))
+    (((mode === ModeM) && mstatus.asTypeOf(new Mstatus()).ie.m) || (mode < ModeM))
   )
   io.decoderUnit.interrupt := mie(11, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
 
@@ -266,13 +266,14 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   )
 
   val satp_legal     = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
-  val wen            = (valid && op =/= CSROpType.jmp) && (addr =/= Satp.U || satp_legal)
+  val write          = (valid && op =/= CSROpType.jmp) && (addr =/= Satp.U || satp_legal)
   val only_read      = VecInit(CSROpType.set, CSROpType.seti, CSROpType.clr, CSROpType.clri).contains(op) && src1 === 0.U
-  val illegal_mode   = priv_mode < addr(9, 8)
-  val illegal_write  = wen && (addr(11, 10) === "b11".U) && !only_read
+  val illegal_mode   = mode < addr(9, 8)
+  val illegal_write  = write && (addr(11, 10) === "b11".U) && !only_read
   val illegal_access = illegal_mode || illegal_write
+  val wen            = write && !illegal_access
 
-  MaskedRegMap.generate(mapping, addr, rdata, wen && !illegal_access, wdata)
+  MaskedRegMap.generate(mapping, addr, rdata, wen, wdata)
   val illegal_addr = MaskedRegMap.isIllegalAddr(mapping, addr)
   // Fix Mip/Sip write
   val fixMapping = Map(
@@ -280,7 +281,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     // MaskedRegMap(Sip, mipReg.asUInt, sipMask, MaskedRegMap.NoSideEffect, sipMask) //TODO
   )
   val rdataDummy = Wire(UInt(XLEN.W))
-  MaskedRegMap.generate(fixMapping, addr, rdataDummy, wen && !illegal_access, wdata)
+  MaskedRegMap.generate(fixMapping, addr, rdataDummy, wen, wdata)
 
   // CSR inst decode
   val ret = Wire(Bool())
@@ -327,10 +328,10 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
     mcause           := causeNO
     mepc             := SignedExtend(mem_pc, XLEN)
-    mstatusNew.mpp   := priv_mode
+    mstatusNew.mpp   := mode
     mstatusNew.pie.m := mstatusOld.ie.m
     mstatusNew.ie.m  := false.B
-    priv_mode        := ModeM
+    mode             := ModeM
     when(tval_wen) { mtval := 0.U }
     mstatus := mstatusNew.asUInt
   }
@@ -345,7 +346,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
     // mstatusNew.mpp.m := ModeU //TODO: add mode U
     mstatusNew.ie.m  := mstatusOld.pie.m
-    priv_mode        := mstatusOld.mpp
+    mode             := mstatusOld.mpp
     mstatusNew.pie.m := true.B
     mstatusNew.mpp   := ModeU
     mstatus          := mstatusNew.asUInt
@@ -353,10 +354,10 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     ret_target       := mepc(VADDR_WID - 1, 0)
   }
 
-  io.decoderUnit.priv_mode := priv_mode
-  io.executeUnit.out.ex    := io.executeUnit.in.ex
+  io.decoderUnit.mode   := mode
+  io.executeUnit.out.ex := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInstr) :=
-    (illegal_addr || illegal_access) && wen | io.executeUnit.in.ex.exception(illegalInstr)
+    (illegal_addr || illegal_access) && write | io.executeUnit.in.ex.exception(illegalInstr)
   io.executeUnit.out.rdata   := rdata
   io.memoryUnit.out.flush    := has_exc_int || ret
   io.memoryUnit.out.flush_pc := Mux(has_exc_int, trap_target, ret_target)
