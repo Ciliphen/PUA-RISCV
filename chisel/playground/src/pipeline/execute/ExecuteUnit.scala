@@ -52,9 +52,14 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
       !(HasExcInt(io.executeStage.inst1.ex))
   )
 
-  io.ctrl.inst(0).mem_wreg  := io.executeStage.inst0.info.mem_wreg
+  val mem_wreg = VecInit(
+    io.executeStage.inst0.info.fusel===FuType.lsu && io.executeStage.inst0.info.reg_wen,
+    io.executeStage.inst1.info.fusel===FuType.lsu && io.executeStage.inst1.info.reg_wen
+  )
+
+  io.ctrl.inst(0).mem_wreg  := mem_wreg(0)
   io.ctrl.inst(0).reg_waddr := io.executeStage.inst0.info.reg_waddr
-  io.ctrl.inst(1).mem_wreg  := io.executeStage.inst1.info.mem_wreg
+  io.ctrl.inst(1).mem_wreg  := mem_wreg(1)
   io.ctrl.inst(1).reg_waddr := io.executeStage.inst1.info.reg_waddr
   io.ctrl.flush             := io.fetchUnit.flush
 
@@ -164,10 +169,10 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.decoderUnit.forward(0).exe.wen      := io.memoryStage.inst0.info.reg_wen
   io.decoderUnit.forward(0).exe.waddr    := io.memoryStage.inst0.info.reg_waddr
   io.decoderUnit.forward(0).exe.wdata    := io.memoryStage.inst0.rd_info.wdata(io.memoryStage.inst0.info.fusel)
-  io.decoderUnit.forward(0).exe_mem_wreg := io.memoryStage.inst0.info.mem_wreg
+  io.decoderUnit.forward(0).exe_mem_wreg := io.ctrl.inst(0).mem_wreg
 
   io.decoderUnit.forward(1).exe.wen      := io.memoryStage.inst1.info.reg_wen
   io.decoderUnit.forward(1).exe.waddr    := io.memoryStage.inst1.info.reg_waddr
   io.decoderUnit.forward(1).exe.wdata    := io.memoryStage.inst1.rd_info.wdata(io.memoryStage.inst1.info.fusel)
-  io.decoderUnit.forward(1).exe_mem_wreg := io.memoryStage.inst1.info.mem_wreg
+  io.decoderUnit.forward(1).exe_mem_wreg := io.ctrl.inst(1).mem_wreg
 }

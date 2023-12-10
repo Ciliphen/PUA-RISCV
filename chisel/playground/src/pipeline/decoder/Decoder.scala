@@ -58,5 +58,4 @@ class Decoder extends Module with HasInstrType {
     )
   )
   io.out.info.inst     := inst
-  io.out.info.mem_wreg := fuType === FuType.lsu && io.out.info.reg_wen
 }

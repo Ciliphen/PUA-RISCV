@@ -14,8 +14,8 @@ class ICache(implicit config: CpuConfig) extends Module {
     val axi = new ICache_AXIInterface()
   })
 
-  val s_idle :: s_uncached :: s_save :: Nil = Enum(3)
-  val status                                = RegInit(s_idle)
+  val s_idle :: s_uncached :: s_replace :: s_save :: Nil = Enum(4)
+  val status                                             = RegInit(s_idle)
 
   val read_next_addr = (status === s_idle || status === s_save)
   val pc             = Cat(io.cpu.addr(read_next_addr)(31, 2), 0.U(2.W))
