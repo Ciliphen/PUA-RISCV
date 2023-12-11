@@ -251,8 +251,6 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val addr      = io.executeUnit.in.info.inst(31, 20)
   val src1      = io.executeUnit.in.src_info.src1_data
   val csri      = ZeroExtend(io.executeUnit.in.info.inst(19, 15), XLEN)
-  val exe_stall = io.ctrl.exe_stall
-  val mem_stall = io.ctrl.mem_stall
   wdata := LookupTree(
     op,
     List(

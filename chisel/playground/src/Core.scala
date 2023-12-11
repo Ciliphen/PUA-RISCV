@@ -103,8 +103,6 @@ class Core(implicit val config: CpuConfig) extends Module {
   memoryUnit.csr <> csr.memoryUnit
   memoryUnit.writeBackStage <> writeBackStage.memoryUnit
 
-  csr.ctrl.exe_stall := !ctrl.executeUnit.allow_to_go
-  csr.ctrl.mem_stall := !ctrl.memoryUnit.allow_to_go
   csr.ext_int        := io.ext_int
 
   memoryUnit.dataMemory.in.rdata   := io.data.rdata
