@@ -51,10 +51,6 @@ class CsrDecoderUnit extends Bundle {
 class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val io = IO(new Bundle {
     val ext_int = Input(new ExtInterrupt())
-    val ctrl = Input(new Bundle {
-      val exe_stall = Bool()
-      val mem_stall = Bool()
-    })
     val decoderUnit = new CsrDecoderUnit()
     val executeUnit = new CsrExecuteUnit()
     val memoryUnit  = new CsrMemoryUnit()

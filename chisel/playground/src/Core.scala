@@ -38,7 +38,6 @@ class Core(implicit val config: CpuConfig) extends Module {
   val writeBackStage = Module(new WriteBackStage()).io
   val writeBackUnit  = Module(new WriteBackUnit()).io
 
-  ctrl.instFifo.has2insts := !(instFifo.empty || instFifo.almost_empty)
   ctrl.decoderUnit <> decoderUnit.ctrl
   ctrl.executeUnit <> executeUnit.ctrl
   ctrl.memoryUnit <> memoryUnit.ctrl
@@ -103,7 +102,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   memoryUnit.csr <> csr.memoryUnit
   memoryUnit.writeBackStage <> writeBackStage.memoryUnit
 
-  csr.ext_int        := io.ext_int
+  csr.ext_int := io.ext_int
 
   memoryUnit.dataMemory.in.rdata   := io.data.rdata
   memoryUnit.dataMemory.in.acc_err := io.data.acc_err

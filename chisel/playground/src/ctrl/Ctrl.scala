@@ -10,7 +10,6 @@ class Ctrl(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val cacheCtrl     = Flipped(new CacheCtrl())
     val fetchUnit     = Flipped(new FetchUnitCtrl())
-    val instFifo      = Flipped(new InstFifoCtrl())
     val decoderUnit   = Flipped(new DecoderUnitCtrl())
     val executeUnit   = Flipped(new ExecuteCtrl())
     val memoryUnit    = Flipped(new MemoryCtrl())
