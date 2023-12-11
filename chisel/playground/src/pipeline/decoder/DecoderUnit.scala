@@ -25,6 +25,18 @@ class DataForwardToDecoderUnit extends Bundle {
   val mem      = new RegWrite()
 }
 
+class DecoderBranchPredictorUnit extends Bundle {
+  val bpuConfig = new BranchPredictorConfig()
+  val pc        = Output(UInt(PC_WID.W))
+  val info      = Output(new InstInfo())
+  val pht_index = Output(UInt(bpuConfig.phtDepth.W))
+
+  val branch_inst      = Input(Bool())
+  val pred_branch      = Input(Bool())
+  val branch_target    = Input(UInt(PC_WID.W))
+  val update_pht_index = Input(UInt(bpuConfig.phtDepth.W))
+}
+
 class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExceptionNO with HasCSRConst {
   val io = IO(new Bundle {
     // 输入
@@ -37,18 +49,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
       val branch = Output(Bool())
       val target = Output(UInt(PC_WID.W))
     }
-    val bpu = new Bundle {
-      val bpuConfig      = new BranchPredictorConfig()
-      val pc             = Output(UInt(PC_WID.W))
-      val decoded_inst0  = Output(new InstInfo())
-      val id_allow_to_go = Output(Bool())
-      val pht_index      = Output(UInt(bpuConfig.phtDepth.W))
-
-      val branch_inst      = Input(Bool())
-      val pred_branch      = Input(Bool())
-      val branch_target    = Input(UInt(PC_WID.W))
-      val update_pht_index = Input(UInt(bpuConfig.phtDepth.W))
-    }
+    val bpu          = new DecoderBranchPredictorUnit()
     val executeStage = Output(new DecoderUnitExecuteUnit())
     val ctrl         = new DecoderUnitCtrl()
   })
@@ -60,8 +61,12 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
 
   val pc   = io.instFifo.inst.map(_.pc)
   val inst = io.instFifo.inst.map(_.inst)
-  val info = decoder.map(_.io.out.info)
+  val info = Wire(Vec(config.decoderNum, new InstInfo()))
   val mode = io.csr.mode
+
+  info          := decoder.map(_.io.out.info)
+  info(0).valid := !io.instFifo.info.empty
+  info(1).valid := !io.instFifo.info.almost_empty && !io.instFifo.info.empty
 
   issue.allow_to_go          := io.ctrl.allow_to_go
   issue.instFifo             := io.instFifo.info
@@ -72,40 +77,36 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     issue.execute(i).mem_wreg  := io.forward(i).mem_wreg
     issue.execute(i).reg_waddr := io.forward(i).exe.waddr
   }
-  io.executeStage.inst1.allow_to_go := issue.inst1.allow_to_go
 
-  io.regfile(0).src1.raddr := decoder(0).io.out.info.reg1_raddr
-  io.regfile(0).src2.raddr := decoder(0).io.out.info.reg2_raddr
-  io.regfile(1).src1.raddr := decoder(1).io.out.info.reg1_raddr
-  io.regfile(1).src2.raddr := decoder(1).io.out.info.reg2_raddr
+  io.regfile(0).src1.raddr := info(0).reg1_raddr
+  io.regfile(0).src2.raddr := info(0).reg2_raddr
+  io.regfile(1).src1.raddr := info(1).reg1_raddr
+  io.regfile(1).src2.raddr := info(1).reg2_raddr
   forwardCtrl.in.forward   := io.forward
   forwardCtrl.in.regfile   := io.regfile // TODO:这里的连接可能有问题
-  jumpCtrl.in.allow_to_go  := io.ctrl.allow_to_go
-  jumpCtrl.in.info         := decoder(0).io.out.info
+  jumpCtrl.in.info         := info(0)
   jumpCtrl.in.forward      := io.forward
   jumpCtrl.in.pc           := io.instFifo.inst(0).pc
   jumpCtrl.in.src_info     := io.executeStage.inst0.src_info
 
   val inst0_branch = jumpCtrl.out.jump || io.bpu.pred_branch
 
-  io.fetchUnit.branch := inst0_branch
+  io.fetchUnit.branch := inst0_branch && io.ctrl.allow_to_go
   io.fetchUnit.target := Mux(io.bpu.pred_branch, io.bpu.branch_target, jumpCtrl.out.jump_target)
 
   io.instFifo.allow_to_go(0) := io.ctrl.allow_to_go
-  io.bpu.id_allow_to_go      := io.ctrl.allow_to_go
   io.bpu.pc                  := io.instFifo.inst(0).pc
-  io.bpu.decoded_inst0       := decoder(0).io.out.info
+  io.bpu.info                := info(0)
   io.bpu.pht_index           := io.instFifo.inst(0).pht_index
 
-  io.ctrl.inst0.src1.ren   := decoder(0).io.out.info.reg1_ren
-  io.ctrl.inst0.src1.raddr := decoder(0).io.out.info.reg1_raddr
-  io.ctrl.inst0.src2.ren   := decoder(0).io.out.info.reg2_ren
-  io.ctrl.inst0.src2.raddr := decoder(0).io.out.info.reg2_raddr
-  io.ctrl.branch           := inst0_branch
+  io.ctrl.inst0.src1.ren   := info(0).reg1_ren
+  io.ctrl.inst0.src1.raddr := info(0).reg1_raddr
+  io.ctrl.inst0.src2.ren   := info(0).reg2_ren
+  io.ctrl.inst0.src2.raddr := info(0).reg2_raddr
+  io.ctrl.branch           := io.fetchUnit.branch
 
-  io.executeStage.inst0.pc         := pc(0)
-  io.executeStage.inst0.info       := info(0)
-  io.executeStage.inst0.info.valid := !io.instFifo.info.empty
+  io.executeStage.inst0.pc   := pc(0)
+  io.executeStage.inst0.info := info(0)
   io.executeStage.inst0.src_info.src1_data := MuxCase(
     SignedExtend(pc(0), INST_ADDR_WID),
     Seq(
@@ -116,7 +117,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.src_info.src2_data := Mux(
     info(0).reg2_ren,
     forwardCtrl.out.inst(0).src2.rdata,
-    decoder(0).io.out.info.imm
+    info(0).imm
   )
   (0 until (INT_WID)).foreach(i => io.executeStage.inst0.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst0.ex.exception.map(_             := false.B)
@@ -146,9 +147,8 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.jb_info.branch_target    := io.bpu.branch_target
   io.executeStage.inst0.jb_info.update_pht_index := io.bpu.update_pht_index
 
-  io.executeStage.inst1.pc         := pc(1)
-  io.executeStage.inst1.info       := info(1)
-  io.executeStage.inst1.info.valid := !io.instFifo.info.almost_empty && !io.instFifo.info.empty
+  io.executeStage.inst1.pc   := pc(1)
+  io.executeStage.inst1.info := info(1)
   io.executeStage.inst1.src_info.src1_data := MuxCase(
     SignedExtend(pc(1), INST_ADDR_WID),
     Seq(
@@ -159,7 +159,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.src_info.src2_data := Mux(
     info(1).reg2_ren,
     forwardCtrl.out.inst(1).src2.rdata,
-    decoder(1).io.out.info.imm
+    info(1).imm
   )
   (0 until (INT_WID)).foreach(i => io.executeStage.inst1.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst1.ex.exception.map(_             := false.B)

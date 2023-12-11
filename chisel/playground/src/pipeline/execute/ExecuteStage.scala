@@ -24,7 +24,6 @@ class IdExeInst0 extends Bundle {
 }
 
 class IdExeInst1 extends Bundle {
-  val allow_to_go = Bool()
   val pc          = UInt(PC_WID.W)
   val info        = new InstInfo()
   val src_info    = new SrcInfo()
@@ -39,7 +38,7 @@ class DecoderUnitExecuteUnit extends Bundle {
 class ExecuteStage(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl = Input(new Bundle {
-      val inst0_allow_to_go = Bool()
+      val allow_to_go = Vec(config.decoderNum,Bool())
       val clear             = Vec(config.decoderNum, Bool())
     })
     val decoderUnit = Input(new DecoderUnitExecuteUnit())
@@ -51,13 +50,13 @@ class ExecuteStage(implicit val config: CpuConfig) extends Module {
 
   when(io.ctrl.clear(0)) {
     inst0 := 0.U.asTypeOf(new IdExeInst0())
-  }.elsewhen(io.ctrl.inst0_allow_to_go) {
+  }.elsewhen(io.ctrl.allow_to_go(0)) {
     inst0 := io.decoderUnit.inst0
   }
 
   when(io.ctrl.clear(1)) {
     inst1 := 0.U.asTypeOf(new IdExeInst1())
-  }.elsewhen(io.decoderUnit.inst1.allow_to_go) {
+  }.elsewhen(io.ctrl.allow_to_go(1)) {
     inst1 := io.decoderUnit.inst1
   }
 

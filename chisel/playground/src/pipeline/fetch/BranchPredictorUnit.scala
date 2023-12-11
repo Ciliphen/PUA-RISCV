@@ -9,6 +9,7 @@ import cpu.defines.ALUOpType
 import cpu.defines.FuOpType
 import cpu.defines.FuType
 import cpu.defines.SignedExtend
+import cpu.pipeline.decoder.DecoderBranchPredictorUnit
 
 class ExecuteUnitBranchPredictor extends Bundle {
   val bpuConfig        = new BranchPredictorConfig()
@@ -20,22 +21,7 @@ class ExecuteUnitBranchPredictor extends Bundle {
 
 class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
   val bpuConfig = new BranchPredictorConfig()
-  val decoder = new Bundle {
-    val inst      = Input(UInt(INST_WID.W))
-    val op        = Input(FuOpType())
-    val fusel     = Input(FuType())
-    val ena       = Input(Bool())
-    val pc        = Input(UInt(PC_WID.W))
-    val pht_index = Input(UInt(bpuConfig.phtDepth.W))
-
-    val rs1 = Input(UInt(REG_ADDR_WID.W))
-    val rs2 = Input(UInt(REG_ADDR_WID.W))
-
-    val branch_inst      = Output(Bool())
-    val pred_branch      = Output(Bool())
-    val branch_target    = Output(UInt(PC_WID.W))
-    val update_pht_index = Output(UInt(bpuConfig.phtDepth.W))
-  }
+  val decoder   = Flipped(new DecoderBranchPredictorUnit())
 
   val instBuffer = new Bundle {
     val pc        = Input(Vec(config.instFetchNum, UInt(PC_WID.W)))
@@ -72,10 +58,10 @@ class GlobalBranchPredictor(
 
   val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
 
-  val inst = io.decoder.inst
-  val imm  = SignedExtend(Cat(inst(31), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W)), XLEN)
+  val imm = io.decoder.info.imm
 
-  io.decoder.branch_inst   := FuType.bru === io.decoder.fusel && ALUOpType.isBranch(io.decoder.op)
+  io.decoder.branch_inst := io.decoder.info.valid &&
+    FuType.bru === io.decoder.info.fusel && ALUOpType.isBranch(io.decoder.info.op)
   io.decoder.branch_target := io.decoder.pc + imm
   // 局部预测模式
 
@@ -85,7 +71,7 @@ class GlobalBranchPredictor(
   val pht_index = bht(bht_index)
 
   io.decoder.pred_branch :=
-    io.decoder.ena && io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
+    io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
   val update_bht_index = io.execute.pc(1 + BHT_DEPTH, 2)
   val update_pht_index = bht(update_bht_index)
 
@@ -121,10 +107,10 @@ class AdaptiveTwoLevelPredictor(
 
   val strongly_not_taken :: weakly_not_taken :: weakly_taken :: strongly_taken :: Nil = Enum(4)
 
-  val inst = io.decoder.inst
-  val imm  = SignedExtend(Cat(inst(31), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W)), XLEN)
+  val imm = io.decoder.info.imm
 
-  io.decoder.branch_inst   := FuType.bru === io.decoder.fusel && ALUOpType.isBranch(io.decoder.op)
+  io.decoder.branch_inst := io.decoder.info.valid &&
+    FuType.bru === io.decoder.info.fusel && ALUOpType.isBranch(io.decoder.info.op)
   io.decoder.branch_target := io.decoder.pc + imm
 
   val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
@@ -136,7 +122,7 @@ class AdaptiveTwoLevelPredictor(
   }
 
   io.decoder.pred_branch :=
-    io.decoder.ena && io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
+    io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
   io.decoder.update_pht_index := bht(io.decoder.pc(1 + BHT_DEPTH, 2))
 
   val update_bht_index = io.execute.pc(1 + BHT_DEPTH, 2)

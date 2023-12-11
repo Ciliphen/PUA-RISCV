@@ -56,19 +56,8 @@ class Core(implicit val config: CpuConfig) extends Module {
     io.inst.addr(i) := fetchUnit.iCache.pc_next + ((i - 1) * 4).U
   }
 
-  bpu.decoder.ena                  := ctrl.decoderUnit.allow_to_go
-  bpu.decoder.op                   := decoderUnit.bpu.decoded_inst0.op
-  bpu.decoder.fusel                := decoderUnit.bpu.decoded_inst0.fusel
-  bpu.decoder.inst                 := decoderUnit.bpu.decoded_inst0.inst
-  bpu.decoder.rs1                  := decoderUnit.bpu.decoded_inst0.reg1_raddr
-  bpu.decoder.rs2                  := decoderUnit.bpu.decoded_inst0.reg2_raddr
-  bpu.decoder.pc                   := decoderUnit.bpu.pc
-  bpu.decoder.pht_index            := decoderUnit.bpu.pht_index
-  decoderUnit.bpu.update_pht_index := bpu.decoder.update_pht_index
+  bpu.decoder <> decoderUnit.bpu
   bpu.execute <> executeUnit.bpu
-  decoderUnit.bpu.branch_inst   := bpu.decoder.branch_inst
-  decoderUnit.bpu.pred_branch   := bpu.decoder.pred_branch
-  decoderUnit.bpu.branch_target := bpu.decoder.branch_target
 
   instFifo.do_flush := ctrl.decoderUnit.do_flush
   instFifo.ren <> decoderUnit.instFifo.allow_to_go
@@ -98,9 +87,10 @@ class Core(implicit val config: CpuConfig) extends Module {
     ctrl.executeUnit.do_flush && ctrl.executeUnit.allow_to_go ||
     !ctrl.decoderUnit.allow_to_go && ctrl.executeUnit.allow_to_go
   executeStage.ctrl.clear(1) := ctrl.memoryUnit.flush ||
-    (ctrl.executeUnit.do_flush && decoderUnit.executeStage.inst1.allow_to_go) ||
-    (ctrl.executeUnit.allow_to_go && !decoderUnit.executeStage.inst1.allow_to_go)
-  executeStage.ctrl.inst0_allow_to_go := ctrl.executeUnit.allow_to_go
+    (ctrl.executeUnit.do_flush && decoderUnit.instFifo.allow_to_go(1)) ||
+    (ctrl.executeUnit.allow_to_go && !decoderUnit.instFifo.allow_to_go(1))
+  executeStage.ctrl.allow_to_go(0) := ctrl.executeUnit.allow_to_go
+  executeStage.ctrl.allow_to_go(1) := decoderUnit.instFifo.allow_to_go(1)
 
   executeUnit.executeStage <> executeStage.executeUnit
   executeUnit.csr <> csr.executeUnit
