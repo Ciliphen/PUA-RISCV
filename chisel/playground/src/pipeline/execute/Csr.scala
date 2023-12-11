@@ -295,7 +295,8 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
 
   val exceptionNO = ExcPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.exception(i), i.U, sum))
   val interruptNO = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
-  val causeNO     = (has_interrupt << (XLEN - 1)) | Mux(has_interrupt, interruptNO, exceptionNO)
+  val causeNO     = Mux(has_interrupt, interruptNO, exceptionNO)
+  val cause       = (has_interrupt << (XLEN - 1)) | causeNO
 
   val has_instrPageFault      = mem_ex.exception(instrPageFault)
   val has_loadPageFault       = mem_ex.exception(loadPageFault)
@@ -326,7 +327,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   when(has_exc_int) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
-    mcause           := causeNO
+    mcause           := cause
     mepc             := SignedExtend(mem_pc, XLEN)
     mstatusNew.mpp   := mode
     mstatusNew.pie.m := mstatusOld.ie.m
@@ -339,7 +340,14 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val ret_target = Wire(UInt(VADDR_WID.W))
   ret_target := DontCare
   val trap_target = Wire(UInt(VADDR_WID.W))
-  trap_target := mtvec(VADDR_WID - 1, 0)
+  val tvec        = mtvec
+  trap_target := tvec(VADDR_WID - 1, 0)
+
+  trap_target := (tvec(VADDR_WID - 1, 2) << 2) + Mux(
+    tvec(0) && has_interrupt,
+    (causeNO << 2),
+    0.U
+  )
 
   when(isMret) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
