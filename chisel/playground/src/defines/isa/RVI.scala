@@ -78,18 +78,6 @@ object RV32I_BRUInstr extends HasInstrType {
     BGEU -> List(InstrB, FuType.bru, ALUOpType.bgeu)
   )
 
-  val bruFuncTobtbTypeTable = List(
-    ALUOpType.beq  -> BTBtype.B,
-    ALUOpType.bne  -> BTBtype.B,
-    ALUOpType.blt  -> BTBtype.B,
-    ALUOpType.bge  -> BTBtype.B,
-    ALUOpType.bltu -> BTBtype.B,
-    ALUOpType.bgeu -> BTBtype.B,
-    ALUOpType.call -> BTBtype.J,
-    ALUOpType.ret  -> BTBtype.R,
-    ALUOpType.jal  -> BTBtype.J,
-    ALUOpType.jalr -> BTBtype.I
-  )
 }
 
 object RV32I_LSUInstr extends HasInstrType {

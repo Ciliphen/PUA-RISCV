@@ -79,10 +79,6 @@ object ALUOpType {
   def bltu = "b0010110".U
   def bgeu = "b0010111".U
 
-  // for RAS
-  def call = "b1011100".U
-  def ret  = "b1011110".U
-
   def isAdd(func:          UInt) = func(6)
   def isBru(func:          UInt) = func(4)
   def isBranch(func:       UInt) = isBru(func) && !func(3)
