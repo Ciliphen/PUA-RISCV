@@ -83,10 +83,10 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.regfile(1).src1.raddr := info(1).reg1_raddr
   io.regfile(1).src2.raddr := info(1).reg2_raddr
   forwardCtrl.in.forward   := io.forward
-  forwardCtrl.in.regfile   := io.regfile // TODO:这里的连接可能有问题
+  forwardCtrl.in.regfile   := io.regfile
   jumpCtrl.in.info         := info(0)
   jumpCtrl.in.forward      := io.forward
-  jumpCtrl.in.pc           := io.instFifo.inst(0).pc
+  jumpCtrl.in.pc           := pc(0)
   jumpCtrl.in.src_info     := io.executeStage.inst0.src_info
 
   val inst0_branch = jumpCtrl.out.jump || io.bpu.pred_branch
@@ -95,7 +95,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.fetchUnit.target := Mux(io.bpu.pred_branch, io.bpu.branch_target, jumpCtrl.out.jump_target)
 
   io.instFifo.allow_to_go(0) := io.ctrl.allow_to_go
-  io.bpu.pc                  := io.instFifo.inst(0).pc
+  io.bpu.pc                  := pc(0)
   io.bpu.info                := info(0)
   io.bpu.pht_index           := io.instFifo.inst(0).pht_index
 

@@ -5,25 +5,11 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 
-class DivSignal extends Bundle {
-  val ready  = Input(Bool())
-  val result = Input(UInt(64.W))
-
-  val en     = Output(Bool())
-  val signed = Output(Bool())
-}
-class MultSignal extends Bundle {
-  val ready  = Input(Bool())
-  val result = Input(UInt(64.W))
-
-  val en     = Output(Bool())
-  val signed = Output(Bool())
-}
 class Alu extends Module {
   val io = IO(new Bundle {
-    val info = Input(new InstInfo())
-    val src_info  = Input(new SrcInfo())
-    val result    = Output(UInt(DATA_WID.W))
+    val info     = Input(new InstInfo())
+    val src_info = Input(new SrcInfo())
+    val result   = Output(UInt(DATA_WID.W))
   })
   val op     = io.info.op
   val src1   = io.src_info.src1_data
