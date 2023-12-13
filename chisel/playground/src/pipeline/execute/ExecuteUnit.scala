@@ -53,8 +53,8 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   )
 
   val mem_wreg = VecInit(
-    io.executeStage.inst0.info.fusel===FuType.lsu && io.executeStage.inst0.info.reg_wen,
-    io.executeStage.inst1.info.fusel===FuType.lsu && io.executeStage.inst1.info.reg_wen
+    io.executeStage.inst0.info.fusel === FuType.lsu && io.executeStage.inst0.info.reg_wen,
+    io.executeStage.inst1.info.fusel === FuType.lsu && io.executeStage.inst1.info.reg_wen
   )
 
   io.ctrl.inst(0).mem_wreg  := mem_wreg(0)
@@ -119,11 +119,11 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst0.pc                        := io.executeStage.inst0.pc
   io.memoryStage.inst0.info                      := io.executeStage.inst0.info
   io.memoryStage.inst0.src_info                  := io.executeStage.inst0.src_info
+  io.memoryStage.inst0.rd_info.wdata             := DontCare
   io.memoryStage.inst0.rd_info.wdata(FuType.alu) := fu.inst(0).result.alu
+  io.memoryStage.inst0.rd_info.wdata(FuType.bru) := io.executeStage.inst0.pc + 4.U
   io.memoryStage.inst0.rd_info.wdata(FuType.mdu) := fu.inst(0).result.mdu
   io.memoryStage.inst0.rd_info.wdata(FuType.csr) := io.csr.out.rdata
-  io.memoryStage.inst0.rd_info.wdata(FuType.lsu) := 0.U
-  io.memoryStage.inst0.rd_info.wdata(FuType.mou) := 0.U
   val has_ex0 =
     (HasExcInt(io.executeStage.inst0.ex)) && io.executeStage.inst0.info.valid
   io.memoryStage.inst0.ex := Mux(
@@ -144,11 +144,10 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.memoryStage.inst1.pc                        := io.executeStage.inst1.pc
   io.memoryStage.inst1.info                      := io.executeStage.inst1.info
   io.memoryStage.inst1.src_info                  := io.executeStage.inst1.src_info
+  io.memoryStage.inst1.rd_info.wdata             := DontCare
   io.memoryStage.inst1.rd_info.wdata(FuType.alu) := fu.inst(1).result.alu
   io.memoryStage.inst1.rd_info.wdata(FuType.mdu) := fu.inst(1).result.mdu
   io.memoryStage.inst1.rd_info.wdata(FuType.csr) := io.csr.out.rdata
-  io.memoryStage.inst1.rd_info.wdata(FuType.lsu) := 0.U
-  io.memoryStage.inst1.rd_info.wdata(FuType.mou) := 0.U
   val has_ex1 =
     (HasExcInt(io.executeStage.inst1.ex)) && io.executeStage.inst1.info.valid
   io.memoryStage.inst1.ex := Mux(

@@ -53,8 +53,8 @@ class Issue(implicit val config: CpuConfig) extends Module {
 
     // 指令0为bru指令
     val is_bru = VecInit(
-      inst0.fusel === FuType.bru && ALUOpType.isBru(io.decodeInst(0).op),
-      inst1.fusel === FuType.bru && ALUOpType.isBru(io.decodeInst(1).op)
+      inst0.fusel === FuType.bru,
+      inst1.fusel === FuType.bru
     )
 
     // 指令1是否允许执行

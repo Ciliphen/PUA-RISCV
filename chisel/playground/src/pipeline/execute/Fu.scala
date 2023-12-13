@@ -70,11 +70,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
 
   io.stall_req := io.inst.map(_.info.fusel === FuType.mdu).reduce(_ || _) && !mdu.ready
 
-  io.inst(0).result.alu := Mux(
-    ALUOpType.isBru(io.inst(0).info.op),
-    io.inst(0).pc + 4.U,
-    alu(0).io.result
-  )
+  io.inst(0).result.alu := alu(0).io.result
   io.inst(0).result.mdu := mdu.result
 
   io.inst(1).result.alu := alu(1).io.result

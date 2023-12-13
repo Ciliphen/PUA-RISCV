@@ -5,7 +5,7 @@ import chisel3.util._
 import cpu.defines.Const._
 import cpu._
 import cpu.pipeline.decoder.Src12Read
-import cpu.defines.ALUOpType
+import cpu.defines.BRUOpType
 import cpu.defines.FuOpType
 import cpu.defines.FuType
 import cpu.defines.SignedExtend
@@ -61,7 +61,7 @@ class GlobalBranchPredictor(
   val imm = io.decoder.info.imm
 
   io.decoder.branch_inst := io.decoder.info.valid &&
-    FuType.bru === io.decoder.info.fusel && ALUOpType.isBranch(io.decoder.info.op)
+    FuType.bru === io.decoder.info.fusel && BRUOpType.isBranch(io.decoder.info.op)
   io.decoder.branch_target := io.decoder.pc + imm
   // 局部预测模式
 
@@ -110,7 +110,7 @@ class AdaptiveTwoLevelPredictor(
   val imm = io.decoder.info.imm
 
   io.decoder.branch_inst := io.decoder.info.valid &&
-    FuType.bru === io.decoder.info.fusel && ALUOpType.isBranch(io.decoder.info.op)
+    FuType.bru === io.decoder.info.fusel && BRUOpType.isBranch(io.decoder.info.op)
   io.decoder.branch_target := io.decoder.pc + imm
 
   val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))

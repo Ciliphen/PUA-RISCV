@@ -25,13 +25,13 @@ object SrcType {
 }
 
 object FuType {
-  def num     = 5
+  def num     = 6
   def alu     = "b000".U // arithmetic logic unit
   def lsu     = "b001".U // load store unit
   def mdu     = "b010".U // mul div unit
   def csr     = "b011".U // control status register
   def mou     = "b100".U // memory order unit
-  def bru     = alu
+  def bru     = "b101".U // branch unit
   def apply() = UInt(log2Up(num).W)
 }
 
@@ -51,38 +51,40 @@ object BTBtype {
 
 // ALU
 object ALUOpType {
-  def add  = "b1000000".U
-  def sll  = "b0000001".U
-  def slt  = "b0000010".U
-  def sltu = "b0000011".U
-  def xor  = "b0000100".U
-  def srl  = "b0000101".U
-  def or   = "b0000110".U
-  def and  = "b0000111".U
-  def sub  = "b0001000".U
-  def sra  = "b0001101".U
+  def add  = "b100000".U
+  def sll  = "b000001".U
+  def slt  = "b000010".U
+  def sltu = "b000011".U
+  def xor  = "b000100".U
+  def srl  = "b000101".U
+  def or   = "b000110".U
+  def and  = "b000111".U
+  def sub  = "b001000".U
+  def sra  = "b001101".U
 
-  def addw = "b1100000".U
-  def subw = "b0101000".U
-  def sllw = "b0100001".U
-  def srlw = "b0100101".U
-  def sraw = "b0101101".U
+  def addw = "b110000".U
+  def subw = "b011000".U
+  def sllw = "b010001".U
+  def srlw = "b010101".U
+  def sraw = "b011101".U
 
-  def isWordOp(func: UInt) = func(5)
+  def isWordOp(func: UInt) = func(4)
+  def isAdd(func:    UInt) = func(5)
+}
 
-  def jal  = "b1011000".U
-  def jalr = "b1011010".U
-  def beq  = "b0010000".U
-  def bne  = "b0010001".U
-  def blt  = "b0010100".U
-  def bge  = "b0010101".U
-  def bltu = "b0010110".U
-  def bgeu = "b0010111".U
+object BRUOpType {
+  def jal  = "b1000".U
+  def jalr = "b1010".U
+  def beq  = "b0000".U
+  def bne  = "b0001".U
+  def blt  = "b0100".U
+  def bge  = "b0101".U
+  def bltu = "b0110".U
+  def bgeu = "b0111".U
 
-  def isAdd(func:          UInt) = func(6)
-  def isBru(func:          UInt) = func(4)
-  def isBranch(func:       UInt) = isBru(func) && !func(3)
-  def isJump(func:         UInt) = isBru(func) && !isBranch(func)
+  def isBranch(func:       UInt) = !func(3)
+  def isJump(func:         UInt) = !isBranch(func)
+  def isAdd(func:          UInt) = isJump(func)
   def getBranchType(func:  UInt) = func(2, 1)
   def isBranchInvert(func: UInt) = func(0)
 }

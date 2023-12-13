@@ -68,14 +68,14 @@ object RV32I_BRUInstr extends HasInstrType {
   def BGEU = BitPat("b???????_?????_?????_111_?????_1100011")
 
   val table = Array(
-    JAL  -> List(InstrJ, FuType.bru, ALUOpType.jal),
-    JALR -> List(InstrI, FuType.bru, ALUOpType.jalr),
-    BEQ  -> List(InstrB, FuType.bru, ALUOpType.beq),
-    BNE  -> List(InstrB, FuType.bru, ALUOpType.bne),
-    BLT  -> List(InstrB, FuType.bru, ALUOpType.blt),
-    BGE  -> List(InstrB, FuType.bru, ALUOpType.bge),
-    BLTU -> List(InstrB, FuType.bru, ALUOpType.bltu),
-    BGEU -> List(InstrB, FuType.bru, ALUOpType.bgeu)
+    JAL  -> List(InstrJ, FuType.bru, BRUOpType.jal),
+    JALR -> List(InstrI, FuType.bru, BRUOpType.jalr),
+    BEQ  -> List(InstrB, FuType.bru, BRUOpType.beq),
+    BNE  -> List(InstrB, FuType.bru, BRUOpType.bne),
+    BLT  -> List(InstrB, FuType.bru, BRUOpType.blt),
+    BGE  -> List(InstrB, FuType.bru, BRUOpType.bge),
+    BLTU -> List(InstrB, FuType.bru, BRUOpType.bltu),
+    BGEU -> List(InstrB, FuType.bru, BRUOpType.bgeu)
   )
 
 }

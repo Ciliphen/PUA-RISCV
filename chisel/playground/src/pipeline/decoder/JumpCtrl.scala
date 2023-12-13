@@ -26,8 +26,8 @@ class JumpCtrl(implicit val config: CpuConfig) extends Module {
   val valid              = io.in.info.valid
   val op                 = io.in.info.op
   val fusel              = io.in.info.fusel
-  val jump_inst          = VecInit(ALUOpType.jal).contains(op) && fusel === FuType.bru
-  val jump_register_inst = VecInit(ALUOpType.jalr).contains(op) && fusel === FuType.bru
+  val jump_inst          = VecInit(BRUOpType.jal).contains(op) && fusel === FuType.bru
+  val jump_register_inst = VecInit(BRUOpType.jalr).contains(op) && fusel === FuType.bru
   io.out.jump_inst := jump_inst || jump_register_inst
   io.out.jump      := (jump_inst || jump_register_inst && !io.out.jump_register) && valid
   if (config.decoderNum == 2) {
