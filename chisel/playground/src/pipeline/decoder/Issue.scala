@@ -52,11 +52,10 @@ class Issue(implicit val config: CpuConfig) extends Module {
     val data_conflict = raw_reg || load_stall
 
     // 指令0为bru指令
-    val inst0_is_bru_inst = ((inst0.fusel === FuType.bru && FuType.bru =/= FuType.alu) ||
-      (inst0.fusel === FuType.alu && ALUOpType.isBru(io.decodeInst(0).op)))
-
-    val inst1_is_bru_inst = ((inst1.fusel === FuType.bru && FuType.bru =/= FuType.alu) ||
-      (inst1.fusel === FuType.alu && ALUOpType.isBru(io.decodeInst(1).op)))
+    val is_bru = VecInit(
+      inst0.fusel === FuType.bru && ALUOpType.isBru(io.decodeInst(0).op),
+      inst1.fusel === FuType.bru && ALUOpType.isBru(io.decodeInst(1).op)
+    )
 
     // 指令1是否允许执行
     io.inst1.allow_to_go :=
@@ -65,8 +64,7 @@ class Issue(implicit val config: CpuConfig) extends Module {
       !struct_conflict && // 无结构冲突
       !data_conflict && // 无写后读冲突
       !VecInit(FuType.mou).contains(io.decodeInst(1).fusel) && // 指令1不是mou指令
-      !inst0_is_bru_inst && // 指令0不是bru指令
-      !inst1_is_bru_inst // 指令1不是bru指令
+      !is_bru.asUInt.orR // 指令0或指令1都不是bru指令
   } else {
     io.inst1.allow_to_go := false.B
   }
