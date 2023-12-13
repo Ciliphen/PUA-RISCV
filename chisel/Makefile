@@ -20,6 +20,9 @@ test:
 	mkdir -p $(BUILD_DIR)
 	mill -i __.test.runMain TestMain -td $(BUILD_DIR)
 
+count:
+	find ./playground/ -name "*.scala" | xargs wc -l 
+
 help:
 	mill -i __.test.runMain Elaborate --help
 
