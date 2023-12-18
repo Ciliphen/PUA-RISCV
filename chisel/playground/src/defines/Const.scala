@@ -76,10 +76,12 @@ object Const extends Constants with AXIConst with HasExceptionNO
 object Instructions extends HasInstrType with CoreParameter {
   def NOP           = 0x00000013.U
   val DecodeDefault = List(InstrN, FuType.csr, CSROpType.jmp)
-  def DecodeTable = RVIInstr.table ++ (if (config.hasMExtension) RVMInstr.table else Array.empty) ++
+  def DecodeTable = RVIInstr.table ++
+    (if (config.hasMExtension) RVMInstr.table else Array.empty) ++
+    (if (config.hasAExtension) RVAInstr.table else Array.empty) ++
     Priviledged.table ++
-    RVAInstr.table ++
-    RVZicsrInstr.table ++ RVZifenceiInstr.table
+    RVZicsrInstr.table ++
+    RVZifenceiInstr.table
 }
 
 object AddressSpace extends CoreParameter {

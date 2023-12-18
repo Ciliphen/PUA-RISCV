@@ -30,7 +30,7 @@ object RV32MInstr extends HasInstrType with CoreParameter {
     REM  -> List(InstrR, FuType.mdu, MDUOpType.rem),
     REMU -> List(InstrR, FuType.mdu, MDUOpType.remu)
   )
-  val table = mulTable ++ (if (config.hasMExtension) divTable else Array.empty)
+  val table = mulTable ++ divTable
 }
 
 object RV64MInstr extends HasInstrType with CoreParameter {
@@ -49,7 +49,7 @@ object RV64MInstr extends HasInstrType with CoreParameter {
     REMW  -> List(InstrR, FuType.mdu, MDUOpType.remw),
     REMUW -> List(InstrR, FuType.mdu, MDUOpType.remuw)
   )
-  val table = mulTable ++ (if (config.hasMExtension) divTable else Array.empty)
+  val table = mulTable ++ divTable
 }
 
 object RVMInstr extends CoreParameter {

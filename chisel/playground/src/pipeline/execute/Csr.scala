@@ -69,7 +69,13 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val misa_init = Wire(new Misa())
   misa_init            := 0.U.asTypeOf(new Misa())
   misa_init.mxl        := 2.U
-  misa_init.extensions := "h101100".U
+  def getMisaExt(ext: Char): UInt = {1.U << (ext.toInt - 'a'.toInt)}
+  var extensions = List('i')
+  if(config.hasMExtension){ extensions = extensions :+ 'm'}
+  if(config.hasAExtension){ extensions = extensions :+ 'a'}
+  if(config.hasSMode){ extensions = extensions :+ 's'}
+  if(config.hasUMode){ extensions = extensions :+ 'u'}
+  misa_init.extensions := extensions.foldLeft(0.U)((sum, i) => sum | getMisaExt(i))
   val misa       = RegInit(UInt(XLEN.W), misa_init.asUInt) // ISA寄存器
   val mie        = RegInit(0.U(XLEN.W)) // 中断使能寄存器
   val mtvec      = RegInit(0.U(XLEN.W)) // 中断向量基址寄存器
