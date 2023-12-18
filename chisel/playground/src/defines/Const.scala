@@ -14,7 +14,7 @@ trait CoreParameter {
 trait Constants extends CoreParameter {
   // 全局
   val PC_WID  = XLEN
-  val PC_INIT = "h60000000".U(PC_WID.W)
+  val PC_INIT = "h80000000".U(PC_WID.W)
 
   val SINGLE_ISSUE = false.B
   val DUAL_ISSUE   = true.B
