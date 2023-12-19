@@ -16,23 +16,8 @@ trait Constants extends CoreParameter {
   val PC_WID  = XLEN
   val PC_INIT = "h80000000".U(PC_WID.W)
 
-  val SINGLE_ISSUE = false.B
-  val DUAL_ISSUE   = true.B
-
-  val EXT_INT_WID = 3
-  val INT_WID     = 12
-  val EXC_WID     = 16
-
-  // div
-  val DIV_CTRL_WID         = 2
-  val DIV_FREE             = 0.U(DIV_CTRL_WID.W)
-  val DIV_BY_ZERO          = 1.U(DIV_CTRL_WID.W)
-  val DIV_ON               = 2.U(DIV_CTRL_WID.W)
-  val DIV_END              = 3.U(DIV_CTRL_WID.W)
-  val DIV_RESULT_READY     = true.B
-  val DIV_RESULT_NOT_READY = false.B
-  val DIV_START            = true.B
-  val DIV_STOP             = false.B
+  val INT_WID = 12
+  val EXC_WID = 16
 
   // inst rom
   val INST_WID      = XLEN

@@ -37,8 +37,8 @@ class BranchCtrl extends Module {
     BRUOpType.getBranchType(BRUOpType.bltu) -> sltu
   )
   io.out.pred_fail := io.in.pred_branch =/= io.out.branch
-  io.out.branch := (LookupTree(BRUOpType.getBranchType(op), table) ^
-    BRUOpType.isBranchInvert(op)) & valid
+  io.out.branch :=
+    (LookupTree(BRUOpType.getBranchType(op), table) ^ BRUOpType.isBranchInvert(op)) & valid
   io.out.target := Mux1H(
     Seq(
       (io.out.pred_fail && io.out.branch)  -> io.in.branch_target,
