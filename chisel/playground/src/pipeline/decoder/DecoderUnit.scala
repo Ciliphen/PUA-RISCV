@@ -78,10 +78,10 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     issue.execute(i).reg_waddr := io.forward(i).exe.waddr
   }
 
-  io.regfile(0).src1.raddr := info(0).reg1_raddr
-  io.regfile(0).src2.raddr := info(0).reg2_raddr
-  io.regfile(1).src1.raddr := info(1).reg1_raddr
-  io.regfile(1).src2.raddr := info(1).reg2_raddr
+  io.regfile(0).src1.raddr := info(0).src1_raddr
+  io.regfile(0).src2.raddr := info(0).src2_raddr
+  io.regfile(1).src1.raddr := info(1).src1_raddr
+  io.regfile(1).src2.raddr := info(1).src2_raddr
   forwardCtrl.in.forward   := io.forward
   forwardCtrl.in.regfile   := io.regfile
   jumpCtrl.in.info         := info(0)
@@ -99,10 +99,10 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.bpu.info                := info(0)
   io.bpu.pht_index           := io.instFifo.inst(0).pht_index
 
-  io.ctrl.inst0.src1.ren   := info(0).reg1_ren
-  io.ctrl.inst0.src1.raddr := info(0).reg1_raddr
-  io.ctrl.inst0.src2.ren   := info(0).reg2_ren
-  io.ctrl.inst0.src2.raddr := info(0).reg2_raddr
+  io.ctrl.inst0.src1.ren   := info(0).src1_ren
+  io.ctrl.inst0.src1.raddr := info(0).src1_raddr
+  io.ctrl.inst0.src2.ren   := info(0).src2_ren
+  io.ctrl.inst0.src2.raddr := info(0).src2_raddr
   io.ctrl.branch           := io.fetchUnit.branch
 
   io.executeStage.inst0.pc   := pc(0)
@@ -110,12 +110,12 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.src_info.src1_data := MuxCase(
     SignedExtend(pc(0), INST_ADDR_WID),
     Seq(
-      info(0).reg1_ren                      -> forwardCtrl.out.inst(0).src1.rdata,
+      info(0).src1_ren                      -> forwardCtrl.out.inst(0).src1.rdata,
       (info(0).inst(6, 0) === "b0110111".U) -> 0.U
     )
   )
   io.executeStage.inst0.src_info.src2_data := Mux(
-    info(0).reg2_ren,
+    info(0).src2_ren,
     forwardCtrl.out.inst(0).src2.rdata,
     info(0).imm
   )
@@ -152,12 +152,12 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.src_info.src1_data := MuxCase(
     SignedExtend(pc(1), INST_ADDR_WID),
     Seq(
-      info(1).reg1_ren                      -> forwardCtrl.out.inst(1).src1.rdata,
+      info(1).src1_ren                      -> forwardCtrl.out.inst(1).src1.rdata,
       (info(1).inst(6, 0) === "b0110111".U) -> 0.U
     )
   )
   io.executeStage.inst1.src_info.src2_data := Mux(
-    info(1).reg2_ren,
+    info(1).src2_ren,
     forwardCtrl.out.inst(1).src2.rdata,
     info(1).imm
   )

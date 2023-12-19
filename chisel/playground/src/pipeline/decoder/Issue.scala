@@ -40,15 +40,15 @@ class Issue(implicit val config: CpuConfig) extends Module {
     // 写后读冲突
     val load_stall =
       io.execute(0).mem_wreg && io.execute(0).reg_waddr.orR &&
-        (inst1.reg1_ren && inst1.reg1_raddr === io.execute(0).reg_waddr ||
-          inst1.reg2_ren && inst1.reg2_raddr === io.execute(0).reg_waddr) ||
+        (inst1.src1_ren && inst1.src1_raddr === io.execute(0).reg_waddr ||
+          inst1.src2_ren && inst1.src2_raddr === io.execute(0).reg_waddr) ||
         io.execute(1).mem_wreg && io.execute(1).reg_waddr.orR &&
-          (inst1.reg1_ren && inst1.reg1_raddr === io.execute(1).reg_waddr ||
-            inst1.reg2_ren && inst1.reg2_raddr === io.execute(1).reg_waddr)
+          (inst1.src1_ren && inst1.src1_raddr === io.execute(1).reg_waddr ||
+            inst1.src2_ren && inst1.src2_raddr === io.execute(1).reg_waddr)
     val raw_reg =
       inst0.reg_wen && inst0.reg_waddr.orR &&
-        (inst0.reg_waddr === inst1.reg1_raddr && inst1.reg1_ren ||
-          inst0.reg_waddr === inst1.reg2_raddr && inst1.reg2_ren)
+        (inst0.reg_waddr === inst1.src1_raddr && inst1.src1_ren ||
+          inst0.reg_waddr === inst1.src2_raddr && inst1.src2_ren)
     val data_conflict = raw_reg || load_stall
 
     // 指令0为bru指令

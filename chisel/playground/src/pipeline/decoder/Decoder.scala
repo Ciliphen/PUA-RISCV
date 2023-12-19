@@ -38,10 +38,10 @@ class Decoder extends Module with HasInstrType {
 
   io.out.info.valid      := false.B
   io.out.info.inst_legal := instrType =/= InstrN
-  io.out.info.reg1_ren   := src1Type === SrcType.reg
-  io.out.info.reg1_raddr := Mux(io.out.info.reg1_ren, rs, 0.U)
-  io.out.info.reg2_ren   := src2Type === SrcType.reg
-  io.out.info.reg2_raddr := Mux(io.out.info.reg2_ren, rt, 0.U)
+  io.out.info.src1_ren   := src1Type === SrcType.reg
+  io.out.info.src1_raddr := Mux(io.out.info.src1_ren, rs, 0.U)
+  io.out.info.src2_ren   := src2Type === SrcType.reg
+  io.out.info.src2_raddr := Mux(io.out.info.src2_ren, rt, 0.U)
   io.out.info.fusel      := fuType
   io.out.info.op         := fuOpType
   io.out.info.reg_wen    := isrfWen(instrType)
@@ -57,5 +57,5 @@ class Decoder extends Module with HasInstrType {
       InstrJ  -> SignedExtend(Cat(inst(31), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W)), XLEN)
     )
   )
-  io.out.info.inst     := inst
+  io.out.info.inst := inst
 }

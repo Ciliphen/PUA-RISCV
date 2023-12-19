@@ -31,16 +31,16 @@ class JumpCtrl(implicit val config: CpuConfig) extends Module {
   io.out.jump_inst := jump_inst || jump_register_inst
   io.out.jump      := (jump_inst || jump_register_inst && !io.out.jump_register) && valid
   if (config.decoderNum == 2) {
-    io.out.jump_register := jump_register_inst && io.in.info.reg1_raddr.orR &&
-    ((io.in.forward(0).exe.wen && io.in.info.reg1_raddr === io.in.forward(0).exe.waddr) ||
-    (io.in.forward(1).exe.wen && io.in.info.reg1_raddr === io.in.forward(1).exe.waddr) ||
-    (io.in.forward(0).mem.wen && io.in.info.reg1_raddr === io.in.forward(0).mem.waddr) ||
-    (io.in.forward(1).mem.wen && io.in.info.reg1_raddr === io.in.forward(1).mem.waddr))
+    io.out.jump_register := jump_register_inst && io.in.info.src1_raddr.orR &&
+    ((io.in.forward(0).exe.wen && io.in.info.src1_raddr === io.in.forward(0).exe.waddr) ||
+    (io.in.forward(1).exe.wen && io.in.info.src1_raddr === io.in.forward(1).exe.waddr) ||
+    (io.in.forward(0).mem.wen && io.in.info.src1_raddr === io.in.forward(0).mem.waddr) ||
+    (io.in.forward(1).mem.wen && io.in.info.src1_raddr === io.in.forward(1).mem.waddr))
 
   } else {
-    io.out.jump_register := jump_register_inst && io.in.info.reg1_raddr.orR &&
-    ((io.in.forward(0).exe.wen && io.in.info.reg1_raddr === io.in.forward(0).exe.waddr) ||
-    (io.in.forward(0).mem.wen && io.in.info.reg1_raddr === io.in.forward(0).mem.waddr))
+    io.out.jump_register := jump_register_inst && io.in.info.src1_raddr.orR &&
+    ((io.in.forward(0).exe.wen && io.in.info.src1_raddr === io.in.forward(0).exe.waddr) ||
+    (io.in.forward(0).mem.wen && io.in.info.src1_raddr === io.in.forward(0).mem.waddr))
   }
   io.out.jump_target := Mux(
     jump_inst,
