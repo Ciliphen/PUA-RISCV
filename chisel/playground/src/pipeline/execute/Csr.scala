@@ -9,14 +9,10 @@ import chisel3.util.experimental.BoringUtils
 
 class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
-    val inst = Vec(
-      config.fuNum,
-      new Bundle {
-        val pc   = UInt(PC_WID.W)
-        val ex   = new ExceptionInfo()
-        val info = new InstInfo()
-      }
-    )
+    val pc   = UInt(PC_WID.W)
+    val ex   = new ExceptionInfo()
+    val info = new InstInfo()
+
     val set_lr      = Bool()
     val set_lr_val  = Bool()
     val set_lr_addr = UInt(DATA_ADDR_WID.W)
@@ -50,7 +46,7 @@ class CsrDecoderUnit extends Bundle {
 
 class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val io = IO(new Bundle {
-    val ext_int = Input(new ExtInterrupt())
+    val ext_int     = Input(new ExtInterrupt())
     val decoderUnit = new CsrDecoderUnit()
     val executeUnit = new CsrExecuteUnit()
     val memoryUnit  = new CsrMemoryUnit()
@@ -67,14 +63,14 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   mstatus_init.uxl := 2.U
   val mstatus   = RegInit(UInt(XLEN.W), mstatus_init.asUInt) // 状态寄存器
   val misa_init = Wire(new Misa())
-  misa_init            := 0.U.asTypeOf(new Misa())
-  misa_init.mxl        := 2.U
-  def getMisaExt(ext: Char): UInt = {1.U << (ext.toInt - 'a'.toInt)}
+  misa_init     := 0.U.asTypeOf(new Misa())
+  misa_init.mxl := 2.U
+  def getMisaExt(ext: Char): UInt = { 1.U << (ext.toInt - 'a'.toInt) }
   var extensions = List('i')
-  if(config.hasMExtension){ extensions = extensions :+ 'm'}
-  if(config.hasAExtension){ extensions = extensions :+ 'a'}
-  if(config.hasSMode){ extensions = extensions :+ 's'}
-  if(config.hasUMode){ extensions = extensions :+ 'u'}
+  if (config.hasMExtension) { extensions = extensions :+ 'm' }
+  if (config.hasAExtension) { extensions = extensions :+ 'a' }
+  if (config.hasSMode) { extensions = extensions :+ 's' }
+  if (config.hasUMode) { extensions = extensions :+ 'u' }
   misa_init.extensions := extensions.foldLeft(0.U)((sum, i) => sum | getMisaExt(i))
   val misa       = RegInit(UInt(XLEN.W), misa_init.asUInt) // ISA寄存器
   val mie        = RegInit(0.U(XLEN.W)) // 中断使能寄存器
@@ -233,11 +229,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   io.decoderUnit.interrupt := mie(11, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
 
   // 优先使用inst0的信息
-  val exc_sel =
-    (HasExcInt(io.memoryUnit.in.inst(0).ex)) || !(HasExcInt(io.memoryUnit.in.inst(1).ex))
-  val mem_pc        = Mux(exc_sel, io.memoryUnit.in.inst(0).pc, io.memoryUnit.in.inst(1).pc)
-  val mem_ex        = Mux(exc_sel, io.memoryUnit.in.inst(0).ex, io.memoryUnit.in.inst(1).ex)
-  val mem_inst_info = Mux(exc_sel, io.memoryUnit.in.inst(0).info, io.memoryUnit.in.inst(1).info)
+  val mem_pc        = io.memoryUnit.in.pc
+  val mem_ex        = io.memoryUnit.in.ex
+  val mem_inst_info = io.memoryUnit.in.info
   val mem_inst      = mem_inst_info.inst
   val mem_valid     = mem_inst_info.valid
   val mem_addr      = mem_inst(31, 20)
@@ -246,13 +240,13 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val has_interrupt = mem_ex.interrupt.asUInt.orR
   val has_exc_int   = has_exception || has_interrupt
   // 不带前缀的信号为exe阶段的信号
-  val valid     = io.executeUnit.in.valid && !has_exc_int
-  val info      = io.executeUnit.in.info
-  val op        = io.executeUnit.in.info.op
-  val fusel     = io.executeUnit.in.info.fusel
-  val addr      = io.executeUnit.in.info.inst(31, 20)
-  val src1      = io.executeUnit.in.src_info.src1_data
-  val csri      = ZeroExtend(io.executeUnit.in.info.inst(19, 15), XLEN)
+  val valid = io.executeUnit.in.valid && !has_exc_int
+  val info  = io.executeUnit.in.info
+  val op    = io.executeUnit.in.info.op
+  val fusel = io.executeUnit.in.info.fusel
+  val addr  = io.executeUnit.in.info.inst(31, 20)
+  val src1  = io.executeUnit.in.src_info.src1_data
+  val csri  = ZeroExtend(io.executeUnit.in.info.inst(19, 15), XLEN)
   wdata := LookupTree(
     op,
     List(

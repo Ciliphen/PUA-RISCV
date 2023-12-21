@@ -92,19 +92,29 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.writeBackStage.inst1.commit := io.memoryStage.inst1.info.valid &&
     !(HasExcInt(io.writeBackStage.inst0.ex))
 
-  io.csr.in.inst(0).pc := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst0.pc, 0.U)
-  io.csr.in.inst(0).ex := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst0.ex, 0.U.asTypeOf(new ExceptionInfo()))
-  io.csr.in.inst(0).info := Mux(
-    io.ctrl.allow_to_go,
-    io.writeBackStage.inst0.info,
-    0.U.asTypeOf(new InstInfo())
+  val csr_sel =
+    HasExcInt(io.writeBackStage.inst0.ex) || !HasExcInt(io.writeBackStage.inst1.ex)
+
+  io.csr.in.pc := MuxCase(
+    0.U,
+    Seq(
+      (io.ctrl.allow_to_go && csr_sel)  -> io.writeBackStage.inst0.pc,
+      (io.ctrl.allow_to_go && !csr_sel) -> io.writeBackStage.inst1.pc
+    )
   )
-  io.csr.in.inst(1).pc := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst1.pc, 0.U)
-  io.csr.in.inst(1).ex := Mux(io.ctrl.allow_to_go, io.writeBackStage.inst1.ex, 0.U.asTypeOf(new ExceptionInfo()))
-  io.csr.in.inst(1).info := Mux(
-    io.ctrl.allow_to_go,
-    io.writeBackStage.inst1.info,
-    0.U.asTypeOf(new InstInfo())
+  io.csr.in.ex := MuxCase(
+    0.U.asTypeOf(new ExceptionInfo()),
+    Seq(
+      (io.ctrl.allow_to_go && csr_sel)  -> io.writeBackStage.inst0.ex,
+      (io.ctrl.allow_to_go && !csr_sel) -> io.writeBackStage.inst1.ex
+    )
+  )
+  io.csr.in.info := MuxCase(
+    0.U.asTypeOf(new InstInfo()),
+    Seq(
+      (io.ctrl.allow_to_go && csr_sel)  -> io.writeBackStage.inst0.info,
+      (io.ctrl.allow_to_go && !csr_sel) -> io.writeBackStage.inst1.info
+    )
   )
 
   io.csr.in.set_lr                       := dataMemoryAccess.memoryUnit.out.set_lr && io.ctrl.allow_to_go
