@@ -24,39 +24,39 @@ class DCache(implicit config: CpuConfig) extends Module {
   val awvalid = RegInit(false.B)
   val awaddr  = RegInit(0.U(AXI_ADDR_WID.W))
   val awsize  = RegInit(0.U(AXI_SIZE_WID.W))
-  io.axi.aw.id    := 1.U
-  io.axi.aw.addr  := awaddr
-  io.axi.aw.len   := 0.U
-  io.axi.aw.size  := awsize
-  io.axi.aw.burst := BURST_INCR.U
-  io.axi.aw.valid := awvalid
-  io.axi.aw.prot  := 0.U
-  io.axi.aw.lock  := 0.U
-  io.axi.aw.cache := 0.U
+  io.axi.aw.bits.id    := 1.U
+  io.axi.aw.bits.addr  := awaddr
+  io.axi.aw.bits.len   := 0.U
+  io.axi.aw.bits.size  := awsize
+  io.axi.aw.bits.burst := BURST_INCR.U
+  io.axi.aw.valid      := awvalid
+  io.axi.aw.bits.prot  := 0.U
+  io.axi.aw.bits.lock  := 0.U
+  io.axi.aw.bits.cache := 0.U
 
   val wvalid = RegInit(false.B)
   val wdata  = RegInit(0.U(AXI_DATA_WID.W))
   val wstrb  = RegInit(0.U(AXI_STRB_WID.W))
-  io.axi.w.id    := 1.U
-  io.axi.w.data  := wdata
-  io.axi.w.strb  := wstrb
-  io.axi.w.last  := 1.U
-  io.axi.w.valid := wvalid
+  io.axi.w.bits.id   := 1.U
+  io.axi.w.bits.data := wdata
+  io.axi.w.bits.strb := wstrb
+  io.axi.w.bits.last := 1.U
+  io.axi.w.valid     := wvalid
 
   io.axi.b.ready := 1.U
 
   val araddr  = RegInit(0.U(AXI_ADDR_WID.W))
   val arsize  = RegInit(0.U(AXI_SIZE_WID.W))
   val arvalid = RegInit(false.B)
-  io.axi.ar.id    := 1.U
-  io.axi.ar.addr  := araddr
-  io.axi.ar.len   := 0.U
-  io.axi.ar.size  := arsize
-  io.axi.ar.burst := BURST_INCR.U
-  io.axi.ar.valid := arvalid
-  io.axi.ar.prot  := 0.U
-  io.axi.ar.cache := 0.U
-  io.axi.ar.lock  := 0.U
+  io.axi.ar.bits.id    := 1.U
+  io.axi.ar.bits.addr  := araddr
+  io.axi.ar.bits.len   := 0.U
+  io.axi.ar.bits.size  := arsize
+  io.axi.ar.bits.burst := BURST_INCR.U
+  io.axi.ar.valid      := arvalid
+  io.axi.ar.bits.prot  := 0.U
+  io.axi.ar.bits.cache := 0.U
+  io.axi.ar.bits.lock  := 0.U
 
   val rready = RegInit(false.B)
   io.axi.r.ready := rready
@@ -102,8 +102,8 @@ class DCache(implicit config: CpuConfig) extends Module {
         arvalid := false.B
       }
       when(io.axi.r.valid) {
-        saved_rdata := io.axi.r.data
-        acc_err     := io.axi.r.resp =/= RESP_OKEY.U
+        saved_rdata := io.axi.r.bits.data
+        acc_err     := io.axi.r.bits.resp =/= RESP_OKEY.U
         status      := s_idle
       }
     }
@@ -115,7 +115,7 @@ class DCache(implicit config: CpuConfig) extends Module {
         wvalid := false.B
       }
       when(io.axi.b.valid) {
-        acc_err := io.axi.b.resp =/= RESP_OKEY.U
+        acc_err := io.axi.b.bits.resp =/= RESP_OKEY.U
         status  := s_idle
       }
     }

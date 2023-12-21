@@ -113,6 +113,9 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   val inst_valid   = Input(Vec(config.instFetchNum, Bool()))
   val acc_err      = Input(Bool())
   val icache_stall = Input(Bool()) // icache_stall
+
+  // tlb
+  val tlb = new Tlb_ICache()
 }
 
 // cpu to dcache
@@ -135,72 +138,55 @@ class Cache_DCache extends Bundle {
 // master -> slave
 
 class AR extends Bundle {
-  val id    = Output(UInt(AXI_ID_WID.W))
-  val addr  = Output(UInt(AXI_ADDR_WID.W))
-  val len   = Output(UInt(AXI_LEN_WID.W))
-  val size  = Output(UInt(AXI_SIZE_WID.W))
-  val burst = Output(UInt(AXI_BURST_WID.W))
-  val lock  = Output(UInt(AXI_LOCK_WID.W))
-  val cache = Output(UInt(AXI_CACHE_WID.W))
-  val prot  = Output(UInt(AXI_PROT_WID.W))
-  val valid = Output(Bool())
-
-  val ready = Input(Bool())
+  val id    = UInt(AXI_ID_WID.W)
+  val addr  = UInt(AXI_ADDR_WID.W)
+  val len   = UInt(AXI_LEN_WID.W)
+  val size  = UInt(AXI_SIZE_WID.W)
+  val burst = UInt(AXI_BURST_WID.W)
+  val lock  = UInt(AXI_LOCK_WID.W)
+  val cache = UInt(AXI_CACHE_WID.W)
+  val prot  = UInt(AXI_PROT_WID.W)
 }
 
 class R extends Bundle {
-  val ready = Output(Bool())
-
-  val id    = Input(UInt(AXI_ID_WID.W))
-  val data  = Input(UInt(AXI_DATA_WID.W))
-  val resp  = Input(UInt(AXI_RESP_WID.W))
-  val last  = Input(Bool())
-  val valid = Input(Bool())
+  val id   = UInt(AXI_ID_WID.W)
+  val data = UInt(AXI_DATA_WID.W)
+  val resp = UInt(AXI_RESP_WID.W)
+  val last = Bool()
 }
 
 class AW extends Bundle {
-  val id    = Output(UInt(AXI_ID_WID.W))
-  val addr  = Output(UInt(AXI_ADDR_WID.W))
-  val len   = Output(UInt(AXI_LEN_WID.W))
-  val size  = Output(UInt(AXI_SIZE_WID.W))
-  val burst = Output(UInt(AXI_BURST_WID.W))
-  val lock  = Output(UInt(AXI_LOCK_WID.W))
-  val cache = Output(UInt(AXI_CACHE_WID.W))
-  val prot  = Output(UInt(AXI_PROT_WID.W))
-  val valid = Output(Bool())
-
-  val ready = Input(Bool())
+  val id    = UInt(AXI_ID_WID.W)
+  val addr  = UInt(AXI_ADDR_WID.W)
+  val len   = UInt(AXI_LEN_WID.W)
+  val size  = UInt(AXI_SIZE_WID.W)
+  val burst = UInt(AXI_BURST_WID.W)
+  val lock  = UInt(AXI_LOCK_WID.W)
+  val cache = UInt(AXI_CACHE_WID.W)
+  val prot  = UInt(AXI_PROT_WID.W)
 }
 
 class W extends Bundle {
-  val id    = Output(UInt(AXI_ID_WID.W))
-  val data  = Output(UInt(AXI_DATA_WID.W))
-  val strb  = Output(UInt(AXI_STRB_WID.W))
-  val last  = Output(Bool())
-  val valid = Output(Bool())
-
-  val ready = Input(Bool())
+  val id   = UInt(AXI_ID_WID.W)
+  val data = UInt(AXI_DATA_WID.W)
+  val strb = UInt(AXI_STRB_WID.W)
+  val last = Bool()
 }
 
 class B extends Bundle {
-  val ready = Output(Bool())
-
-  val id    = Input(UInt(AXI_ID_WID.W))
-  val resp  = Input(UInt(AXI_RESP_WID.W))
-  val valid = Input(Bool())
+  val id    = UInt(AXI_ID_WID.W)
+  val resp  = UInt(AXI_RESP_WID.W)
 }
 
 class ICache_AXIInterface extends Bundle {
-  val ar = new AR()
-  val r  = new R()
+  val ar = Decoupled(new AR())
+  val r  = Flipped(Decoupled(new R()))
 }
 
-class DCache_AXIInterface extends Bundle {
-  val aw = new AW()
-  val w  = new W()
-  val b  = new B()
-  val ar = new AR()
-  val r  = new R()
+class DCache_AXIInterface extends ICache_AXIInterface {
+  val aw = Decoupled(new AW())
+  val w  = Decoupled(new W())
+  val b  = Flipped(Decoupled(new B()))
 }
 
 class Cache_AXIInterface extends Bundle {
@@ -211,11 +197,11 @@ class Cache_AXIInterface extends Bundle {
 
 // AXI interface
 class AXI extends Bundle {
-  val ar = new AR() // read address channel
-  val r  = new R() // read data channel
-  val aw = new AW() // write address channel
-  val w  = new W() // write data channel
-  val b  = new B() // write response channel
+  val ar = Decoupled(new AR()) // read address channel
+  val r  = Flipped(Decoupled(new R())) // read data channel
+  val aw = Decoupled(new AW()) // write address channel
+  val w  = Decoupled(new W()) // write data channel
+  val b  = Flipped(Decoupled(new B())) // write response channel
 }
 
 class DEBUG extends Bundle {

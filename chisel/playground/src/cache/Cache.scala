@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import cpu.defines._
 import cpu.CpuConfig
+import cpu.CacheConfig
 
 class Cache(implicit config: CpuConfig) extends Module {
   val io = IO(new Bundle {
@@ -12,7 +13,9 @@ class Cache(implicit config: CpuConfig) extends Module {
     val axi  = new AXI()
   })
 
-  val icache        = Module(new ICache())
+  implicit val iCacheConfig = CacheConfig(nset = 64, nbank = 4, bankWidth = 16)
+
+  val icache        = Module(new ICache(iCacheConfig))
   val dcache        = Module(new DCache())
   val axi_interface = Module(new CacheAXIInterface())
 

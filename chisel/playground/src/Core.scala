@@ -15,6 +15,7 @@ import ctrl._
 import mmu._
 import chisel3.util.experimental.decode.decoder
 import cpu.pipeline.fetch.InstFifo
+import cache.mmu.ITlbL1
 
 class Core(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
@@ -37,6 +38,10 @@ class Core(implicit val config: CpuConfig) extends Module {
   val memoryUnit     = Module(new MemoryUnit()).io
   val writeBackStage = Module(new WriteBackStage()).io
   val writeBackUnit  = Module(new WriteBackUnit()).io
+  val tlbL1I         = Module(new ITlbL1()).io
+
+  tlbL1I.addr := fetchUnit.iCache.pc
+  tlbL1I.cache <> io.inst.tlb
 
   ctrl.decoderUnit <> decoderUnit.ctrl
   ctrl.executeUnit <> executeUnit.ctrl

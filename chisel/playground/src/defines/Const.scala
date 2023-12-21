@@ -20,6 +20,7 @@ trait Constants extends CoreParameter {
   val EXC_WID = 16
 
   // inst rom
+  val INST_BANK_WID = 32
   val INST_WID      = XLEN
   val INST_ADDR_WID = XLEN
 
