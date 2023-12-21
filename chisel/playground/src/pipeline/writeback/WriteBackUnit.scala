@@ -15,13 +15,18 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
     val debug          = new DEBUG()
   })
 
-  io.regfile(0).wen := io.writeBackStage.inst0.info.reg_wen &&
-    io.ctrl.allow_to_go && !(HasExcInt(io.writeBackStage.inst0.ex))
+  io.regfile(0).wen :=
+    io.writeBackStage.inst0.info.valid &&
+      io.writeBackStage.inst0.info.reg_wen &&
+      io.ctrl.allow_to_go &&
+      !(HasExcInt(io.writeBackStage.inst0.ex))
   io.regfile(0).waddr := io.writeBackStage.inst0.info.reg_waddr
   io.regfile(0).wdata := io.writeBackStage.inst0.rd_info.wdata(io.writeBackStage.inst0.info.fusel)
 
   io.regfile(1).wen :=
-    io.writeBackStage.inst1.info.reg_wen && io.ctrl.allow_to_go &&
+    io.writeBackStage.inst1.info.valid &&
+      io.writeBackStage.inst1.info.reg_wen &&
+      io.ctrl.allow_to_go &&
       !(HasExcInt(io.writeBackStage.inst0.ex)) &&
       !(HasExcInt(io.writeBackStage.inst1.ex))
   io.regfile(1).waddr := io.writeBackStage.inst1.info.reg_waddr
@@ -30,11 +35,11 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
   if (config.hasCommitBuffer) {
     val buffer = Module(new CommitBuffer()).io
     buffer.enq(0).wb_pc       := io.writeBackStage.inst0.pc
-    buffer.enq(0).wb_rf_wen   := io.regfile(0).wen || io.writeBackStage.inst0.commit && io.ctrl.allow_to_go
+    buffer.enq(0).wb_rf_wen   := io.writeBackStage.inst0.info.valid && io.ctrl.allow_to_go
     buffer.enq(0).wb_rf_wnum  := io.regfile(0).waddr
     buffer.enq(0).wb_rf_wdata := io.regfile(0).wdata
     buffer.enq(1).wb_pc       := io.writeBackStage.inst1.pc
-    buffer.enq(1).wb_rf_wen   := io.regfile(1).wen || io.writeBackStage.inst1.commit && io.ctrl.allow_to_go
+    buffer.enq(1).wb_rf_wen   := io.writeBackStage.inst1.info.valid && io.ctrl.allow_to_go
     buffer.enq(1).wb_rf_wnum  := io.regfile(1).waddr
     buffer.enq(1).wb_rf_wdata := io.regfile(1).wdata
     buffer.flush              := io.ctrl.do_flush
