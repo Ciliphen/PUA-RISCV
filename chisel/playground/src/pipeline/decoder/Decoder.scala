@@ -9,7 +9,7 @@ class Decoder extends Module with HasInstrType {
   val io = IO(new Bundle {
     // inputs
     val in = Input(new Bundle {
-      val inst = UInt(INST_WID.W)
+      val inst = UInt(XLEN.W)
     })
     // outputs
     val out = Output(new Bundle {

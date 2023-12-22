@@ -34,7 +34,7 @@ class CsrExecuteUnit(implicit val config: CpuConfig) extends Bundle {
     val ex       = new ExceptionInfo()
   })
   val out = Output(new Bundle {
-    val rdata = UInt(DATA_WID.W)
+    val rdata = UInt(XLEN.W)
     val ex    = new ExceptionInfo()
   })
 }

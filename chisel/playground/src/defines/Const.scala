@@ -20,7 +20,6 @@ trait Constants extends CoreParameter {
   val EXC_WID = 16
 
   // inst rom
-  val INST_BANK_WID = 32
   val INST_WID      = XLEN
   val INST_ADDR_WID = XLEN
 
@@ -30,7 +29,6 @@ trait Constants extends CoreParameter {
   // GPR RegFile
   val AREG_NUM     = 32
   val REG_ADDR_WID = 5
-  val DATA_WID     = XLEN
 }
 
 trait AXIConst {

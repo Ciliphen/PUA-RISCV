@@ -8,7 +8,7 @@ import cpu.CpuConfig
 
 class SrcRead extends Bundle {
   val raddr = Output(UInt(REG_ADDR_WID.W))
-  val rdata = Input(UInt(DATA_WID.W))
+  val rdata = Input(UInt(XLEN.W))
 }
 
 class Src12Read extends Bundle {
@@ -19,7 +19,7 @@ class Src12Read extends Bundle {
 class RegWrite extends Bundle {
   val wen   = Output(Bool())
   val waddr = Output(UInt(REG_ADDR_WID.W))
-  val wdata = Output(UInt(DATA_WID.W))
+  val wdata = Output(UInt(XLEN.W))
 }
 
 class ARegFile(implicit val config: CpuConfig) extends Module {
@@ -29,7 +29,7 @@ class ARegFile(implicit val config: CpuConfig) extends Module {
   })
 
   // 定义32个32位寄存器
-  val regs = RegInit(VecInit(Seq.fill(AREG_NUM)(0.U(DATA_WID.W))))
+  val regs = RegInit(VecInit(Seq.fill(AREG_NUM)(0.U(XLEN.W))))
 
   // 写寄存器堆
   for (i <- 0 until (config.commitNum)) {

@@ -16,8 +16,8 @@ class Fu(implicit val config: CpuConfig) extends Module {
         val info     = Input(new InstInfo())
         val src_info = Input(new SrcInfo())
         val result = Output(new Bundle {
-          val mdu = UInt(DATA_WID.W)
-          val alu = UInt(DATA_WID.W)
+          val mdu = UInt(XLEN.W)
+          val alu = UInt(XLEN.W)
         })
       }
     )

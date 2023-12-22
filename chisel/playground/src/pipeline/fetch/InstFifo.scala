@@ -7,7 +7,7 @@ import cpu.{BranchPredictorConfig, CpuConfig}
 
 class BufferUnit extends Bundle {
   val bpuConfig = new BranchPredictorConfig()
-  val inst      = UInt(INST_WID.W)
+  val inst      = UInt(XLEN.W)
   val pht_index = UInt(bpuConfig.phtDepth.W)
   val acc_err   = Bool()
   val pc        = UInt(PC_WID.W)

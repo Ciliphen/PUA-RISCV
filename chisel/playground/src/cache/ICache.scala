@@ -51,7 +51,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val instperbank = bankWidth / 4 // 每个bank存储的指令数
   val valid       = RegInit(VecInit(Seq.fill(nset * nbank)(VecInit(Seq.fill(instperbank)(false.B)))))
 
-  val data = Wire(Vec(nway, Vec(instperbank, UInt(DATA_WID.W))))
+  val data = Wire(Vec(nway, Vec(instperbank, UInt(XLEN.W))))
   val tag  = RegInit(VecInit(Seq.fill(nway)(0.U(tagWidth.W))))
 
   // * should choose next addr * //
@@ -96,7 +96,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val inst_valid = VecInit(Seq.tabulate(instperbank)(i => cache_hit_available && i.U <= (3.U - bank_offset)))
 
   val saved = RegInit(VecInit(Seq.fill(instperbank)(0.U.asTypeOf(new Bundle {
-    val inst  = UInt(PC_WID.W)
+    val inst  = UInt(INST_WID.W)
     val valid = Bool()
   }))))
 
@@ -104,7 +104,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   // bank tag ram
   for { i <- 0 until nway; j <- 0 until instperbank } {
-    val bank = Module(new SimpleDualPortRam(nset * nbank, INST_BANK_WID, byteAddressable = true))
+    val bank = Module(new SimpleDualPortRam(nset * nbank, INST_WID, byteAddressable = true))
     bank.io.ren   := true.B
     bank.io.raddr := data_raddr
     data(i)(j)    := bank.io.rdata
@@ -208,7 +208,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       }.elsewhen(io.axi.r.fire) {
         // * uncached not support burst transport * //
         state          := s_save
-        saved(0).inst  := io.axi.r.bits.data
+        saved(0).inst  := Mux(ar.addr(2), io.axi.r.bits.data(63, 32), io.axi.r.bits.data(31, 0))
         saved(0).valid := true.B
         rready         := false.B
         acc_err        := io.axi.r.bits.resp =/= RESP_OKEY.U

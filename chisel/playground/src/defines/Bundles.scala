@@ -39,7 +39,7 @@ class InstInfo extends Bundle {
   val reg_wen    = Bool()
   val reg_waddr  = UInt(REG_ADDR_WID.W)
   val imm        = UInt(XLEN.W)
-  val inst       = UInt(INST_WID.W)
+  val inst       = UInt(XLEN.W)
 }
 
 class MemRead extends Bundle {
@@ -109,7 +109,7 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   val fence     = Output(Bool())
 
   // read inst result
-  val inst         = Input(Vec(config.instFetchNum, UInt(INST_WID.W)))
+  val inst         = Input(Vec(config.instFetchNum, UInt(XLEN.W)))
   val inst_valid   = Input(Vec(config.instFetchNum, Bool()))
   val acc_err      = Input(Bool())
   val icache_stall = Input(Bool()) // icache_stall
@@ -210,5 +210,5 @@ class DEBUG extends Bundle {
   val wb_pc       = Output(UInt(PC_WID.W))
   val wb_rf_wen   = Output(Bool())
   val wb_rf_wnum  = Output(UInt(REG_ADDR_WID.W))
-  val wb_rf_wdata = Output(UInt(DATA_WID.W))
+  val wb_rf_wdata = Output(UInt(XLEN.W))
 }

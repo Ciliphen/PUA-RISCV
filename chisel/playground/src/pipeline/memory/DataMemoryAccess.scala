@@ -11,7 +11,7 @@ class DataMemoryAccess_DataMemory extends Bundle {
   val in = Input(new Bundle {
     val acc_err = Bool()
     val ready   = Bool()
-    val rdata   = UInt(DATA_WID.W)
+    val rdata   = UInt(XLEN.W)
   })
   val out = Output(new Bundle {
     val en    = Bool()
@@ -19,7 +19,7 @@ class DataMemoryAccess_DataMemory extends Bundle {
     val wen   = Bool()
     val wstrb = UInt(AXI_STRB_WID.W)
     val addr  = UInt(DATA_ADDR_WID.W)
-    val wdata = UInt(DATA_WID.W)
+    val wdata = UInt(XLEN.W)
   })
 }
 
@@ -37,7 +37,7 @@ class DataMemoryAccess_MemoryUnit extends Bundle {
   })
   val out = Output(new Bundle {
     val ready = Bool()
-    val rdata = UInt(DATA_WID.W)
+    val rdata = UInt(XLEN.W)
     val ex    = new ExceptionInfo()
 
     val set_lr      = Bool()

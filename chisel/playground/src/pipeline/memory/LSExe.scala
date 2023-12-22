@@ -12,7 +12,7 @@ class LSExe extends Module {
     val in = Input(new Bundle {
       val mem_en   = Bool()
       val mem_addr = UInt(DATA_ADDR_WID.W)
-      val wdata    = UInt(DATA_WID.W)
+      val wdata    = UInt(XLEN.W)
       val info     = new InstInfo()
     })
     val out = Output(new Bundle {
@@ -20,7 +20,7 @@ class LSExe extends Module {
       val storeAddrMisaligned = Bool()
       val loadAccessFault     = Bool()
       val storeAccessFault    = Bool()
-      val rdata               = UInt(DATA_WID.W)
+      val rdata               = UInt(XLEN.W)
       val ready               = Bool()
     })
   })

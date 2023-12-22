@@ -13,7 +13,7 @@ class Mdu(implicit config: CpuConfig) extends Module {
     val allow_to_go = Input(Bool())
 
     val ready  = Output(Bool())
-    val result = Output(UInt(DATA_WID.W))
+    val result = Output(UInt(XLEN.W))
   })
 
   val mul = Module(new Mul()).io

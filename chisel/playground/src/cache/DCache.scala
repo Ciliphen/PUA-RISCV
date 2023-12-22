@@ -9,7 +9,7 @@ import cpu.CpuConfig
 import cpu.defines.Const._
 
 class WriteBufferUnit extends Bundle {
-  val data = UInt(DATA_WID.W)
+  val data = UInt(XLEN.W)
   val addr = UInt(DATA_ADDR_WID.W)
   val strb = UInt(4.W)
   val size = UInt(2.W)
@@ -68,7 +68,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     val working = Bool()
   }))
 
-  val read_buffer  = RegInit(VecInit(Seq.fill(16)(0.U(DATA_WID.W))))
+  val read_buffer  = RegInit(VecInit(Seq.fill(16)(0.U(XLEN.W))))
   val ar_handshake = RegInit(false.B)
   val aw_handshake = RegInit(false.B)
 
@@ -81,7 +81,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val tag_wstrb = RegInit(VecInit(Seq.fill(nway)(false.B)))
   val tag_wdata = RegInit(0.U(tagWidth.W))
 
-  val data = Wire(Vec(nway, UInt(DATA_WID.W)))
+  val data = Wire(Vec(nway, UInt(XLEN.W)))
   val tag  = RegInit(VecInit(Seq.fill(nway)(0.U(tagWidth.W))))
 
   val tag_compare_valid = Wire(Vec(nway, Bool()))
@@ -103,13 +103,13 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   )
   io.cpu.dcache_ready := !dcache_stall
 
-  val saved_rdata = RegInit(0.U(DATA_WID.W))
+  val saved_rdata = RegInit(0.U(XLEN.W))
 
   // forward last stored data in data bram
   val last_waddr         = RegNext(data_waddr)
-  val last_wstrb         = RegInit(VecInit(Seq.fill(nway)(0.U(DATA_WID.W))))
+  val last_wstrb         = RegInit(VecInit(Seq.fill(nway)(0.U(XLEN.W))))
   val last_wdata         = RegNext(data_wdata)
-  val cache_data_forward = Wire(Vec(nway, UInt(DATA_WID.W)))
+  val cache_data_forward = Wire(Vec(nway, UInt(XLEN.W)))
 
   io.cpu.rdata := cache_data_forward(sel)
 
