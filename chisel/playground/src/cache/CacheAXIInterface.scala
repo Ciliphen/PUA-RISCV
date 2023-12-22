@@ -12,20 +12,20 @@ class CacheAXIInterface extends Module {
   })
 
   // pass-through aw {
-  io.axi.aw.bits.id    := io.dcache.aw.bits.id
+  io.axi.aw.bits.id    := 1.U
   io.axi.aw.bits.addr  := io.dcache.aw.bits.addr
   io.axi.aw.bits.len   := io.dcache.aw.bits.len
   io.axi.aw.bits.size  := io.dcache.aw.bits.size
-  io.axi.aw.bits.burst := io.dcache.aw.bits.burst
   io.axi.aw.valid      := io.dcache.aw.valid
-  io.axi.aw.bits.prot  := io.dcache.aw.bits.prot
-  io.axi.aw.bits.cache := io.dcache.aw.bits.cache
-  io.axi.aw.bits.lock  := io.dcache.aw.bits.lock
+  io.axi.aw.bits.burst := 1.U
+  io.axi.aw.bits.prot  := 0.U
+  io.axi.aw.bits.cache := 0.U
+  io.axi.aw.bits.lock  := 0.U
   io.dcache.aw.ready   := io.axi.aw.ready
   // pass-through aw }
 
   // pass-through w {
-  io.axi.w.bits.id   := io.dcache.w.bits.id
+  io.axi.w.bits.id   := 1.U
   io.axi.w.bits.data := io.dcache.w.bits.data
   io.axi.w.bits.strb := io.dcache.w.bits.strb
   io.axi.w.bits.last := io.dcache.w.bits.last
@@ -59,11 +59,11 @@ class CacheAXIInterface extends Module {
   io.axi.ar.bits.addr  := Mux(ar_sel, io.dcache.ar.bits.addr, io.icache.ar.bits.addr)
   io.axi.ar.bits.len   := Mux(ar_sel, io.dcache.ar.bits.len, io.icache.ar.bits.len)
   io.axi.ar.bits.size  := Mux(ar_sel, io.dcache.ar.bits.size, io.icache.ar.bits.size)
-  io.axi.ar.bits.burst := Mux(ar_sel, io.dcache.ar.bits.burst, io.icache.ar.bits.burst)
   io.axi.ar.valid      := Mux(ar_sel, io.dcache.ar.valid, io.icache.ar.valid)
-  io.axi.ar.bits.prot  := Mux(ar_sel, io.dcache.ar.bits.prot, io.icache.ar.bits.prot)
-  io.axi.ar.bits.cache := Mux(ar_sel, io.dcache.ar.bits.cache, io.icache.ar.bits.cache)
-  io.axi.ar.bits.lock  := Mux(ar_sel, io.dcache.ar.bits.lock, io.icache.ar.bits.lock)
+  io.axi.ar.bits.burst := 1.U
+  io.axi.ar.bits.prot  := 0.U
+  io.axi.ar.bits.cache := 0.U
+  io.axi.ar.bits.lock  := 0.U
   io.icache.ar.ready   := !ar_sel && io.axi.ar.ready
   io.dcache.ar.ready   := ar_sel && io.axi.ar.ready
   // mux ar }

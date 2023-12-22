@@ -30,8 +30,8 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   val tlb_fill = RegInit(false.B)
   // * fsm * //
-  val s_idle :: s_uncached :: s_writeback :: s_replace :: Nil = Enum(4)
-  val state                                                   = RegInit(s_idle)
+  val s_idle :: s_uncached :: s_writeback :: s_replace :: s_save :: Nil = Enum(5)
+  val state                                                             = RegInit(s_idle)
 
   io.cpu.tlb.fill           := tlb_fill
   io.cpu.tlb.dcache_is_idle := state === s_idle
@@ -99,7 +99,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val dcache_stall = Mux(
     state === s_idle && !tlb_fill,
     Mux(io.cpu.en, (cached_stall || mmio_read_stall || mmio_write_stall || !io.cpu.tlb.translation_ok), io.cpu.fence),
-    true.B
+    state =/= s_save
   )
   io.cpu.dcache_ready := !dcache_stall
 
@@ -111,7 +111,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val last_wdata         = RegNext(data_wdata)
   val cache_data_forward = Wire(Vec(nway, UInt(XLEN.W)))
 
-  io.cpu.rdata := cache_data_forward(sel)
+  io.cpu.rdata := Mux(state === s_save, saved_rdata, cache_data_forward(sel))
 
   // bank tagv ram
   for { i <- 0 until nway } {
@@ -213,14 +213,14 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       when(tlb_fill) {
         tlb_fill := false.B
         when(!io.cpu.tlb.hit) {
-          state := s_idle
+          state := s_save
         }
       }.elsewhen(io.cpu.en) {
         when(addr_err) {
           acc_err := true.B
         }.elsewhen(!io.cpu.tlb.translation_ok) {
           when(io.cpu.tlb.tlb1_ok) {
-            state := s_idle
+            state := s_save
           }.otherwise {
             tlb_fill := true.B
           }
@@ -270,7 +270,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
               }
               when(!io.cpu.cpu_ready) {
                 saved_rdata := cache_data_forward(sel)
-                state       := s_idle
+                state       := s_save
               }
             }
           }
@@ -291,7 +291,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             valid(fset)(0) := false.B
             valid(fset)(1) := false.B
           }
-          state := s_idle
+          state := s_save
         }
       }
     }
@@ -302,7 +302,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       when(io.axi.r.valid) {
         saved_rdata := io.axi.r.bits.data
         acc_err     := io.axi.r.bits.resp =/= RESP_OKEY.U
-        state       := s_idle
+        state       := s_save
       }
     }
     is(s_writeback) {
@@ -438,6 +438,11 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           victim.working := true.B
           victim_cnt.inc()
         }
+      }
+    }
+    is(s_save) {
+      when(io.cpu.dcache_ready && io.cpu.cpu_ready) {
+        state := s_idle
       }
     }
   }

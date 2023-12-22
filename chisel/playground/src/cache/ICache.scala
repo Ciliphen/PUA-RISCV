@@ -136,9 +136,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   io.cpu.icache_stall := Mux(state === s_idle && !tlb_fill, (!cache_hit_available && io.cpu.req), state =/= s_save)
 
-  val ar_init = WireInit(0.U.asTypeOf(new AR()))
-  ar_init.burst := 1.U
-  val ar      = RegInit(ar_init)
+  val ar      = RegInit(0.U.asTypeOf(new AR()))
   val arvalid = RegInit(false.B)
   ar <> io.axi.ar.bits
   arvalid <> io.axi.ar.valid
