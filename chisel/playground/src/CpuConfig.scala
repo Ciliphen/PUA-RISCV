@@ -29,21 +29,19 @@ case class BranchPredictorConfig(
 
 case class CacheConfig(
   nway:      Int = 2, // 路数
-  nbank:     Int = 8, // bank数
-  nset:      Int,
-  bankWidth: Int // bytes per bank
+  nbank:     Int = 8, // 每个项目中的bank数
+  nindex:    Int, // 每路的项目数
+  bankWidth: Int // 每个bank中的字节数
 ) {
   val config          = CpuConfig()
-  val indexWidth      = log2Ceil(nset)
+  val indexWidth      = log2Ceil(nindex) // index的位宽
   val bankIndexWidth  = log2Ceil(nbank)
   val bankOffsetWidth = log2Ceil(bankWidth)
-  val offsetWidth     = bankIndexWidth + bankOffsetWidth
-  val tagWidth        = 32 - indexWidth - offsetWidth
-  val tagvWidth       = tagWidth + 1
+  val offsetWidth     = bankIndexWidth + bankOffsetWidth // offset的位宽
+  val tagWidth        = 32 - indexWidth - offsetWidth // tag的位宽
   val bankWidthBits   = bankWidth * 8
   val burstSize       = 16
-  val ninst           = config.instFetchNum // TODO:改成可随意修改的参数
-  require(isPow2(nset))
+  require(isPow2(nindex))
   require(isPow2(nway))
   require(isPow2(nbank))
   require(isPow2(bankWidth))

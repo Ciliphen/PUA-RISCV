@@ -10,9 +10,9 @@ import cpu.defines.Const._
 
 class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Module {
   val nway:            Int = cacheConfig.nway
-  val nset:            Int = cacheConfig.nset
+  val nset:            Int = cacheConfig.nindex
   val nbank:           Int = cacheConfig.nbank
-  val ninst:           Int = cacheConfig.ninst // 取指令的数量
+  val ninst:           Int = config.instFetchNum
   val bankOffsetWidth: Int = cacheConfig.bankOffsetWidth
   val bankWidth:       Int = cacheConfig.bankWidth
   val tagWidth:        Int = cacheConfig.tagWidth
