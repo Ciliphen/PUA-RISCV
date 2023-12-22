@@ -122,3 +122,15 @@ class Tlb_ICache extends Bundle {
   val tag            = Output(UInt(20.W))
   val pa             = Output(UInt(32.W))
 }
+
+class Tlb_DCache extends Bundle {
+  val fill           = Input(Bool())
+  val dcache_is_idle = Input(Bool())
+  val uncached       = Output(Bool())
+  val tlb1_ok        = Output(Bool())
+
+  val translation_ok = Output(Bool())
+  val hit            = Output(Bool())
+  val tag            = Output(UInt(20.W))
+  val pa             = Output(UInt(32.W))
+}

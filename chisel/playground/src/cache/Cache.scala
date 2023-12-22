@@ -14,9 +14,10 @@ class Cache(implicit config: CpuConfig) extends Module {
   })
 
   implicit val iCacheConfig = CacheConfig(nset = 64, nbank = 4, bankWidth = 16)
+  implicit val dCacheConfig = CacheConfig(nset = 128, bankWidth = 4)
 
   val icache        = Module(new ICache(iCacheConfig))
-  val dcache        = Module(new DCache())
+  val dcache        = Module(new DCache(dCacheConfig))
   val axi_interface = Module(new CacheAXIInterface())
 
   icache.io.axi <> axi_interface.io.icache

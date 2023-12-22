@@ -121,7 +121,7 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
 // cpu to dcache
 class Cache_DCache extends Bundle {
   val addr      = Output(UInt(DATA_ADDR_WID.W))
-  val size      = Output(UInt(2.W))
+  val rlen      = Output(UInt(2.W))
   val en        = Output(Bool())
   val wen       = Output(Bool())
   val wdata     = Output(UInt(XLEN.W))
@@ -132,6 +132,8 @@ class Cache_DCache extends Bundle {
   val rdata        = Input(UInt(XLEN.W))
   val acc_err      = Input(Bool())
   val dcache_ready = Input(Bool())
+
+  val tlb = new Tlb_DCache()
 }
 
 // axi
@@ -174,8 +176,8 @@ class W extends Bundle {
 }
 
 class B extends Bundle {
-  val id    = UInt(AXI_ID_WID.W)
-  val resp  = UInt(AXI_RESP_WID.W)
+  val id   = UInt(AXI_ID_WID.W)
+  val resp = UInt(AXI_RESP_WID.W)
 }
 
 class ICache_AXIInterface extends Bundle {

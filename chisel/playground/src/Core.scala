@@ -12,10 +12,7 @@ import pipeline.execute._
 import pipeline.memory._
 import pipeline.writeback._
 import ctrl._
-import mmu._
-import chisel3.util.experimental.decode.decoder
-import cpu.pipeline.fetch.InstFifo
-import cache.mmu.ITlbL1
+import cache.mmu._
 
 class Core(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
@@ -38,10 +35,14 @@ class Core(implicit val config: CpuConfig) extends Module {
   val memoryUnit     = Module(new MemoryUnit()).io
   val writeBackStage = Module(new WriteBackStage()).io
   val writeBackUnit  = Module(new WriteBackUnit()).io
-  val tlbL1I         = Module(new ITlbL1()).io
+  val itlbL1         = Module(new ITlbL1()).io
+  val dtlbL1         = Module(new DTlbL1()).io
 
-  tlbL1I.addr := fetchUnit.iCache.pc
-  tlbL1I.cache <> io.inst.tlb
+  itlbL1.addr := fetchUnit.iCache.pc
+  itlbL1.cache <> io.inst.tlb
+
+  dtlbL1.addr := memoryUnit.dataMemory.out.addr
+  dtlbL1.cache <> io.data.tlb
 
   ctrl.decoderUnit <> decoderUnit.ctrl
   ctrl.executeUnit <> executeUnit.ctrl
@@ -113,7 +114,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   memoryUnit.dataMemory.in.acc_err := io.data.acc_err
   memoryUnit.dataMemory.in.ready   := io.data.dcache_ready
   io.data.en                       := memoryUnit.dataMemory.out.en
-  io.data.size                     := memoryUnit.dataMemory.out.rlen
+  io.data.rlen                     := memoryUnit.dataMemory.out.rlen
   io.data.wen                      := memoryUnit.dataMemory.out.wen
   io.data.wdata                    := memoryUnit.dataMemory.out.wdata
   io.data.addr                     := memoryUnit.dataMemory.out.addr
