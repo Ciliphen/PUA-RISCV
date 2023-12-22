@@ -34,13 +34,13 @@ case class CacheConfig(
   bankWidth: Int // bytes per bank
 ) {
   val config          = CpuConfig()
-  val indexWidth      = log2Ceil(nset) // 6
-  val bankIndexWidth  = log2Ceil(nbank) // 3
-  val bankOffsetWidth = log2Ceil(bankWidth) // 3
-  val offsetWidth     = bankIndexWidth + bankOffsetWidth // 6
-  val tagWidth        = 32 - indexWidth - offsetWidth // 20
-  val tagvWidth       = tagWidth + 1 // 21
-  val bankWidthBits   = bankWidth * 8 // 64
+  val indexWidth      = log2Ceil(nset)
+  val bankIndexWidth  = log2Ceil(nbank)
+  val bankOffsetWidth = log2Ceil(bankWidth)
+  val offsetWidth     = bankIndexWidth + bankOffsetWidth
+  val tagWidth        = 32 - indexWidth - offsetWidth
+  val tagvWidth       = tagWidth + 1
+  val bankWidthBits   = bankWidth * 8
   val burstSize       = 16
   val ninst           = config.instFetchNum // TODO:改成可随意修改的参数
   require(isPow2(nset))

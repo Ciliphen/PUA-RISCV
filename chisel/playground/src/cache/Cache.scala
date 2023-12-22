@@ -3,6 +3,7 @@ package cache
 import chisel3._
 import chisel3.util._
 import cpu.defines._
+import cpu.defines.Const._
 import cpu.CpuConfig
 import cpu.CacheConfig
 
@@ -13,8 +14,10 @@ class Cache(implicit config: CpuConfig) extends Module {
     val axi  = new AXI()
   })
 
-  implicit val iCacheConfig = CacheConfig(nset = 64, nbank = 4, bankWidth = 16)
-  implicit val dCacheConfig = CacheConfig(nset = 128, bankWidth = 4)
+  implicit val iCacheConfig =
+    CacheConfig(nset = 64, nbank = 4, bankWidth = (32 / 8) * 4) // 每个 bank 存 4 条 32 bit 指令
+  implicit val dCacheConfig =
+    CacheConfig(nset = 128, bankWidth = XLEN / 8) // 每个 bank 存 1 条 XLEN bit 数据
 
   val icache        = Module(new ICache(iCacheConfig))
   val dcache        = Module(new DCache(dCacheConfig))

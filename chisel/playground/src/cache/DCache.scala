@@ -11,8 +11,8 @@ import cpu.defines.Const._
 class WriteBufferUnit extends Bundle {
   val data = UInt(XLEN.W)
   val addr = UInt(DATA_ADDR_WID.W)
-  val strb = UInt(4.W)
-  val size = UInt(2.W)
+  val strb = UInt(AXI_STRB_WID.W)
+  val size = UInt(AXI_SIZE_WID.W)
 }
 
 class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Module {
@@ -56,7 +56,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     val valid     = Bool()
     val set       = UInt(6.W)
     val waddr     = UInt(10.W)
-    val wstrb     = Vec(nway, UInt(4.W))
+    val wstrb     = Vec(nway, UInt(AXI_STRB_WID.W))
     val working   = Bool()
     val writeback = Bool()
   }))
@@ -73,7 +73,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val aw_handshake = RegInit(false.B)
 
   val data_raddr = Mux(victim.valid, victim_addr, io.cpu.addr(11, 2))
-  val data_wstrb = Wire(Vec(nway, UInt(4.W)))
+  val data_wstrb = Wire(Vec(nway, UInt(AXI_STRB_WID.W)))
   val data_waddr = Mux(victim.valid, victim.waddr, io.cpu.addr(11, 2))
   val data_wdata = Mux(state === s_replace, io.axi.r.bits.data, io.cpu.wdata)
 
@@ -142,16 +142,11 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
     data_wstrb(i) := Mux(
       tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle && !tlb_fill,
-      io.cpu.wen,
+      io.cpu.wstrb,
       victim.wstrb(i)
     )
 
-    last_wstrb(i) := Cat(
-      Fill(8, data_wstrb(i)(3)),
-      Fill(8, data_wstrb(i)(2)),
-      Fill(8, data_wstrb(i)(1)),
-      Fill(8, data_wstrb(i)(0))
-    )
+    last_wstrb(i) := Cat((AXI_STRB_WID - 1 to 0 by -1).map(j => Fill(8, data_wstrb(i)(j))))
   }
   val write_buffer_axi_busy = RegInit(false.B)
 
@@ -197,7 +192,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     write_fifo.io.deq.ready := write_fifo.io.deq.valid
     when(write_fifo.io.deq.fire) {
       aw.addr := write_fifo.io.deq.bits.addr
-      aw.size := Cat(0.U(1.W), write_fifo.io.deq.bits.size)
+      aw.size := write_fifo.io.deq.bits.size
       w.data  := write_fifo.io.deq.bits.data
       w.strb  := write_fifo.io.deq.bits.strb
     }
@@ -234,7 +229,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
                 io.cpu.tlb.pa
               )
               write_fifo.io.enq.bits.size := io.cpu.rlen
-              write_fifo.io.enq.bits.strb := io.cpu.wen
+              write_fifo.io.enq.bits.strb := io.cpu.wstrb
               write_fifo.io.enq.bits.data := io.cpu.wdata
 
               current_mmio_write_saved := true.B
@@ -245,7 +240,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           }.elsewhen(!(write_fifo.io.deq.valid || write_buffer_axi_busy)) {
             ar.addr := Mux(io.cpu.rlen === 2.U, Cat(io.cpu.tlb.pa(31, 2), 0.U(2.W)), io.cpu.tlb.pa)
             ar.len  := 0.U
-            ar.size := Cat(0.U(1.W), io.cpu.rlen)
+            ar.size := io.cpu.rlen
             arvalid := true.B
             state   := s_uncached
             rready  := true.B
@@ -316,7 +311,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         when(!aw_handshake) {
           aw.addr      := Cat(tag(dirty(fset)(1)), fset, 0.U(6.W))
           aw.len       := 15.U
-          aw.size      := 2.U(3.W)
+          aw.size      := "b011".U // 8 字节
           awvalid      := true.B
           w.data       := data(dirty(fset)(1))
           w.strb       := 15.U
@@ -368,7 +363,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             when(!aw_handshake) {
               aw.addr      := Cat(tag(lru(pset)), pset, 0.U(6.W))
               aw.len       := 15.U
-              aw.size      := 2.U(3.W)
+              aw.size      := "b011".U // 8 字节
               awvalid      := true.B
               aw_handshake := true.B
               w.data       := data(lru(pset))
@@ -402,11 +397,11 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           when(!ar_handshake) {
             ar.addr                 := Cat(io.cpu.tlb.pa(31, 6), 0.U(6.W))
             ar.len                  := 15.U
-            ar.size                 := 2.U(3.W)
+            ar.size                 := "b011".U // 8 字节
             arvalid                 := true.B
             rready                  := true.B
             ar_handshake            := true.B
-            victim.wstrb(lru(pset)) := 15.U
+            victim.wstrb(lru(pset)) := "hff".U
             tag_wstrb(lru(pset))    := true.B
             tag_wdata               := io.cpu.tlb.pa(31, 12)
           }

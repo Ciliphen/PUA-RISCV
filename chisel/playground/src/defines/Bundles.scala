@@ -121,7 +121,7 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
 // cpu to dcache
 class Cache_DCache extends Bundle {
   val addr      = Output(UInt(DATA_ADDR_WID.W))
-  val rlen      = Output(UInt(2.W))
+  val rlen      = Output(UInt(AXI_LEN_WID.W))
   val en        = Output(Bool())
   val wen       = Output(Bool())
   val wdata     = Output(UInt(XLEN.W))
