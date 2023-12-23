@@ -16,12 +16,12 @@ class WriteBufferUnit extends Bundle {
 }
 
 class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Module {
-  val nway:          Int = cacheConfig.nway
-  val nset:          Int = cacheConfig.nindex
-  val nbank:         Int = cacheConfig.nbank
-  val bankWidthBits: Int = cacheConfig.bankWidthBits
-  val tagWidth:      Int = cacheConfig.tagWidth
-  val burstSize:     Int = cacheConfig.burstSize
+  val nway:        Int = cacheConfig.nway
+  val nindex:      Int = cacheConfig.nindex
+  val nbank:       Int = cacheConfig.nbank
+  val bitsPerBank: Int = cacheConfig.bitsPerBank
+  val tagWidth:    Int = cacheConfig.tagWidth
+  val burstSize:   Int = 16
 
   val io = IO(new Bundle {
     val cpu = Flipped(new Cache_DCache())
@@ -37,9 +37,9 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   io.cpu.tlb.dcache_is_idle := state === s_idle
 
   // * valid dirty * //
-  val valid = RegInit(VecInit(Seq.fill(nset)(VecInit(Seq.fill(nway)(false.B)))))
-  val dirty = RegInit(VecInit(Seq.fill(nset)(VecInit(Seq.fill(nway)(false.B)))))
-  val lru   = RegInit(VecInit(Seq.fill(nset)(0.U(1.W))))
+  val valid = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B)))))
+  val dirty = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B)))))
+  val lru   = RegInit(VecInit(Seq.fill(nindex)(0.U(1.W))))
 
   val write_fifo = Module(new Queue(new WriteBufferUnit(), 4))
 
@@ -115,7 +115,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   // bank tagv ram
   for { i <- 0 until nway } {
-    val bank_ram = Module(new SimpleDualPortRam(nset * nbank, bankWidthBits, byteAddressable = true))
+    val bank_ram = Module(new SimpleDualPortRam(nindex * nbank, bitsPerBank, byteAddressable = true))
     bank_ram.io.ren   := true.B
     bank_ram.io.raddr := data_raddr
     data(i)           := bank_ram.io.rdata
@@ -125,7 +125,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     bank_ram.io.wdata := data_wdata
     bank_ram.io.wstrb := data_wstrb(i)
 
-    val tag_ram = Module(new LUTRam(nset, tagWidth))
+    val tag_ram = Module(new LUTRam(nindex, tagWidth))
     tag_ram.io.raddr := tag_raddr
     tag(i)           := tag_ram.io.rdata
 

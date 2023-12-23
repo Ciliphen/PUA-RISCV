@@ -16,13 +16,18 @@ import cpu.CpuConfig
   * @param cpuCfg
   *   the implicit configuration for simulation and elaboration
   */
-class SimpleDualPortRam(depth: Int, width: Int, byteAddressable: Boolean)(implicit
-    val config: CpuConfig,
-) extends Module {
+class SimpleDualPortRam(
+  depth:           Int,
+  width:           Int,
+  byteAddressable: Boolean
+)(
+  implicit
+  val config: CpuConfig)
+    extends Module {
   require(isPow2(depth))
   require(
     width % 8 == 0 || !byteAddressable,
-    "if memory is byte addressable, then the adderss width must be a multiple of 8",
+    "if memory is byte addressable, then the adderss width must be a multiple of 8"
   )
   val waddridth = log2Ceil(depth)
 
@@ -40,11 +45,11 @@ class SimpleDualPortRam(depth: Int, width: Int, byteAddressable: Boolean)(implic
   if (config.build) {
     val memory = Module(
       new SimpleDualPortRamIP(
-        wdataidth = width,
+        wdataidth      = width,
         byteWriteWidth = if (byteAddressable) 8 else width,
-        numberOfLines = depth,
-        waddridth = waddridth,
-      ),
+        numberOfLines  = depth,
+        waddridth      = waddridth
+      )
     )
     memory.io.clka := clock
     memory.io.clkb := clock
@@ -62,12 +67,12 @@ class SimpleDualPortRam(depth: Int, width: Int, byteAddressable: Boolean)(implic
   } else {
     assert(
       io.wstrb.orR || !io.wen,
-      "when write port enable is high, write vector cannot be all 0",
+      "when write port enable is high, write vector cannot be all 0"
     )
     if (byteAddressable) {
       val bank = SyncReadMem(depth, Vec(width / 8, UInt(8.W)))
       when(io.ren) {
-        io.rdata := bank(io.raddr).asTypeOf(io.rdata)
+        io.rdata := bank.read(io.raddr).asTypeOf(UInt(width.W))
       }.otherwise {
         io.rdata := DontCare
       }

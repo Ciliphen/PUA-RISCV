@@ -17,7 +17,7 @@ class WriteOnlyPort[+T <: Data](gen: T)(implicit cacheConfig: CacheConfig) exten
 
 class WriteOnlyMaskPort[+T <: Data](gen: T)(implicit cacheConfig: CacheConfig) extends Bundle {
   val addr = Input(UInt(log2Ceil(cacheConfig.nindex * cacheConfig.nbank).W))
-  val en   = Input(UInt(cacheConfig.bankWidth.W))
+  val en   = Input(UInt(cacheConfig.bytesPerBank.W))
   val data = Input(gen)
 }
 
@@ -31,7 +31,7 @@ class ReadWritePort[+T <: Data](gen: T)(implicit cacheConfig: CacheConfig) exten
 
 class MaskedReadWritePort[+T <: Data](gen: T)(implicit cacheConfig: CacheConfig) extends Bundle {
   val addr      = Input(UInt(log2Ceil(cacheConfig.nindex * cacheConfig.nbank).W))
-  val writeMask = Input(UInt(cacheConfig.bankWidth.W))
+  val writeMask = Input(UInt(cacheConfig.bytesPerBank.W))
   val wdata     = Input(gen)
   val rdata     = Output(gen)
 }

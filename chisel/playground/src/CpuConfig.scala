@@ -28,23 +28,22 @@ case class BranchPredictorConfig(
   val phtDepth: Int = 6)
 
 case class CacheConfig(
-  nway:      Int = 2, // 路数
-  nbank:     Int = 8, // 每个项目中的bank数
-  nindex:    Int, // 每路的项目数
-  bankWidth: Int // 每个bank中的字节数
+  nway:         Int = 2, // 路数
+  nbank:        Int, // 每个项目中的bank数
+  nindex:       Int, // 每路的项目数
+  bytesPerBank: Int // 每个bank中的字节数
 ) {
   val config          = CpuConfig()
   val indexWidth      = log2Ceil(nindex) // index的位宽
   val bankIndexWidth  = log2Ceil(nbank)
-  val bankOffsetWidth = log2Ceil(bankWidth)
+  val bankOffsetWidth = log2Ceil(bytesPerBank)
   val offsetWidth     = bankIndexWidth + bankOffsetWidth // offset的位宽
   val tagWidth        = 32 - indexWidth - offsetWidth // tag的位宽
-  val bankWidthBits   = bankWidth * 8
-  val burstSize       = 16
+  val bitsPerBank     = bytesPerBank * 8
   require(isPow2(nindex))
   require(isPow2(nway))
   require(isPow2(nbank))
-  require(isPow2(bankWidth))
+  require(isPow2(bytesPerBank))
   require(
     tagWidth + indexWidth + bankIndexWidth + bankOffsetWidth == 32,
     "basic request calculation"
