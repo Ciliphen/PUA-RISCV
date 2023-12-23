@@ -26,7 +26,10 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   })
   require(isPow2(instFetchNum), "ninst must be power of 2")
   require(instFetchNum == bytesPerBank / 4, "instFetchNum must equal to instperbank")
-  require(bitsPerBank >= AXI_DATA_WID, "bitsPerBank must be greater than AXI_DATA_WID")
+  require(
+    bitsPerBank >= AXI_DATA_WID && bitsPerBank % AXI_DATA_WID == 0,
+    "bitsPerBank must be greater than AXI_DATA_WID"
+  )
 
   // 整个宽度为PADDR_WID的地址
   // ==========================================================
