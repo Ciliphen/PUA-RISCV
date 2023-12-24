@@ -51,11 +51,16 @@ class Issue(implicit val config: CpuConfig) extends Module {
           inst0.reg_waddr === inst1.src2_raddr && inst1.src2_ren)
     val data_conflict = raw_reg || load_stall
 
-    // 指令0为bru指令
+    // 指令有出现bru指令
     val is_bru = VecInit(
       inst0.fusel === FuType.bru,
       inst1.fusel === FuType.bru
-    )
+    ).asUInt.orR
+
+    // 下面的情况只进行单发射
+    val single_issue =
+      VecInit(FuType.mou).contains(io.decodeInst(1).fusel) ||
+        is_bru
 
     // 指令1是否允许执行
     io.inst1.allow_to_go :=
@@ -63,8 +68,7 @@ class Issue(implicit val config: CpuConfig) extends Module {
       !instFifo_invalid && // inst buffer存有至少2条指令
       !struct_conflict && // 无结构冲突
       !data_conflict && // 无写后读冲突
-      !VecInit(FuType.mou).contains(io.decodeInst(1).fusel) && // 指令1不是mou指令
-      !is_bru.asUInt.orR // 指令0或指令1都不是bru指令
+      !single_issue // 非单发射指令
   } else {
     io.inst1.allow_to_go := false.B
   }
