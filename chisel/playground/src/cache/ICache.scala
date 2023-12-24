@@ -8,18 +8,55 @@ import cpu.defines._
 import cpu.CpuConfig
 import cpu.defines.Const._
 
+/*
+  整个宽度为PADDR_WID的地址
+  ==========================================================
+  |        tag         |  index |         offset           |
+  |                    |        | bank index | bank offset |
+  ==========================================================
+
+  nway 组，nindex 行
+  ======================================================
+  | valid | tag |  bank 0 | bank 1  |  ...    | bank n |
+  |   1   |     |         |         |         |        |
+  ======================================================
+  |                bank               |
+  | inst 0 | inst 1 |   ...  | inst n |
+  |   32   |   32   |   ...  |   32   |
+  =====================================
+
+  本CPU的实现如下：
+    每个bank分为多个instBlocks，每个instBlocks的宽度为AXI_DATA_WID，这样能方便的和AXI总线进行交互
+    RV64实现中AXI_DATA_WID为64，所以每个instBlocks可以存储2条指令
+    而instBlocks的个数会和instFetchNum相关
+      - 当instFetchNum为4时，instBlocks的个数为2
+      - 当instFetchNum为2时，instBlocks的个数为1
+    读取数据时会将一个bank中的所有instBlocks读取出来，然后再将instBlocks中的数据按照偏移量重新排列
+    这样的设计可以保证一个bank的指令数对应instFetchNum
+
+  ======================================================
+  | valid | tag |  bank 0 | bank 1  |  ...    | bank n |
+  |   1   |     |         |         |         |        |
+  ======================================================
+  |                bank               |
+  |   instBlocks    |   instBlocks    |
+  | inst 0 | inst 1 | inst 0 | inst 1 |
+  |   32   |   32   |   32   |   32   |
+  =====================================
+ */
+
 class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Module {
-  val nway:            Int = cacheConfig.nway
-  val nindex:          Int = cacheConfig.nindex
-  val nbank:           Int = cacheConfig.nbank
-  val instFetchNum:    Int = config.instFetchNum
-  val bankOffsetWidth: Int = cacheConfig.bankOffsetWidth
-  val bankIndexWidth:  Int = cacheConfig.offsetWidth - bankOffsetWidth
-  val bytesPerBank:    Int = cacheConfig.bytesPerBank
-  val tagWidth:        Int = cacheConfig.tagWidth
-  val indexWidth:      Int = cacheConfig.indexWidth
-  val offsetWidth:     Int = cacheConfig.offsetWidth
-  val bitsPerBank:     Int = cacheConfig.bitsPerBank
+  val nway            = cacheConfig.nway
+  val nindex          = cacheConfig.nindex
+  val nbank           = cacheConfig.nbank
+  val instFetchNum    = config.instFetchNum
+  val bankOffsetWidth = cacheConfig.bankOffsetWidth
+  val bankIndexWidth  = cacheConfig.offsetWidth - bankOffsetWidth
+  val bytesPerBank    = cacheConfig.bytesPerBank
+  val tagWidth        = cacheConfig.tagWidth
+  val indexWidth      = cacheConfig.indexWidth
+  val offsetWidth     = cacheConfig.offsetWidth
+  val bitsPerBank     = cacheConfig.bitsPerBank
   val io = IO(new Bundle {
     val cpu = Flipped(new Cache_ICache())
     val axi = new ICache_AXIInterface()
@@ -30,12 +67,6 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     bitsPerBank >= AXI_DATA_WID && bitsPerBank % AXI_DATA_WID == 0,
     "bitsPerBank must be greater than AXI_DATA_WID"
   )
-
-  // 整个宽度为PADDR_WID的地址
-  // ==========================================================
-  // |        tag         |  index |         offset           |
-  // |                    |        | bank index | bank offset |
-  // ==========================================================
 
   // 一个bank是bitsPerBank宽度，一个bank中有instFetchNum个指令
   // 每个bank中指令块的个数，一个指令块是AXI_DATA_WID宽度
@@ -48,17 +79,6 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // * fsm * //
   val s_idle :: s_uncached :: s_replace :: s_save :: Nil = Enum(4)
   val state                                              = RegInit(s_idle)
-
-  // * nway * nindex * //
-  // * 128 bit for 4 inst * //
-  // =========================================================
-  // | valid | tag |  bank 0 | bank 1  |  bank 2 | bank 3 |
-  // |   1   | 20  |   128   |   128   |   128   |  128   |
-  // =========================================================
-  // |                bank               |
-  // | inst 0 | inst 1 | inst 2 | inst 3 |
-  // |   32   |   32   |   32   |   32   |
-  // =====================================
 
   // nway 路，每路 nindex 行，每行 nbank 个 bank，每行的nbank共用一个valid
   val valid = RegInit(VecInit(Seq.fill(nway)(VecInit(Seq.fill(nindex)(false.B)))))
@@ -97,7 +117,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // * replace index * //
   val replace_index = RegInit(0.U(indexWidth.W))
   // 用于控制写入一行cache条目中的哪个bank, 一个bank可能有多次写入
-  val repalce_wstrb = RegInit(
+  val replace_wstrb = RegInit(
     VecInit(Seq.fill(nway)(VecInit(Seq.fill(nbank)(VecInit(Seq.fill(instBlocksPerBank)((false.B)))))))
   )
 
@@ -107,9 +127,6 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val cache_hit_available = cache_hit && io.cpu.tlb.translation_ok && !io.cpu.tlb.uncached
   val select_way          = tag_compare_valid(1) // 1路命中时值为1，0路命中时值为0 //TODO:支持更多路数
 
-  // |     bank        |
-  // | inst 0 | inst 1 |
-  // |   32   |   32   |
   // 将一个 bank 中的指令分成 instFetchNum 份，每份 INST_WID bit
   val inst_in_bank = VecInit(
     Seq.tabulate(instFetchNum)(i => data(select_way)(bank_index).asUInt((i + 1) * INST_WID - 1, i * INST_WID))
@@ -138,9 +155,11 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   }))))
 
   // 对于可缓存段访存时读取的数据宽度应该和AXI_DATA的宽度相同
-  val cached_rsize = log2Ceil(AXI_DATA_WID / 8)
+  val cached_size = log2Ceil(AXI_DATA_WID / 8)
+  val cached_len  = (nbank * instBlocksPerBank - 1)
   // 对于不可缓存段访存时读取的数据宽度应该和指令宽度相同
-  val uncached_rsize = log2Ceil(INST_WID / 8)
+  val uncached_size = log2Ceil(INST_WID / 8)
+  val uncached_len  = 0
 
   // bank tag ram
   for { i <- 0 until nway } {
@@ -158,10 +177,10 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         bank(j)(k).io.raddr := data_rindex
         data(i)(j)(k)       := bank(j)(k).io.rdata
 
-        bank(j)(k).io.wen   := repalce_wstrb(i)(j)(k)
+        bank(j)(k).io.wen   := replace_wstrb(i)(j)(k)
         bank(j)(k).io.waddr := replace_index
         bank(j)(k).io.wdata := io.axi.r.bits.data
-        bank(j)(k).io.wstrb := repalce_wstrb(i)(j)(k)
+        bank(j)(k).io.wstrb := replace_wstrb(i)(j)(k)
       }
     }
   }
@@ -198,7 +217,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val addr_err = io.cpu.addr(should_next_addr)(XLEN - 1, PADDR_WID).orR
 
   when(acc_err) { acc_err := false.B }
-  io.cpu.acc_err := acc_err
+  io.cpu.acc_err := acc_err //TODO：实现cached段中的访存错误
 
   switch(state) {
     is(s_idle) {
@@ -219,20 +238,20 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         }.elsewhen(io.cpu.tlb.uncached) {
           state   := s_uncached
           ar.addr := io.cpu.tlb.pa
-          ar.len  := 0.U
-          ar.size := uncached_rsize.U
+          ar.len  := uncached_len.U
+          ar.size := uncached_size.U
           arvalid := true.B
         }.elsewhen(!cache_hit) {
           state := s_replace
           // 取指时按bank块取指
           ar.addr := Cat(io.cpu.tlb.pa(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
-          ar.len  := (nbank * instBlocksPerBank - 1).U
-          ar.size := cached_rsize.U
+          ar.len  := cached_len.U
+          ar.size := cached_size.U
           arvalid := true.B
 
           replace_index := virtual_index
-          repalce_wstrb(replace_way).map(_.map(_ := false.B))
-          repalce_wstrb(replace_way)(0)(0)  := true.B // 从第一个bank的第一个指令块开始写入
+          replace_wstrb(replace_way).map(_.map(_ := false.B))
+          replace_wstrb(replace_way)(0)(0)  := true.B // 从第一个bank的第一个指令块开始写入
           tag_wstrb(replace_way)            := true.B
           tag_wdata                         := io.cpu.tlb.tag
           valid(replace_way)(virtual_index) := true.B
@@ -271,11 +290,11 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         // * burst transport * //
         when(!io.axi.r.bits.last) {
           // 左移写掩码，写入下一个bank，或是同一个bank的下一个指令
-          repalce_wstrb(replace_way) :=
-            ((repalce_wstrb(replace_way).asUInt << 1)).asTypeOf(repalce_wstrb(replace_way))
+          replace_wstrb(replace_way) :=
+            ((replace_wstrb(replace_way).asUInt << 1)).asTypeOf(replace_wstrb(replace_way))
         }.otherwise {
           rready := false.B
-          repalce_wstrb(replace_way).map(_.map(_ := false.B))
+          replace_wstrb(replace_way).map(_.map(_ := false.B))
           tag_wstrb(replace_way) := false.B
         }
       }.elsewhen(!io.axi.r.ready) {
@@ -290,12 +309,12 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     }
   }
 
-  println("ICache: ")
-  println("nindex: " + nindex)
-  println("nbank: " + nbank)
-  println("bankOffsetWidth: " + bankOffsetWidth)
-  println("bytesPerBank: " + bytesPerBank)
-  println("tagWidth: " + tagWidth)
-  println("indexWidth: " + indexWidth)
-  println("offsetWidth: " + offsetWidth)
+  // println("ICache: ")
+  // println("nindex: " + nindex)
+  // println("nbank: " + nbank)
+  // println("bankOffsetWidth: " + bankOffsetWidth)
+  // println("bytesPerBank: " + bytesPerBank)
+  // println("tagWidth: " + tagWidth)
+  // println("indexWidth: " + indexWidth)
+  // println("offsetWidth: " + offsetWidth)
 }
