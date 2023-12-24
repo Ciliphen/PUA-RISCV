@@ -9,11 +9,11 @@ class Mou extends Module {
   val io = IO(new Bundle {
     val in = Input(new Bundle {
       val info = new InstInfo()
-      val pc   = UInt(PC_WID.W)
+      val pc   = UInt(XLEN.W)
     })
     val out = Output(new Bundle {
       val flush  = Bool()
-      val target = UInt(PC_WID.W)
+      val target = UInt(XLEN.W)
     })
   })
 

@@ -17,7 +17,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     val bpu          = new ExecuteUnitBranchPredictor()
     val fetchUnit = Output(new Bundle {
       val flush  = Bool()
-      val target = UInt(PC_WID.W)
+      val target = UInt(XLEN.W)
     })
     val decoderUnit = new Bundle {
       val forward = Output(

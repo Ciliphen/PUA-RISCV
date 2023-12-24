@@ -12,23 +12,23 @@ class FetchUnit(
   val io = IO(new Bundle {
     val memory = new Bundle {
       val flush  = Input(Bool())
-      val target = Input(UInt(PC_WID.W))
+      val target = Input(UInt(XLEN.W))
     }
     val decoder = new Bundle {
       val branch = Input(Bool())
-      val target = Input(UInt(PC_WID.W))
+      val target = Input(UInt(XLEN.W))
     }
     val execute = new Bundle {
       val flush  = Input(Bool())
-      val target = Input(UInt(PC_WID.W))
+      val target = Input(UInt(XLEN.W))
     }
     val instFifo = new Bundle {
       val full = Input(Bool())
     }
     val iCache = new Bundle {
       val inst_valid = Input(Vec(config.instFetchNum, Bool()))
-      val pc         = Output(UInt(PC_WID.W))
-      val pc_next    = Output(UInt(PC_WID.W))
+      val pc         = Output(UInt(XLEN.W))
+      val pc_next    = Output(UInt(XLEN.W))
     }
 
   })
@@ -37,7 +37,7 @@ class FetchUnit(
 
   // when inst_valid(1) is true, inst_valid(0) must be true
 
-  val pc_next_temp = Wire(UInt(PC_WID.W))
+  val pc_next_temp = Wire(UInt(XLEN.W))
 
   pc_next_temp := pc
   for (i <- 0 until config.instFetchNum) {

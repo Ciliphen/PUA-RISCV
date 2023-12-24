@@ -125,7 +125,6 @@ class Tlb_ICache extends Bundle {
 
 class Tlb_DCache extends Bundle {
   val fill           = Input(Bool())
-  val dcache_is_idle = Input(Bool())
   val uncached       = Output(Bool())
   val tlb1_ok        = Output(Bool())
 

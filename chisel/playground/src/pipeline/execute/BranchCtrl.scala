@@ -8,17 +8,17 @@ import cpu.defines.Const._
 class BranchCtrl extends Module {
   val io = IO(new Bundle {
     val in = new Bundle {
-      val pc            = Input(UInt(PC_WID.W))
+      val pc            = Input(UInt(XLEN.W))
       val info          = Input(new InstInfo())
       val src_info      = Input(new SrcInfo())
       val pred_branch   = Input(Bool())
       val jump_regiser  = Input(Bool())
-      val branch_target = Input(UInt(PC_WID.W))
+      val branch_target = Input(UInt(XLEN.W))
     }
     val out = new Bundle {
       val branch    = Output(Bool())
       val pred_fail = Output(Bool())
-      val target    = Output(UInt(PC_WID.W))
+      val target    = Output(UInt(XLEN.W))
     }
   })
   val valid =

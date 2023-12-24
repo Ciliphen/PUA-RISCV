@@ -207,7 +207,7 @@ class AXI extends Bundle {
 }
 
 class DEBUG extends Bundle {
-  val wb_pc       = Output(UInt(PC_WID.W))
+  val wb_pc       = Output(UInt(XLEN.W))
   val wb_rf_wen   = Output(Bool())
   val wb_rf_wnum  = Output(UInt(REG_ADDR_WID.W))
   val wb_rf_wdata = Output(UInt(XLEN.W))

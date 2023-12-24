@@ -12,7 +12,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
     val inst = Vec(
       config.decoderNum,
       new Bundle {
-        val pc       = Input(UInt(PC_WID.W))
+        val pc       = Input(UInt(XLEN.W))
         val info     = Input(new InstInfo())
         val src_info = Input(new SrcInfo())
         val result = Output(new Bundle {
@@ -25,10 +25,10 @@ class Fu(implicit val config: CpuConfig) extends Module {
     val branch = new Bundle {
       val pred_branch   = Input(Bool())
       val jump_regiser  = Input(Bool())
-      val branch_target = Input(UInt(PC_WID.W))
+      val branch_target = Input(UInt(XLEN.W))
       val branch        = Output(Bool())
       val flush         = Output(Bool())
-      val target        = Output(UInt(PC_WID.W))
+      val target        = Output(UInt(XLEN.W))
     }
   })
 

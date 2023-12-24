@@ -13,8 +13,7 @@ trait CoreParameter {
 
 trait Constants extends CoreParameter {
   // 全局
-  val PC_WID  = XLEN
-  val PC_INIT = "h80000000".U(PC_WID.W)
+  val PC_INIT = "h80000000".U(XLEN.W)
 
   val INT_WID = 12
   val EXC_WID = 16

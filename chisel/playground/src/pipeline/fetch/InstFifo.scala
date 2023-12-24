@@ -10,7 +10,7 @@ class BufferUnit extends Bundle {
   val inst      = UInt(XLEN.W)
   val pht_index = UInt(bpuConfig.phtDepth.W)
   val acc_err   = Bool()
-  val pc        = UInt(PC_WID.W)
+  val pc        = UInt(XLEN.W)
 }
 
 class InstFifo(implicit val config: CpuConfig) extends Module {

@@ -13,7 +13,7 @@ import cpu.pipeline.decoder.DecoderBranchPredictorUnit
 
 class ExecuteUnitBranchPredictor extends Bundle {
   val bpuConfig        = new BranchPredictorConfig()
-  val pc               = Output(UInt(PC_WID.W))
+  val pc               = Output(UInt(XLEN.W))
   val update_pht_index = Output(UInt(bpuConfig.phtDepth.W))
   val branch_inst      = Output(Bool())
   val branch           = Output(Bool())
@@ -24,7 +24,7 @@ class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
   val decoder   = Flipped(new DecoderBranchPredictorUnit())
 
   val instBuffer = new Bundle {
-    val pc        = Input(Vec(config.instFetchNum, UInt(PC_WID.W)))
+    val pc        = Input(Vec(config.instFetchNum, UInt(XLEN.W)))
     val pht_index = Output(Vec(config.instFetchNum, UInt(bpuConfig.phtDepth.W)))
   }
 

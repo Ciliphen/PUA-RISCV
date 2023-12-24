@@ -27,13 +27,13 @@ class DataForwardToDecoderUnit extends Bundle {
 
 class DecoderBranchPredictorUnit extends Bundle {
   val bpuConfig = new BranchPredictorConfig()
-  val pc        = Output(UInt(PC_WID.W))
+  val pc        = Output(UInt(XLEN.W))
   val info      = Output(new InstInfo())
   val pht_index = Output(UInt(bpuConfig.phtDepth.W))
 
   val branch_inst      = Input(Bool())
   val pred_branch      = Input(Bool())
-  val branch_target    = Input(UInt(PC_WID.W))
+  val branch_target    = Input(UInt(XLEN.W))
   val update_pht_index = Input(UInt(bpuConfig.phtDepth.W))
 }
 
@@ -47,7 +47,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     // 输出
     val fetchUnit = new Bundle {
       val branch = Output(Bool())
-      val target = Output(UInt(PC_WID.W))
+      val target = Output(UInt(XLEN.W))
     }
     val bpu          = new DecoderBranchPredictorUnit()
     val executeStage = Output(new DecoderUnitExecuteUnit())

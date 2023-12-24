@@ -15,7 +15,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     val memoryStage = Input(new ExecuteUnitMemoryUnit())
     val fetchUnit = Output(new Bundle {
       val flush  = Bool()
-      val target = UInt(PC_WID.W)
+      val target = UInt(XLEN.W)
     })
     val decoderUnit    = Output(Vec(config.commitNum, new RegWrite()))
     val csr            = Flipped(new CsrMemoryUnit())

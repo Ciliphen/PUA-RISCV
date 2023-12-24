@@ -9,7 +9,7 @@ import chisel3.util.experimental.BoringUtils
 
 class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
-    val pc   = UInt(PC_WID.W)
+    val pc   = UInt(XLEN.W)
     val ex   = new ExceptionInfo()
     val info = new InstInfo()
 
@@ -19,7 +19,7 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
   })
   val out = Output(new Bundle {
     val flush    = Bool()
-    val flush_pc = UInt(PC_WID.W)
+    val flush_pc = UInt(XLEN.W)
 
     val lr      = Bool()
     val lr_addr = UInt(DATA_ADDR_WID.W)

@@ -8,7 +8,7 @@ import cpu.{BranchPredictorConfig, CpuConfig}
 
 class IdExeInst0 extends Bundle {
   val config   = new BranchPredictorConfig()
-  val pc       = UInt(PC_WID.W)
+  val pc       = UInt(XLEN.W)
   val info     = new InstInfo()
   val src_info = new SrcInfo()
   val ex       = new ExceptionInfo()
@@ -18,13 +18,13 @@ class IdExeInst0 extends Bundle {
     // bpu
     val branch_inst      = Bool()
     val pred_branch      = Bool()
-    val branch_target    = UInt(PC_WID.W)
+    val branch_target    = UInt(XLEN.W)
     val update_pht_index = UInt(config.phtDepth.W)
   }
 }
 
 class IdExeInst1 extends Bundle {
-  val pc          = UInt(PC_WID.W)
+  val pc          = UInt(XLEN.W)
   val info        = new InstInfo()
   val src_info    = new SrcInfo()
   val ex          = new ExceptionInfo()

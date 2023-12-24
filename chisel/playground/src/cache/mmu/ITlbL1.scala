@@ -7,7 +7,7 @@ import cpu.defines.Const._
 
 class ITlbL1 extends Module {
   val io = IO(new Bundle {
-    val addr  = Input(UInt(PC_WID.W))
+    val addr  = Input(UInt(XLEN.W))
     val cache = new Tlb_ICache()
   })
 
