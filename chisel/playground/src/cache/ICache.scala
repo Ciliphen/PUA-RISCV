@@ -173,13 +173,13 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   for { i <- 0 until nway } {
     // 实例化了nway个tag ram
-    val tag_bram = Module(new LUTRam(nindex, tagWidth))
-    tag_bram.io.raddr := tag_raddr
-    tag(i)            := tag_bram.io.rdata
+    val tagBram = Module(new LUTRam(nindex, tagWidth))
+    tagBram.io.raddr := tag_raddr
+    tag(i)           := tagBram.io.rdata
 
-    tag_bram.io.wen   := tag_wstrb(i)
-    tag_bram.io.waddr := replace_index
-    tag_bram.io.wdata := tag_wdata
+    tagBram.io.wen   := tag_wstrb(i)
+    tagBram.io.waddr := replace_index
+    tagBram.io.wdata := tag_wdata
   }
 
   io.cpu.icache_stall := Mux(state === s_idle && !tlb_fill, (!cache_hit_available && io.cpu.req), state =/= s_save)
