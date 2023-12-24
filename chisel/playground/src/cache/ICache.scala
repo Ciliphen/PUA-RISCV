@@ -53,14 +53,15 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // * 128 bit for 4 inst * //
   // =========================================================
   // | valid | tag |  bank 0 | bank 1  |  bank 2 | bank 3 |
-  // | 1111  | 20  |   128   |   128   |   128   |  128   |
+  // |   1   | 20  |   128   |   128   |   128   |  128   |
   // =========================================================
   // |                bank               |
   // | inst 0 | inst 1 | inst 2 | inst 3 |
   // |   32   |   32   |   32   |   32   |
   // =====================================
 
-  val valid = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nbank)(false.B)))))
+  // nway 路，每路 nindex 行，每行 nbank 个 bank，每行的nbank共用一个valid
+  val valid = RegInit(VecInit(Seq.fill(nway)(VecInit(Seq.fill(nindex)(false.B)))))
 
   // * should choose next addr * //
   val should_next_addr = (state === s_idle && !tlb_fill) || (state === s_save)
@@ -74,9 +75,6 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val tag_wstrb = RegInit(VecInit(Seq.fill(nway)(false.B)))
   val tag_wdata = RegInit(0.U(tagWidth.W))
 
-  // * lru * //
-  val lru = RegInit(VecInit(Seq.fill(nindex * nbank)(false.B))) // TODO:检查lru的正确性
-
   // * itlb * //
   when(tlb_fill) { tlb_fill := false.B }
   io.cpu.tlb.fill           := tlb_fill
@@ -88,6 +86,14 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     valid := 0.U.asTypeOf(valid)
   }
 
+  // * virtual index * //
+  val virtual_index = io.cpu.addr(0)(indexWidth + offsetWidth - 1, offsetWidth)
+
+  // * lru * //// TODO:检查lru的正确性，增加可拓展性，目前只支持两路的cache
+  val lru = RegInit(VecInit(Seq.fill(nindex)(false.B)))
+  // 需要替换的路号
+  val replace_way = lru(virtual_index)
+
   // * replace index * //
   val replace_index = RegInit(0.U(indexWidth.W))
   // 用于控制写入一行cache条目中的哪个bank, 一个bank可能有多次写入
@@ -95,21 +101,18 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     VecInit(Seq.fill(nway)(VecInit(Seq.fill(nbank)(VecInit(Seq.fill(instBlocksPerBank)((false.B)))))))
   )
 
-  // * virtual index * //
-  val virtual_index = io.cpu.addr(0)(indexWidth + offsetWidth - 1, offsetWidth)
-
   // * cache hit * //
-  val tag_compare_valid   = VecInit(Seq.tabulate(nway)(i => tag(i) === io.cpu.tlb.tag && valid(virtual_index)(i)))
+  val tag_compare_valid   = VecInit(Seq.tabulate(nway)(i => tag(i) === io.cpu.tlb.tag && valid(i)(virtual_index)))
   val cache_hit           = tag_compare_valid.contains(true.B)
   val cache_hit_available = cache_hit && io.cpu.tlb.translation_ok && !io.cpu.tlb.uncached
-  val sel                 = tag_compare_valid(1)
+  val select_way          = tag_compare_valid(1) // 1路命中时值为1，0路命中时值为0 //TODO:支持更多路数
 
   // |     bank        |
   // | inst 0 | inst 1 |
   // |   32   |   32   |
   // 将一个 bank 中的指令分成 instFetchNum 份，每份 INST_WID bit
   val inst_in_bank = VecInit(
-    Seq.tabulate(instFetchNum)(i => data(sel)(bank_index).asUInt((i + 1) * INST_WID - 1, i * INST_WID))
+    Seq.tabulate(instFetchNum)(i => data(select_way)(bank_index).asUInt((i + 1) * INST_WID - 1, i * INST_WID))
   )
 
   // 将 inst_in_bank 中的指令按照 bank_offset 位偏移量重新排列
@@ -142,6 +145,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // bank tag ram
   for { i <- 0 until nway } {
     // 每一个条目中有nbank个bank，每个bank存储instFetchNum个指令
+    // 每次写入cache时将写完一整个cache行
     val bank =
       Seq.fill(nbank)(
         Seq.fill(instBlocksPerBank)(
@@ -168,6 +172,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   }
 
   for { i <- 0 until nway } {
+    // 实例化了nway个tag ram
     val tag_bram = Module(new LUTRam(nindex, tagWidth))
     tag_bram.io.raddr := tag_raddr
     tag(i)            := tag_bram.io.rdata
@@ -226,13 +231,13 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           arvalid := true.B
 
           replace_index := virtual_index
-          repalce_wstrb(lru(virtual_index)).map(_.map(_ := false.B))
-          repalce_wstrb(lru(virtual_index))(0)(0)  := true.B // 从第一个bank的第一个指令块开始写入
-          tag_wstrb(lru(virtual_index))            := true.B
-          tag_wdata                                := io.cpu.tlb.tag
-          valid(virtual_index)(lru(virtual_index)) := true.B
+          repalce_wstrb(replace_way).map(_.map(_ := false.B))
+          repalce_wstrb(replace_way)(0)(0)  := true.B // 从第一个bank的第一个指令块开始写入
+          tag_wstrb(replace_way)            := true.B
+          tag_wdata                         := io.cpu.tlb.tag
+          valid(replace_way)(virtual_index) := true.B
         }.elsewhen(!io.cpu.icache_stall) {
-          lru(virtual_index) := ~sel
+          replace_way := ~select_way
           when(!io.cpu.cpu_ready) {
             state := s_save
             (1 until instFetchNum).foreach(i => saved(i).inst := inst(i))
@@ -266,12 +271,12 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         // * burst transport * //
         when(!io.axi.r.bits.last) {
           // 左移写掩码，写入下一个bank，或是同一个bank的下一个指令
-          repalce_wstrb(lru(virtual_index)) :=
-            ((repalce_wstrb(lru(virtual_index)).asUInt << 1)).asTypeOf(repalce_wstrb(lru(virtual_index)))
+          repalce_wstrb(replace_way) :=
+            ((repalce_wstrb(replace_way).asUInt << 1)).asTypeOf(repalce_wstrb(replace_way))
         }.otherwise {
           rready := false.B
-          repalce_wstrb(lru(virtual_index)).map(_.map(_ := false.B))
-          tag_wstrb(lru(virtual_index)) := false.B
+          repalce_wstrb(replace_way).map(_.map(_ := false.B))
+          tag_wstrb(replace_way) := false.B
         }
       }.elsewhen(!io.axi.r.ready) {
         state := s_idle

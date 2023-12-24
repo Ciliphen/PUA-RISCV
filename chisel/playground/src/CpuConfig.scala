@@ -28,7 +28,7 @@ case class BranchPredictorConfig(
   val phtDepth: Int = 6)
 
 case class CacheConfig(
-  nway:         Int = 2, // 路数
+  nway:         Int = 2, // 路数，目前只支持2路
   nbank:        Int, // 每个项目中的bank数
   nindex:       Int, // 每路的项目数
   bytesPerBank: Int // 每个bank中的字节数
