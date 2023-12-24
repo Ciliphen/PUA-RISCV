@@ -80,7 +80,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   decoderUnit.instFifo.info.empty        := instFifo.empty
   decoderUnit.instFifo.info.almost_empty := instFifo.almost_empty
   decoderUnit.regfile <> regfile.read
-  for (i <- 0 until (config.fuNum)) {
+  for (i <- 0 until (config.commitNum)) {
     decoderUnit.forward(i).exe      := executeUnit.decoderUnit.forward(i).exe
     decoderUnit.forward(i).mem_wreg := executeUnit.decoderUnit.forward(i).exe_mem_wreg
     decoderUnit.forward(i).mem      := memoryUnit.decoderUnit(i)

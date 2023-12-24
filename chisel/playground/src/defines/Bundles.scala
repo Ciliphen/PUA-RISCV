@@ -77,7 +77,7 @@ class ExecuteFuCtrl extends Bundle {
 }
 
 class ExecuteCtrl(implicit val config: CpuConfig) extends Bundle {
-  val inst     = Output(Vec(config.fuNum, new MemRead()))
+  val inst     = Output(Vec(config.commitNum, new MemRead()))
   val fu_stall = Output(Bool())
   val flush    = Output(Bool())
 

@@ -1,6 +1,7 @@
 package cpu
 
 import chisel3.util._
+import cpu.defines.Const._
 
 case class CpuConfig(
   val build: Boolean = false, // 是否为build模式
@@ -13,9 +14,8 @@ case class CpuConfig(
   val hasUMode: Boolean = true, // 是否有U模式
   // 模块配置
   val hasCommitBuffer: Boolean = true, // 是否有提交缓存
-  val decoderNum:      Int     = 2, // 同时访问寄存器的指令数
-  val commitNum:       Int     = 2, // 同时提交的指令数
-  val fuNum:           Int     = 2, // 功能单元数
+  val decoderNum:      Int     = 2, // 译码级最大解码的指令数，也是同时访问寄存器的指令数
+  val commitNum:       Int     = 2, // 同时提交的指令数, 也是最大发射的指令数
   val instFetchNum:    Int     = 2, // iCache取到的指令数量，目前为2和4时验证正确
   val instFifoDepth:   Int     = 8, // 指令缓存深度
   val mulClockNum:     Int     = 2, // 乘法器的时钟周期数
@@ -45,7 +45,7 @@ case class CacheConfig(
   require(isPow2(nbank))
   require(isPow2(bytesPerBank))
   require(
-    tagWidth + indexWidth + bankIndexWidth + bankOffsetWidth == 32,
+    tagWidth + indexWidth + bankIndexWidth + bankOffsetWidth == PADDR_WID,
     "basic request calculation"
   )
 }

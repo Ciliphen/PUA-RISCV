@@ -48,7 +48,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
   io.branch.flush  := branchCtrl_flush
   io.branch.target := branchCtrl.out.target
 
-  for (i <- 0 until (config.fuNum)) {
+  for (i <- 0 until (config.commitNum)) {
     alu(i).io.info     := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).info, 0.U.asTypeOf(new InstInfo()))
     alu(i).io.src_info := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).src_info, 0.U.asTypeOf(new SrcInfo()))
   }

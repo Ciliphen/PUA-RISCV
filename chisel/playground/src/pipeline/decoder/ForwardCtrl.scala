@@ -10,7 +10,7 @@ import cpu.CpuConfig
 class ForwardCtrl(implicit val config: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val in = Input(new Bundle {
-      val forward = Vec(config.fuNum, new DataForwardToDecoderUnit())
+      val forward = Vec(config.commitNum, new DataForwardToDecoderUnit())
       val regfile = Vec(config.decoderNum, new Src12Read())
     })
     val out = Output(new Bundle {
@@ -28,7 +28,7 @@ class ForwardCtrl(implicit val config: CpuConfig) extends Module {
 
   // mem优先度中
   for (i <- 0 until (config.decoderNum)) {
-    for (j <- 0 until (config.fuNum)) {
+    for (j <- 0 until (config.commitNum)) {
       when(
         io.in.forward(j).mem.wen &&
           io.in.forward(j).mem.waddr === io.in.regfile(i).src1.raddr
@@ -46,7 +46,7 @@ class ForwardCtrl(implicit val config: CpuConfig) extends Module {
 
   // exe优先度高
   for (i <- 0 until (config.decoderNum)) {
-    for (j <- 0 until (config.fuNum)) {
+    for (j <- 0 until (config.commitNum)) {
       when(
         io.in.forward(j).exe.wen && !io.in.forward(j).mem_wreg &&
           io.in.forward(j).exe.waddr === io.in.regfile(i).src1.raddr

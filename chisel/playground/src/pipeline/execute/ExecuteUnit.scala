@@ -22,7 +22,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     val decoderUnit = new Bundle {
       val forward = Output(
         Vec(
-          config.fuNum,
+          config.commitNum,
           new Bundle {
             val exe          = new RegWrite()
             val exe_mem_wreg = Bool()

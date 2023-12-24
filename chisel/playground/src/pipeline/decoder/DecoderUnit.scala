@@ -42,7 +42,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     // 输入
     val instFifo = new InstFifoDecoderUnit()
     val regfile  = Vec(config.decoderNum, new Src12Read())
-    val forward  = Input(Vec(config.fuNum, new DataForwardToDecoderUnit()))
+    val forward  = Input(Vec(config.commitNum, new DataForwardToDecoderUnit()))
     val csr      = Input(new execute.CsrDecoderUnit())
     // 输出
     val fetchUnit = new Bundle {

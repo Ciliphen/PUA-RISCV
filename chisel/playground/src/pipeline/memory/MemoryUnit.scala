@@ -17,7 +17,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
       val flush  = Bool()
       val target = UInt(PC_WID.W)
     })
-    val decoderUnit    = Output(Vec(config.fuNum, new RegWrite()))
+    val decoderUnit    = Output(Vec(config.commitNum, new RegWrite()))
     val csr            = Flipped(new CsrMemoryUnit())
     val writeBackStage = Output(new MemoryUnitWriteBackUnit())
     val dataMemory     = new DataMemoryAccess_DataMemory()
