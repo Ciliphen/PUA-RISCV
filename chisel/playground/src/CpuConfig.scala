@@ -28,18 +28,25 @@ case class BranchPredictorConfig(
   val phtDepth: Int = 6)
 
 case class CacheConfig(
-  nway:         Int = 2, // 路数，目前只支持2路
-  nbank:        Int, // 每个项目中的bank数
-  nindex:       Int, // 每路的项目数
-  bytesPerBank: Int // 每个bank中的字节数
+  cacheType: String = "icache" // icache, dcache
 ) {
-  val config          = CpuConfig()
+// ==========================================================
+// |        tag         |  index |         offset           |
+// |                    |        | bank index | bank offset |
+// ==========================================================
+  val config = CpuConfig()
+  val nway   = 2 // 路数，目前只支持2路
+  val nbank  = if (cacheType == "icache") 4 else 8 // 每个项目中的bank数
+  val nindex = if (cacheType == "icache") 64 else 128 // 每路的项目数
+  val bitsPerBank = // 每个bank的位数
+    if (cacheType == "icache") INST_WID * config.instFetchNum
+    else XLEN
+  val bytesPerBank    = bitsPerBank / 8 //每个bank中的字节数
   val indexWidth      = log2Ceil(nindex) // index的位宽
-  val bankIndexWidth  = log2Ceil(nbank)
-  val bankOffsetWidth = log2Ceil(bytesPerBank)
+  val bankIndexWidth  = log2Ceil(nbank) // bank index的位宽
+  val bankOffsetWidth = log2Ceil(bytesPerBank) // bank offset的位宽
   val offsetWidth     = bankIndexWidth + bankOffsetWidth // offset的位宽
   val tagWidth        = 32 - indexWidth - offsetWidth // tag的位宽
-  val bitsPerBank     = bytesPerBank * 8
   require(isPow2(nindex))
   require(isPow2(nway))
   require(isPow2(nbank))

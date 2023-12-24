@@ -14,12 +14,8 @@ class Cache(implicit config: CpuConfig) extends Module {
     val axi  = new AXI()
   })
 
-  // 每个 bank 存 2 条 32 bit 指令
-  implicit val iCacheConfig =
-    CacheConfig(nindex = 64, nbank = 4, bytesPerBank = (INST_WID / 8) * config.instFetchNum)
-  // 每个 bank 存 1 条 XLEN bit 数据
-  implicit val dCacheConfig =
-    CacheConfig(nindex = 128, nbank = 8, bytesPerBank = XLEN / 8)
+  implicit val iCacheConfig = CacheConfig(cacheType = "icache")
+  implicit val dCacheConfig = CacheConfig(cacheType = "dcache")
 
   val icache        = Module(new ICache(iCacheConfig))
   val dcache        = Module(new DCache(dCacheConfig))
