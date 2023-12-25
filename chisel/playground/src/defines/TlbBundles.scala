@@ -2,6 +2,8 @@ package cpu.defines
 
 import chisel3._
 import chisel3.util._
+import cpu.defines.Const._
+import cpu.CacheConfig
 
 sealed trait Sv39Const extends CoreParameter {
   val PAddrBits = PADDR_WID
@@ -113,23 +115,26 @@ sealed trait Sv39Const extends CoreParameter {
 }
 
 class Tlb_ICache extends Bundle {
-  val fill           = Input(Bool())
-  val icache_is_save = Input(Bool())
-  val uncached       = Output(Bool())
+  val cacheConfig = CacheConfig("icache")
+
+  val fill     = Input(Bool())
+  val uncached = Output(Bool())
 
   val translation_ok = Output(Bool())
   val hit            = Output(Bool())
-  val tag            = Output(UInt(20.W))
-  val pa             = Output(UInt(32.W))
+  val tag            = Output(UInt(cacheConfig.tagWidth.W))
+  val pa             = Output(UInt(PADDR_WID.W))
 }
 
 class Tlb_DCache extends Bundle {
-  val fill           = Input(Bool())
-  val uncached       = Output(Bool())
-  val tlb1_ok        = Output(Bool())
+  val cacheConfig = CacheConfig("dcache")
+
+  val fill     = Input(Bool())
+  val uncached = Output(Bool())
+  val tlb1_ok  = Output(Bool())
 
   val translation_ok = Output(Bool())
   val hit            = Output(Bool())
-  val tag            = Output(UInt(20.W))
-  val pa             = Output(UInt(32.W))
+  val tag            = Output(UInt(cacheConfig.tagWidth.W))
+  val pa             = Output(UInt(PADDR_WID.W))
 }
