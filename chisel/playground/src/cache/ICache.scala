@@ -121,7 +121,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   )
 
   // * cache hit * //
-  val tag_compare_valid   = VecInit(Seq.tabulate(nway)(i => tag(i) === io.cpu.tlb.tag && valid(i)(virtual_index)))
+  val tag_compare_valid   = VecInit(Seq.tabulate(nway)(i => tag(i) === io.cpu.tlb.ptag && valid(i)(virtual_index)))
   val cache_hit           = tag_compare_valid.contains(true.B)
   val cache_hit_available = cache_hit && io.cpu.tlb.translation_ok && !io.cpu.tlb.uncached
   val select_way          = tag_compare_valid(1) // 1路命中时值为1，0路命中时值为0 //TODO:支持更多路数
@@ -236,14 +236,14 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           tlb_fill := true.B
         }.elsewhen(io.cpu.tlb.uncached) {
           state   := s_uncached
-          ar.addr := io.cpu.tlb.pa
+          ar.addr := io.cpu.tlb.paddr
           ar.len  := uncached_len.U
           ar.size := uncached_size.U
           arvalid := true.B
         }.elsewhen(!cache_hit) {
           state := s_replace
           // 取指时按bank块取指
-          ar.addr := Cat(io.cpu.tlb.pa(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
+          ar.addr := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
           ar.len  := cached_len.U
           ar.size := cached_size.U
           arvalid := true.B
@@ -252,7 +252,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           replace_wstrb(replace_way).map(_.map(_ := false.B))
           replace_wstrb(replace_way)(0)(0)  := true.B // 从第一个bank的第一个指令块开始写入
           tag_wstrb(replace_way)            := true.B
-          tag_wdata                         := io.cpu.tlb.tag
+          tag_wdata                         := io.cpu.tlb.ptag
           valid(replace_way)(virtual_index) := true.B
         }.elsewhen(!io.cpu.icache_stall) {
           replace_way := ~select_way

@@ -198,7 +198,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     tagRam.io.waddr := victim.index
     tagRam.io.wdata := tag_wdata
 
-    tag_compare_valid(i) := tag(i) === io.cpu.tlb.tag && valid(index)(i) && io.cpu.tlb.translation_ok
+    tag_compare_valid(i) := tag(i) === io.cpu.tlb.ptag && valid(index)(i) && io.cpu.tlb.translation_ok
     cache_data_forward(i) := Mux(
       last_waddr === bank_addr,
       ((last_wstrb(i) & last_wdata) | (data(i) & (~last_wstrb(i)))),
@@ -290,8 +290,8 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
               writeFifo.io.enq.valid := true.B
               writeFifo.io.enq.bits.addr := Mux(
                 io.cpu.rlen === 2.U,
-                Cat(io.cpu.tlb.pa(31, 2), 0.U(2.W)),
-                io.cpu.tlb.pa
+                Cat(io.cpu.tlb.paddr(31, 2), 0.U(2.W)),
+                io.cpu.tlb.paddr
               )
               writeFifo.io.enq.bits.size := io.cpu.rlen
               writeFifo.io.enq.bits.strb := io.cpu.wstrb
@@ -303,7 +303,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
               current_mmio_write_saved := false.B
             }
           }.elsewhen(!(writeFifo.io.deq.valid || writeFifo_axi_busy)) {
-            ar.addr := Mux(io.cpu.rlen === 2.U, Cat(io.cpu.tlb.pa(31, 2), 0.U(2.W)), io.cpu.tlb.pa)
+            ar.addr := Mux(io.cpu.rlen === 2.U, Cat(io.cpu.tlb.paddr(31, 2), 0.U(2.W)), io.cpu.tlb.paddr)
             ar.len  := 0.U
             ar.size := io.cpu.rlen
             arvalid := true.B
@@ -460,7 +460,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             }
           }
           when(!ar_handshake) {
-            ar.addr                   := Cat(io.cpu.tlb.pa(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
+            ar.addr                   := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
             ar.len                    := cached_len.U
             ar.size                   := cached_size.U // 8 字节
             arvalid                   := true.B
@@ -468,7 +468,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             ar_handshake              := true.B
             victim.wstrb(replace_way) := ~0.U(AXI_STRB_WID.W)
             tag_wstrb(replace_way)    := true.B
-            tag_wdata                 := io.cpu.tlb.tag
+            tag_wdata                 := io.cpu.tlb.ptag
           }
           when(io.axi.ar.fire) {
             tag_wstrb(replace_way) := false.B

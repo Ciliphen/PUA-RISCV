@@ -18,8 +18,8 @@ class DTlbL1 extends Module {
   io.cache.translation_ok := true.B
   io.cache.hit            := true.B
   io.cache.tlb1_ok        := true.B
-  io.cache.tag            := io.addr(PADDR_WID - 1, cacheConfig.offsetWidth + cacheConfig.indexWidth)
-  io.cache.pa             := Cat(io.cache.tag, io.addr(cacheConfig.offsetWidth + cacheConfig.indexWidth - 1, 0))
+  io.cache.ptag           := io.addr(PADDR_WID - 1, cacheConfig.offsetWidth + cacheConfig.indexWidth)
+  io.cache.paddr          := Cat(io.cache.ptag, io.addr(cacheConfig.offsetWidth + cacheConfig.indexWidth - 1, 0))
 
   println("----------------------------------------")
   println("DTlbL1")

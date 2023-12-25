@@ -122,8 +122,8 @@ class Tlb_ICache extends Bundle {
 
   val translation_ok = Output(Bool())
   val hit            = Output(Bool())
-  val tag            = Output(UInt(cacheConfig.tagWidth.W))
-  val pa             = Output(UInt(PADDR_WID.W))
+  val ptag            = Output(UInt(cacheConfig.tagWidth.W))
+  val paddr             = Output(UInt(PADDR_WID.W))
 }
 
 class Tlb_DCache extends Bundle {
@@ -135,6 +135,6 @@ class Tlb_DCache extends Bundle {
 
   val translation_ok = Output(Bool())
   val hit            = Output(Bool())
-  val tag            = Output(UInt(cacheConfig.tagWidth.W))
-  val pa             = Output(UInt(PADDR_WID.W))
+  val ptag            = Output(UInt(cacheConfig.tagWidth.W))
+  val paddr             = Output(UInt(PADDR_WID.W))
 }
