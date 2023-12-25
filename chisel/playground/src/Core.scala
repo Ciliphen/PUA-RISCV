@@ -119,6 +119,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   io.data.wdata                    := memoryUnit.dataMemory.out.wdata
   io.data.addr                     := memoryUnit.dataMemory.out.addr
   io.data.wstrb                    := memoryUnit.dataMemory.out.wstrb
+  io.data.exe_addr                 := executeUnit.dataMemory.addr
 
   writeBackStage.memoryUnit <> memoryUnit.writeBackStage
   writeBackStage.ctrl.allow_to_go := ctrl.writeBackUnit.allow_to_go

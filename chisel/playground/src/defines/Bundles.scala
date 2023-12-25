@@ -103,10 +103,10 @@ class WriteBackCtrl extends Bundle {
 // cpu to icache
 class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   // read inst request from cpu
-  val req       = Output(Bool())
+  val req                     = Output(Bool())
   val complete_single_request = Output(Bool()) // !cpu_stall
-  val addr      = Output(Vec(config.instFetchNum, UInt(INST_ADDR_WID.W))) // virtual address and next virtual address
-  val fence     = Output(Bool())
+  val addr                    = Output(Vec(config.instFetchNum, UInt(INST_ADDR_WID.W))) // virtual address and next virtual address
+  val fence                   = Output(Bool())
 
   // read inst result
   val inst         = Input(Vec(config.instFetchNum, UInt(XLEN.W)))
@@ -120,14 +120,15 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
 
 // cpu to dcache
 class Cache_DCache extends Bundle {
-  val addr      = Output(UInt(DATA_ADDR_WID.W))
-  val rlen      = Output(UInt(AXI_LEN_WID.W))
-  val en        = Output(Bool())
-  val wen       = Output(Bool())
-  val wdata     = Output(UInt(XLEN.W))
+  val exe_addr                = Output(UInt(DATA_ADDR_WID.W))
+  val addr                    = Output(UInt(DATA_ADDR_WID.W))
+  val rlen                    = Output(UInt(AXI_LEN_WID.W))
+  val en                      = Output(Bool())
+  val wen                     = Output(Bool())
+  val wdata                   = Output(UInt(XLEN.W))
   val complete_single_request = Output(Bool())
-  val fence     = Output(Bool())
-  val wstrb     = Output(UInt(AXI_STRB_WID.W))
+  val fence                   = Output(Bool())
+  val wstrb                   = Output(UInt(AXI_STRB_WID.W))
 
   val rdata        = Input(UInt(XLEN.W))
   val acc_err      = Input(Bool())

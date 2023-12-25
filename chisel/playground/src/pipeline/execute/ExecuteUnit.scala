@@ -31,6 +31,9 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
       )
     }
     val memoryStage = Output(new ExecuteUnitMemoryUnit())
+    val dataMemory = new Bundle {
+      val addr = Output(UInt(DATA_ADDR_WID.W))
+    }
   })
 
   val fu = Module(new Fu()).io
@@ -104,6 +107,8 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   fu.branch.pred_branch   := io.executeStage.inst0.jb_info.pred_branch
   fu.branch.jump_regiser  := io.executeStage.inst0.jb_info.jump_regiser
   fu.branch.branch_target := io.executeStage.inst0.jb_info.branch_target
+
+  io.dataMemory.addr := fu.dataMemory.addr
 
   io.bpu.pc               := io.executeStage.inst0.pc
   io.bpu.update_pht_index := io.executeStage.inst0.jb_info.update_pht_index

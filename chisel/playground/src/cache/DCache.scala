@@ -83,6 +83,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // ==========================================================
 
   val index      = io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
+  val exe_addr   = io.cpu.exe_addr(indexWidth + offsetWidth - 1, log2Ceil(XLEN / 8))
   val bank_addr  = io.cpu.addr(indexWidth + offsetWidth - 1, log2Ceil(XLEN / 8)) // TODO：目前临时使用一下
   val bank_index = io.cpu.addr(bankIndexWidth + bankOffsetWidth - 1, bankOffsetWidth)
   val bank_offset =
@@ -136,15 +137,16 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val ar_handshake = RegInit(false.B)
   val aw_handshake = RegInit(false.B)
 
+  val should_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
   //
-  val data_raddr    = Mux(victim.valid, victim_addr, bank_addr)
+  val data_raddr    = Mux(victim.valid, victim_addr, Mux(should_next_addr, exe_addr, bank_addr))
   val replace_wstrb = Wire(Vec(nway, UInt(AXI_STRB_WID.W)))
   val replace_waddr = Mux(victim.valid, victim.waddr, bank_addr)
   val replace_wdata = Mux(state === s_replace, io.axi.r.bits.data, io.cpu.wdata)
 
   val replace_way = lru(index)
 
-  val tag_raddr = Mux(victim.valid, victim.index, index)
+  val tag_raddr = Mux(victim.valid, victim.index, Mux(should_next_addr, exe_addr, index))
   val tag_wstrb = RegInit(VecInit(Seq.fill(nway)(false.B)))
   val tag_wdata = RegInit(0.U(tagWidth.W))
 

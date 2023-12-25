@@ -22,6 +22,9 @@ class Fu(implicit val config: CpuConfig) extends Module {
       }
     )
     val stall_req = Output(Bool())
+    val dataMemory = new Bundle {
+      val addr = Output(UInt(DATA_ADDR_WID.W))
+    }
     val branch = new Bundle {
       val pred_branch   = Input(Bool())
       val jump_regiser  = Input(Bool())
@@ -75,4 +78,13 @@ class Fu(implicit val config: CpuConfig) extends Module {
 
   io.inst(1).result.alu := alu(1).io.result
   io.inst(1).result.mdu := mdu.result
+
+  val mem_addr = Seq.tabulate(config.commitNum)(i =>
+    Mux(
+      LSUOpType.isLoad(io.inst(i).info.op),
+      io.inst(i).src_info.src1_data + io.inst(i).info.imm,
+      io.inst(i).src_info.src1_data
+    )
+  )
+  io.dataMemory.addr := Mux(io.inst(0).info.fusel === FuType.lsu, mem_addr(0), mem_addr(1))
 }
