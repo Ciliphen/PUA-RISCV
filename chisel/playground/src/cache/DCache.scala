@@ -51,12 +51,18 @@ class WriteBufferUnit extends Bundle {
 }
 
 class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Module {
-  val nway:           Int = cacheConfig.nway
-  val nindex:         Int = cacheConfig.nindex
-  val nbank:          Int = cacheConfig.nbank
-  val tagWidth:       Int = cacheConfig.tagWidth
-  val burstSize:      Int = 16
-  val writeFifoDepth: Int = 4
+  val nway            = cacheConfig.nway
+  val nindex          = cacheConfig.nindex
+  val nbank           = cacheConfig.nbank
+  val instFetchNum    = config.instFetchNum
+  val bankOffsetWidth = cacheConfig.bankOffsetWidth
+  val bankIndexWidth  = cacheConfig.offsetWidth - bankOffsetWidth
+  val bytesPerBank    = cacheConfig.bytesPerBank
+  val tagWidth        = cacheConfig.tagWidth
+  val indexWidth      = cacheConfig.indexWidth
+  val offsetWidth     = cacheConfig.offsetWidth
+  val bitsPerBank     = cacheConfig.bitsPerBank
+  val writeFifoDepth  = 4
 
   // 每个bank中存AXI_DATA_WID位的数据
   // TODO:目前的实现只保证了AXI_DATA_WID为XLEN的情况下的正确性
@@ -70,6 +76,20 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // * fsm * //
   val s_idle :: s_uncached :: s_writeback :: s_replace :: s_save :: Nil = Enum(5)
   val state                                                             = RegInit(s_idle)
+
+  // ==========================================================
+  // |        tag         |  index |         offset           |
+  // |                    |        | bank index | bank offset |
+  // ==========================================================
+
+  val index      = io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
+  val bank_addr  = io.cpu.addr(indexWidth + offsetWidth - 1, log2Ceil(XLEN / 8)) // TODO：目前临时使用一下
+  val bank_index = io.cpu.addr(bankIndexWidth + bankOffsetWidth - 1, bankOffsetWidth)
+  val bank_offset =
+    if (bankOffsetWidth > log2Ceil(XLEN / 8))
+      io.cpu.addr(bankOffsetWidth - 1, log2Ceil(XLEN / 8)) // 保证地址对齐
+    else
+      0.U
 
   val tlb_fill = RegInit(false.B)
   io.cpu.tlb.fill := tlb_fill
@@ -92,9 +112,9 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   writeFifo.io.enq.bits  := 0.U.asTypeOf(new WriteBufferUnit())
   writeFifo.io.deq.ready := false.B
 
-  val axi_cnt        = Counter(burstSize)
-  val read_ready_cnt = RegInit(0.U(4.W))
-  val read_ready_set = RegInit(0.U(6.W))
+  val axi_cnt          = Counter(cached_len + 1)
+  val read_ready_cnt   = RegInit(0.U(4.W))
+  val read_ready_index = RegInit(0.U(6.W))
 
   // * victim cache * //
   val victim = RegInit(0.U.asTypeOf(new Bundle {
@@ -105,10 +125,10 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     val working   = Bool()
     val writeback = Bool()
   }))
-  val victim_cnt  = Counter(burstSize)
+  val victim_cnt  = Counter(cached_len + 1)
   val victim_addr = Cat(victim.index, victim_cnt.value)
 
-  val fset = io.cpu.addr(11, 6)
+  val fence_index = index
   val fence = RegInit(0.U.asTypeOf(new Bundle {
     val working = Bool()
   }))
@@ -117,12 +137,15 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val ar_handshake = RegInit(false.B)
   val aw_handshake = RegInit(false.B)
 
-  val data_raddr = Mux(victim.valid, victim_addr, io.cpu.addr(11, 2))
-  val data_wstrb = Wire(Vec(nway, UInt(AXI_STRB_WID.W)))
-  val data_waddr = Mux(victim.valid, victim.waddr, io.cpu.addr(11, 2))
-  val data_wdata = Mux(state === s_replace, io.axi.r.bits.data, io.cpu.wdata)
+  //
+  val data_raddr    = Mux(victim.valid, victim_addr, bank_addr)
+  val replace_wstrb = Wire(Vec(nway, UInt(AXI_STRB_WID.W)))
+  val replace_waddr = Mux(victim.valid, victim.waddr, bank_addr)
+  val replace_wdata = Mux(state === s_replace, io.axi.r.bits.data, io.cpu.wdata)
 
-  val tag_raddr = Mux(victim.valid, victim.index, io.cpu.addr(11, 6))
+  val replace_way = lru(index)
+
+  val tag_raddr = Mux(victim.valid, victim.index, index)
   val tag_wstrb = RegInit(VecInit(Seq.fill(nway)(false.B)))
   val tag_wdata = RegInit(0.U(tagWidth.W))
 
@@ -136,10 +159,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val mmio_write_stall = io.cpu.tlb.uncached && io.cpu.wen.orR && !writeFifo.io.enq.ready
   val cached_stall     = !io.cpu.tlb.uncached && !cache_hit
 
-  val sel = tag_compare_valid(1)
-
-  // * physical index * //
-  val physical_index = io.cpu.addr(11, 6)
+  val select_way = tag_compare_valid(1)
 
   val dcache_stall = Mux(
     state === s_idle && !tlb_fill,
@@ -151,12 +171,12 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val saved_rdata = RegInit(0.U(XLEN.W))
 
   // forward last stored data in data bram
-  val last_waddr         = RegNext(data_waddr)
+  val last_waddr         = RegNext(replace_waddr)
   val last_wstrb         = RegInit(VecInit(Seq.fill(nway)(0.U(XLEN.W))))
-  val last_wdata         = RegNext(data_wdata)
+  val last_wdata         = RegNext(replace_wdata)
   val cache_data_forward = Wire(Vec(nway, UInt(XLEN.W)))
 
-  io.cpu.rdata := Mux(state === s_save, saved_rdata, cache_data_forward(sel))
+  io.cpu.rdata := Mux(state === s_save, saved_rdata, cache_data_forward(select_way))
 
   // bank tagv ram
   for { i <- 0 until nway } {
@@ -165,10 +185,10 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     bank.io.raddr := data_raddr
     data(i)       := bank.io.rdata
 
-    bank.io.wen   := data_wstrb(i).orR
-    bank.io.waddr := data_waddr
-    bank.io.wdata := data_wdata
-    bank.io.wstrb := data_wstrb(i)
+    bank.io.wen   := replace_wstrb(i).orR
+    bank.io.waddr := replace_waddr
+    bank.io.wdata := replace_wdata
+    bank.io.wstrb := replace_wstrb(i)
 
     val tagRam = Module(new LUTRam(nindex, tagWidth))
     tagRam.io.raddr := tag_raddr
@@ -178,22 +198,22 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     tagRam.io.waddr := victim.index
     tagRam.io.wdata := tag_wdata
 
-    tag_compare_valid(i) := tag(i) === io.cpu.tlb.tag && valid(physical_index)(i) && io.cpu.tlb.translation_ok
+    tag_compare_valid(i) := tag(i) === io.cpu.tlb.tag && valid(index)(i) && io.cpu.tlb.translation_ok
     cache_data_forward(i) := Mux(
-      last_waddr === io.cpu.addr(11, 2),
+      last_waddr === bank_addr,
       ((last_wstrb(i) & last_wdata) | (data(i) & (~last_wstrb(i)))),
       data(i)
     )
 
-    data_wstrb(i) := Mux(
+    replace_wstrb(i) := Mux(
       tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle && !tlb_fill,
       io.cpu.wstrb,
       victim.wstrb(i)
     )
 
-    last_wstrb(i) := Cat((AXI_STRB_WID - 1 to 0 by -1).map(j => Fill(8, data_wstrb(i)(j))))
+    last_wstrb(i) := Cat((AXI_STRB_WID - 1 to 0 by -1).map(j => Fill(8, replace_wstrb(i)(j))))
   }
-  val write_buffer_axi_busy = RegInit(false.B)
+  val writeFifo_axi_busy = RegInit(false.B)
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
   val arvalid = RegInit(false.B)
@@ -222,7 +242,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val current_mmio_write_saved = RegInit(false.B)
 
   // write buffer
-  when(write_buffer_axi_busy) { // To implement SC memory ordering, when store buffer busy, axi is unseable.
+  when(writeFifo_axi_busy) { // To implement SC memory ordering, when store buffer busy, axi is unseable.
     when(io.axi.aw.fire) {
       awvalid := false.B
     }
@@ -231,7 +251,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       w.last := false.B
     }
     when(io.axi.b.fire) {
-      write_buffer_axi_busy := false.B
+      writeFifo_axi_busy := false.B
     }
   }.elsewhen(writeFifo.io.deq.valid) {
     writeFifo.io.deq.ready := writeFifo.io.deq.valid
@@ -241,11 +261,11 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       w.data  := writeFifo.io.deq.bits.data
       w.strb  := writeFifo.io.deq.bits.strb
     }
-    aw.len                := 0.U
-    awvalid               := true.B
-    w.last                := true.B
-    wvalid                := true.B
-    write_buffer_axi_busy := true.B
+    aw.len             := 0.U
+    awvalid            := true.B
+    w.last             := true.B
+    wvalid             := true.B
+    writeFifo_axi_busy := true.B
   }
 
   switch(state) {
@@ -282,7 +302,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             when(io.cpu.dcache_ready && io.cpu.cpu_ready) {
               current_mmio_write_saved := false.B
             }
-          }.elsewhen(!(writeFifo.io.deq.valid || write_buffer_axi_busy)) {
+          }.elsewhen(!(writeFifo.io.deq.valid || writeFifo_axi_busy)) {
             ar.addr := Mux(io.cpu.rlen === 2.U, Cat(io.cpu.tlb.pa(31, 2), 0.U(2.W)), io.cpu.tlb.pa)
             ar.len  := 0.U
             ar.size := io.cpu.rlen
@@ -294,42 +314,42 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           when(!cache_hit) {
             state := s_replace
             axi_cnt.reset()
-            victim.index := physical_index
+            victim.index := index
             victim_cnt.reset()
-            read_ready_set   := physical_index
+            read_ready_index := index
             read_ready_cnt   := 0.U
-            victim.waddr     := Cat(physical_index, 0.U(4.W))
+            victim.waddr     := Cat(index, 0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
             victim.valid     := true.B
-            victim.writeback := dirty(physical_index)(lru(physical_index))
+            victim.writeback := dirty(index)(replace_way)
           }.otherwise {
             when(io.cpu.dcache_ready) {
               // update lru and mark dirty
-              lru(physical_index) := ~sel
+              replace_way := ~select_way
               when(io.cpu.wen.orR) {
-                dirty(physical_index)(sel) := true.B
+                dirty(index)(select_way) := true.B
               }
               when(!io.cpu.cpu_ready) {
-                saved_rdata := cache_data_forward(sel)
+                saved_rdata := cache_data_forward(select_way)
                 state       := s_save
               }
             }
           }
         }
       }.elsewhen(io.cpu.fence) {
-        when(dirty(fset).contains(true.B)) {
-          when(!(writeFifo.io.deq.valid || write_buffer_axi_busy)) {
+        when(dirty(fence_index).contains(true.B)) {
+          when(!(writeFifo.io.deq.valid || writeFifo_axi_busy)) {
             state := s_writeback
             axi_cnt.reset()
-            victim.index := fset
+            victim.index := fence_index
             victim_cnt.reset()
-            read_ready_set := fset
-            read_ready_cnt := 0.U
-            victim.valid   := true.B
+            read_ready_index := fence_index
+            read_ready_cnt   := 0.U
+            victim.valid     := true.B
           }
         }.otherwise {
-          when(valid(fset).contains(true.B)) {
-            valid(fset)(0) := false.B
-            valid(fset)(1) := false.B
+          when(valid(fence_index).contains(true.B)) {
+            valid(fence_index)(0) := false.B
+            valid(fence_index)(1) := false.B
           }
           state := s_save
         }
@@ -347,18 +367,18 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     }
     is(s_writeback) {
       when(fence.working) {
-        when(victim_cnt.value =/= (burstSize - 1).U) {
+        when(victim_cnt.value =/= (cached_len).U) {
           victim_cnt.inc()
         }
-        read_ready_set              := victim.index
+        read_ready_index            := victim.index
         read_ready_cnt              := victim_cnt.value
-        read_buffer(read_ready_cnt) := data(dirty(fset)(1))
+        read_buffer(read_ready_cnt) := data(dirty(fence_index)(1))
         when(!aw_handshake) {
-          aw.addr      := Cat(tag(dirty(fset)(1)), fset, 0.U(6.W))
+          aw.addr      := Cat(tag(dirty(fence_index)(1)), fence_index, 0.U(6.W))
           aw.len       := cached_len.U
           aw.size      := cached_size.U
           awvalid      := true.B
-          w.data       := data(dirty(fset)(1))
+          w.data       := data(dirty(fence_index)(1))
           w.strb       := ~0.U(AXI_STRB_WID.W)
           w.last       := false.B
           wvalid       := true.B
@@ -373,21 +393,21 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           }.otherwise {
             w.data := Mux(
               ((axi_cnt.value + 1.U) === read_ready_cnt),
-              data(dirty(fset)(1)),
+              data(dirty(fence_index)(1)),
               read_buffer(axi_cnt.value + 1.U)
             )
             axi_cnt.inc()
-            when(axi_cnt.value + 1.U === (burstSize - 1).U) {
+            when(axi_cnt.value + 1.U === (cached_len).U) {
               w.last := true.B
             }
           }
         }
         when(io.axi.b.valid) {
-          dirty(fset)(dirty(fset)(1)) := false.B
-          fence.working               := false.B
-          victim.valid                := false.B
-          acc_err                     := io.axi.b.bits.resp =/= RESP_OKEY.U
-          state                       := s_idle
+          dirty(fence_index)(dirty(fence_index)(1)) := false.B
+          fence.working                             := false.B
+          victim.valid                              := false.B
+          acc_err                                   := io.axi.b.bits.resp =/= RESP_OKEY.U
+          state                                     := s_idle
         }
       }.otherwise {
         aw_handshake  := false.B
@@ -396,22 +416,22 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       }
     }
     is(s_replace) {
-      when(!(writeFifo.io.deq.valid || write_buffer_axi_busy)) {
+      when(!(writeFifo.io.deq.valid || writeFifo_axi_busy)) {
         when(victim.working) {
           when(victim.writeback) {
-            when(victim_cnt.value =/= (burstSize - 1).U) {
+            when(victim_cnt.value =/= (cached_len).U) {
               victim_cnt.inc()
             }
-            read_ready_set              := victim.index
+            read_ready_index            := victim.index
             read_ready_cnt              := victim_cnt.value
-            read_buffer(read_ready_cnt) := data(lru(physical_index))
+            read_buffer(read_ready_cnt) := data(replace_way)
             when(!aw_handshake) {
-              aw.addr      := Cat(tag(lru(physical_index)), physical_index, 0.U(6.W))
+              aw.addr      := Cat(tag(replace_way), index, 0.U(offsetWidth.W))
               aw.len       := cached_len.U
               aw.size      := cached_size.U
               awvalid      := true.B
               aw_handshake := true.B
-              w.data       := data(lru(physical_index))
+              w.data       := data(replace_way)
               w.strb       := ~0.U(AXI_STRB_WID.W)
               w.last       := false.B
               wvalid       := true.B
@@ -425,39 +445,39 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
               }.otherwise {
                 w.data := Mux(
                   ((axi_cnt.value + 1.U) === read_ready_cnt),
-                  data(lru(physical_index)),
+                  data(replace_way),
                   read_buffer(axi_cnt.value + 1.U)
                 )
                 axi_cnt.inc()
-                when(axi_cnt.value + 1.U === (burstSize - 1).U) {
+                when(axi_cnt.value + 1.U === (cached_len).U) {
                   w.last := true.B
                 }
               }
             }
             when(io.axi.b.valid) {
-              dirty(physical_index)(lru(physical_index)) := false.B
-              victim.writeback                           := false.B
+              dirty(index)(replace_way) := false.B
+              victim.writeback          := false.B
             }
           }
           when(!ar_handshake) {
-            ar.addr                           := Cat(io.cpu.tlb.pa(31, 6), 0.U(6.W))
-            ar.len                            := cached_len.U
-            ar.size                           := cached_size.U // 8 字节
-            arvalid                           := true.B
-            rready                            := true.B
-            ar_handshake                      := true.B
-            victim.wstrb(lru(physical_index)) := ~0.U(AXI_STRB_WID.W)
-            tag_wstrb(lru(physical_index))    := true.B
-            tag_wdata                         := io.cpu.tlb.pa(31, 12)
+            ar.addr                   := Cat(io.cpu.tlb.pa(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
+            ar.len                    := cached_len.U
+            ar.size                   := cached_size.U // 8 字节
+            arvalid                   := true.B
+            rready                    := true.B
+            ar_handshake              := true.B
+            victim.wstrb(replace_way) := ~0.U(AXI_STRB_WID.W)
+            tag_wstrb(replace_way)    := true.B
+            tag_wdata                 := io.cpu.tlb.tag
           }
           when(io.axi.ar.fire) {
-            tag_wstrb(lru(physical_index)) := false.B
-            arvalid                        := false.B
+            tag_wstrb(replace_way) := false.B
+            arvalid                := false.B
           }
           when(io.axi.r.fire) {
             when(io.axi.r.bits.last) {
-              rready                            := false.B
-              victim.wstrb(lru(physical_index)) := 0.U
+              rready                    := false.B
+              victim.wstrb(replace_way) := 0.U
             }.otherwise {
               victim.waddr := victim.waddr + 1.U
             }
@@ -465,8 +485,8 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           when(
             (!victim.writeback || io.axi.b.valid) && ((ar_handshake && io.axi.r.valid && io.axi.r.bits.last) || (ar_handshake && !rready))
           ) {
-            victim.valid                               := false.B
-            valid(physical_index)(lru(physical_index)) := true.B
+            victim.valid              := false.B
+            valid(index)(replace_way) := true.B
           }
           when(!victim.valid) {
             victim.working := false.B
@@ -486,4 +506,16 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       }
     }
   }
+
+  println("----------------------------------------")
+  println("DCache: ")
+  println("nindex: " + nindex)
+  println("nbank: " + nbank)
+  println("bitsPerBank: " + bitsPerBank)
+  println("bankOffsetWidth: " + bankOffsetWidth)
+  println("bankIndexWidth: " + bankIndexWidth)
+  println("tagWidth: " + tagWidth)
+  println("indexWidth: " + indexWidth)
+  println("offsetWidth: " + offsetWidth)
+  println("----------------------------------------")
 }

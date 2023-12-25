@@ -73,7 +73,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val instBlocksPerBank = bitsPerBank / AXI_DATA_WID
 
   val bank_index  = io.cpu.addr(0)(offsetWidth - 1, bankOffsetWidth)
-  val bank_offset = io.cpu.addr(0)(bankOffsetWidth - 1, 2) // PC低2位必定是0
+  val bank_offset = io.cpu.addr(0)(bankOffsetWidth - 1, log2Ceil(INST_WID / 8)) // PC低2位必定是0
 
   val tlb_fill = RegInit(false.B)
   // * fsm * //
@@ -97,8 +97,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   // * itlb * //
   when(tlb_fill) { tlb_fill := false.B }
-  io.cpu.tlb.fill           := tlb_fill
-  io.cpu.tlb.icache_is_save := (state === s_save)
+  io.cpu.tlb.fill := tlb_fill
 
   // * fence * //
   // fence指令时清空cache，等同于将所有valid位置0
@@ -309,12 +308,14 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     }
   }
 
-  // println("ICache: ")
-  // println("nindex: " + nindex)
-  // println("nbank: " + nbank)
-  // println("bankOffsetWidth: " + bankOffsetWidth)
-  // println("bytesPerBank: " + bytesPerBank)
-  // println("tagWidth: " + tagWidth)
-  // println("indexWidth: " + indexWidth)
-  // println("offsetWidth: " + offsetWidth)
+  println("----------------------------------------")
+  println("ICache: ")
+  println("nindex: " + nindex)
+  println("nbank: " + nbank)
+  println("bankOffsetWidth: " + bankOffsetWidth)
+  println("bytesPerBank: " + bytesPerBank)
+  println("tagWidth: " + tagWidth)
+  println("indexWidth: " + indexWidth)
+  println("offsetWidth: " + offsetWidth)
+  println("----------------------------------------")
 }
