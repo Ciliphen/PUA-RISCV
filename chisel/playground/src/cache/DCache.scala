@@ -74,7 +74,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   })
 
   // * fsm * //
-  val s_idle :: s_uncached :: s_writeback :: s_replace :: s_save :: Nil = Enum(5)
+  val s_idle :: s_uncached :: s_writeback :: s_replace :: s_wait :: Nil = Enum(5)
   val state                                                             = RegInit(s_idle)
 
   // ==========================================================
@@ -112,15 +112,14 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   writeFifo.io.enq.bits  := 0.U.asTypeOf(new WriteBufferUnit())
   writeFifo.io.deq.ready := false.B
 
-  val axi_cnt          = Counter(cached_len + 1)
-  val read_ready_cnt   = RegInit(0.U(4.W))
-  val read_ready_index = RegInit(0.U(6.W))
+  val axi_cnt        = Counter(cached_len + 1)
+  val read_ready_cnt = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
 
   // * victim cache * //
   val victim = RegInit(0.U.asTypeOf(new Bundle {
     val valid     = Bool()
-    val index     = UInt(6.W)
-    val waddr     = UInt(10.W)
+    val index     = UInt(indexWidth.W)
+    val waddr     = UInt((indexWidth + offsetWidth - log2Ceil(XLEN / 8) + 1).W)
     val wstrb     = Vec(nway, UInt(AXI_STRB_WID.W))
     val working   = Bool()
     val writeback = Bool()
@@ -164,7 +163,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val dcache_stall = Mux(
     state === s_idle && !tlb_fill,
     Mux(io.cpu.en, (cached_stall || mmio_read_stall || mmio_write_stall || !io.cpu.tlb.translation_ok), io.cpu.fence),
-    state =/= s_save
+    state =/= s_wait
   )
   io.cpu.dcache_ready := !dcache_stall
 
@@ -176,7 +175,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val last_wdata         = RegNext(replace_wdata)
   val cache_data_forward = Wire(Vec(nway, UInt(XLEN.W)))
 
-  io.cpu.rdata := Mux(state === s_save, saved_rdata, cache_data_forward(select_way))
+  io.cpu.rdata := Mux(state === s_wait, saved_rdata, cache_data_forward(select_way))
 
   // bank tagv ram
   for { i <- 0 until nway } {
@@ -239,8 +238,6 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   }
   io.cpu.acc_err := acc_err
 
-  val current_mmio_write_saved = RegInit(false.B)
-
   // write buffer
   when(writeFifo_axi_busy) { // To implement SC memory ordering, when store buffer busy, axi is unseable.
     when(io.axi.aw.fire) {
@@ -273,34 +270,27 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       when(tlb_fill) {
         tlb_fill := false.B
         when(!io.cpu.tlb.hit) {
-          state := s_save
+          state := s_wait
         }
       }.elsewhen(io.cpu.en) {
         when(addr_err) {
           acc_err := true.B
         }.elsewhen(!io.cpu.tlb.translation_ok) {
           when(io.cpu.tlb.tlb1_ok) {
-            state := s_save
+            state := s_wait
           }.otherwise {
             tlb_fill := true.B
           }
         }.elsewhen(io.cpu.tlb.uncached) {
           when(io.cpu.wen.orR) {
-            when(writeFifo.io.enq.ready && !current_mmio_write_saved) {
-              writeFifo.io.enq.valid := true.B
-              writeFifo.io.enq.bits.addr := Mux(
-                io.cpu.rlen === 2.U,
-                Cat(io.cpu.tlb.paddr(31, 2), 0.U(2.W)),
-                io.cpu.tlb.paddr
-              )
+            when(writeFifo.io.enq.ready) {
+              writeFifo.io.enq.valid     := true.B
+              writeFifo.io.enq.bits.addr := io.cpu.tlb.paddr
               writeFifo.io.enq.bits.size := io.cpu.rlen
               writeFifo.io.enq.bits.strb := io.cpu.wstrb
               writeFifo.io.enq.bits.data := io.cpu.wdata
 
-              current_mmio_write_saved := true.B
-            }
-            when(io.cpu.dcache_ready && io.cpu.cpu_ready) {
-              current_mmio_write_saved := false.B
+              state := s_wait
             }
           }.elsewhen(!(writeFifo.io.deq.valid || writeFifo_axi_busy)) {
             ar.addr := Mux(io.cpu.rlen === 2.U, Cat(io.cpu.tlb.paddr(31, 2), 0.U(2.W)), io.cpu.tlb.paddr)
@@ -316,7 +306,6 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             axi_cnt.reset()
             victim.index := index
             victim_cnt.reset()
-            read_ready_index := index
             read_ready_cnt   := 0.U
             victim.waddr     := Cat(index, 0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
             victim.valid     := true.B
@@ -328,9 +317,9 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
               when(io.cpu.wen.orR) {
                 dirty(index)(select_way) := true.B
               }
-              when(!io.cpu.cpu_ready) {
+              when(!io.cpu.complete_single_request) {
                 saved_rdata := cache_data_forward(select_way)
-                state       := s_save
+                state       := s_wait
               }
             }
           }
@@ -342,16 +331,15 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             axi_cnt.reset()
             victim.index := fence_index
             victim_cnt.reset()
-            read_ready_index := fence_index
-            read_ready_cnt   := 0.U
-            victim.valid     := true.B
+            read_ready_cnt := 0.U
+            victim.valid   := true.B
           }
         }.otherwise {
           when(valid(fence_index).contains(true.B)) {
             valid(fence_index)(0) := false.B
             valid(fence_index)(1) := false.B
           }
-          state := s_save
+          state := s_wait
         }
       }
     }
@@ -362,7 +350,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       when(io.axi.r.valid) {
         saved_rdata := io.axi.r.bits.data
         acc_err     := io.axi.r.bits.resp =/= RESP_OKEY.U
-        state       := s_save
+        state       := s_wait
       }
     }
     is(s_writeback) {
@@ -370,7 +358,6 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         when(victim_cnt.value =/= (cached_len).U) {
           victim_cnt.inc()
         }
-        read_ready_index            := victim.index
         read_ready_cnt              := victim_cnt.value
         read_buffer(read_ready_cnt) := data(dirty(fence_index)(1))
         when(!aw_handshake) {
@@ -422,7 +409,6 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             when(victim_cnt.value =/= (cached_len).U) {
               victim_cnt.inc()
             }
-            read_ready_index            := victim.index
             read_ready_cnt              := victim_cnt.value
             read_buffer(read_ready_cnt) := data(replace_way)
             when(!aw_handshake) {
@@ -500,8 +486,9 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         }
       }
     }
-    is(s_save) {
-      when(io.cpu.dcache_ready && io.cpu.cpu_ready) {
+    is(s_wait) {
+      // 等待流水线的allow_to_go信号，防止多次发出读、写请求
+      when(io.cpu.complete_single_request) {
         state := s_idle
       }
     }

@@ -77,14 +77,14 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   val tlb_fill = RegInit(false.B)
   // * fsm * //
-  val s_idle :: s_uncached :: s_replace :: s_save :: Nil = Enum(4)
+  val s_idle :: s_uncached :: s_replace :: s_wait :: Nil = Enum(4)
   val state                                              = RegInit(s_idle)
 
   // nway 路，每路 nindex 行，每行 nbank 个 bank，每行的nbank共用一个valid
   val valid = RegInit(VecInit(Seq.fill(nway)(VecInit(Seq.fill(nindex)(false.B)))))
 
   // * should choose next addr * //
-  val should_next_addr = (state === s_idle && !tlb_fill) || (state === s_save)
+  val should_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
 
   // 读取一个cache条目中的所有bank行
   val data        = Wire(Vec(nway, Vec(nbank, Vec(instBlocksPerBank, UInt(AXI_DATA_WID.W)))))
@@ -101,7 +101,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   // * fence * //
   // fence指令时清空cache，等同于将所有valid位置0
-  when(io.cpu.fence && !io.cpu.icache_stall && io.cpu.cpu_ready) {
+  when(io.cpu.fence && !io.cpu.icache_stall && io.cpu.complete_single_request) {
     valid := 0.U.asTypeOf(valid)
   }
 
@@ -200,7 +200,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     tagBram.io.wdata := tag_wdata
   }
 
-  io.cpu.icache_stall := Mux(state === s_idle && !tlb_fill, (!cache_hit_available && io.cpu.req), state =/= s_save)
+  io.cpu.icache_stall := Mux(state === s_idle && !tlb_fill, (!cache_hit_available && io.cpu.req), state =/= s_wait)
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
   val arvalid = RegInit(false.B)
@@ -222,14 +222,14 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     is(s_idle) {
       when(tlb_fill) {
         when(!io.cpu.tlb.hit) {
-          state          := s_save
+          state          := s_wait
           saved(0).inst  := 0.U
           saved(0).valid := true.B
         }
       }.elsewhen(io.cpu.req) {
         when(addr_err) {
           acc_err        := true.B
-          state          := s_save
+          state          := s_wait
           saved(0).inst  := 0.U
           saved(0).valid := true.B
         }.elsewhen(!io.cpu.tlb.translation_ok) {
@@ -256,8 +256,8 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           valid(replace_way)(virtual_index) := true.B
         }.elsewhen(!io.cpu.icache_stall) {
           replace_way := ~select_way
-          when(!io.cpu.cpu_ready) {
-            state := s_save
+          when(!io.cpu.complete_single_request) {
+            state := s_wait
             (1 until instFetchNum).foreach(i => saved(i).inst := inst(i))
             (0 until instFetchNum).foreach(i => saved(i).valid := inst_valid(i))
           }
@@ -272,7 +272,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         }
       }.elsewhen(io.axi.r.fire) {
         // * uncached not support burst transport * //
-        state          := s_save
+        state          := s_wait
         saved(0).inst  := Mux(ar.addr(2), io.axi.r.bits.data(63, 32), io.axi.r.bits.data(31, 0))
         saved(0).valid := true.B
         rready         := false.B
@@ -300,8 +300,9 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         state := s_idle
       }
     }
-    is(s_save) {
-      when(io.cpu.cpu_ready && !io.cpu.icache_stall) {
+    is(s_wait) {
+      // 等待流水线的allow_to_go信号，防止多次发出读请求
+      when(io.cpu.complete_single_request) {
         state := s_idle
         (0 until instFetchNum).foreach(i => saved(i).valid := false.B)
       }
