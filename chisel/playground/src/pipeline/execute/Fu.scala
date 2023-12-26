@@ -81,9 +81,9 @@ class Fu(implicit val config: CpuConfig) extends Module {
 
   val mem_addr = Seq.tabulate(config.commitNum)(i =>
     Mux(
-      LSUOpType.isLoad(io.inst(i).info.op),
-      io.inst(i).src_info.src1_data + io.inst(i).info.imm,
-      io.inst(i).src_info.src1_data
+      LSUOpType.isAMO(io.inst(i).info.op),
+      io.inst(i).src_info.src1_data,
+      io.inst(i).src_info.src1_data + io.inst(i).info.imm
     )
   )
   io.dataMemory.addr := Mux(io.inst(0).info.fusel === FuType.lsu, mem_addr(0), mem_addr(1))
