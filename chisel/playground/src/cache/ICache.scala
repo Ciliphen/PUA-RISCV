@@ -84,14 +84,14 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val valid = RegInit(VecInit(Seq.fill(nway)(VecInit(Seq.fill(nindex)(false.B)))))
 
   // * should choose next addr * //
-  val should_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
+  val use_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
 
   // 读取一个cache条目中的所有bank行
   val data        = Wire(Vec(nway, Vec(nbank, Vec(instBlocksPerBank, UInt(AXI_DATA_WID.W)))))
-  val data_rindex = io.cpu.addr(should_next_addr)(indexWidth + offsetWidth - 1, offsetWidth)
+  val data_rindex = io.cpu.addr(use_next_addr)(indexWidth + offsetWidth - 1, offsetWidth)
 
   val tag       = RegInit(VecInit(Seq.fill(nway)(0.U(tagWidth.W))))
-  val tag_raddr = io.cpu.addr(should_next_addr)(indexWidth + offsetWidth - 1, offsetWidth)
+  val tag_raddr = io.cpu.addr(use_next_addr)(indexWidth + offsetWidth - 1, offsetWidth)
   val tag_wstrb = RegInit(VecInit(Seq.fill(nway)(false.B)))
   val tag_wdata = RegInit(0.U(tagWidth.W))
 
@@ -213,7 +213,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   rready <> io.axi.r.ready
 
   val acc_err  = RegInit(false.B)
-  val addr_err = io.cpu.addr(should_next_addr)(XLEN - 1, PADDR_WID).orR
+  val addr_err = io.cpu.addr(use_next_addr)(XLEN - 1, PADDR_WID).orR
 
   when(acc_err) { acc_err := false.B }
   io.cpu.acc_err := acc_err //TODO：实现cached段中的访存错误
