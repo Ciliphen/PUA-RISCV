@@ -168,7 +168,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.ex.exception(instrAddrMisaligned) := pc(1)(1, 0).orR ||
     io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst1.ex.exception(breakPoint) := info(1).inst(31, 20) === privEbreak &&
-    info(1).op === CSROpType.jmp && info(0).fusel === FuType.csr
+    info(1).op === CSROpType.jmp && info(1).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallM) := info(1).inst(31, 20) === privEcall &&
     info(1).op === CSROpType.jmp && mode === ModeM && info(1).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallS) := info(1).inst(31, 20) === privEcall &&
