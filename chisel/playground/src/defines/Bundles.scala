@@ -88,6 +88,7 @@ class ExecuteCtrl(implicit val config: CpuConfig) extends Bundle {
 }
 
 class MemoryCtrl extends Bundle {
+  val fence_i   = Output(Bool())
   val flush     = Output(Bool())
   val mem_stall = Output(Bool())
 
@@ -106,7 +107,8 @@ class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
   val req                     = Output(Bool())
   val complete_single_request = Output(Bool()) // !cpu_stall
   val addr                    = Output(Vec(config.instFetchNum, UInt(INST_ADDR_WID.W))) // virtual address and next virtual address
-  val fence                   = Output(Bool())
+  val fence_i                 = Output(Bool())
+  val dcache_stall            = Output(Bool()) // dcache_stall
 
   // read inst result
   val inst         = Input(Vec(config.instFetchNum, UInt(XLEN.W)))
@@ -127,7 +129,7 @@ class Cache_DCache extends Bundle {
   val wen                     = Output(Bool())
   val wdata                   = Output(UInt(XLEN.W))
   val complete_single_request = Output(Bool())
-  val fence                   = Output(Bool())
+  val fence_i                 = Output(Bool())
   val wstrb                   = Output(UInt(AXI_STRB_WID.W))
 
   val rdata        = Input(UInt(XLEN.W))

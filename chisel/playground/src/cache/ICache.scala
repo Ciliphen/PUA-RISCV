@@ -77,8 +77,8 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   val tlb_fill = RegInit(false.B)
   // * fsm * //
-  val s_idle :: s_uncached :: s_replace :: s_wait :: Nil = Enum(4)
-  val state                                              = RegInit(s_idle)
+  val s_idle :: s_uncached :: s_replace :: s_wait :: s_fence :: Nil = Enum(5)
+  val state                                                         = RegInit(s_idle)
 
   // nway 路，每路 nindex 行，每行 nbank 个 bank，每行的nbank共用一个valid
   val valid = RegInit(VecInit(Seq.fill(nway)(VecInit(Seq.fill(nindex)(false.B)))))
@@ -101,8 +101,10 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   // * fence * //
   // fence指令时清空cache，等同于将所有valid位置0
-  when(io.cpu.fence && !io.cpu.icache_stall && io.cpu.complete_single_request) {
+  when(io.cpu.fence_i) {
+    // TODO：还要考虑更复杂的情况，比如说打断了读
     valid := 0.U.asTypeOf(valid)
+    state := s_fence
   }
 
   // * lru * //// TODO:检查lru的正确性，增加可拓展性，目前只支持两路的cache
@@ -301,6 +303,12 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       when(io.cpu.complete_single_request) {
         state := s_idle
         (0 until instFetchNum).foreach(i => rdata_in_wait(i).valid := false.B)
+      }
+    }
+    is(s_fence) {
+      // 等待dcache完成写回操作
+      when(io.cpu.complete_single_request && !io.cpu.dcache_stall) {
+        state := s_idle
       }
     }
   }

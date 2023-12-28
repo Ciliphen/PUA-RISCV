@@ -131,9 +131,12 @@ class Core(implicit val config: CpuConfig) extends Module {
 
   io.debug <> writeBackUnit.debug
 
-  io.inst.fence := false.B
-  io.data.fence := false.B
-  io.inst.req   := !instFifo.full && !reset.asBool
+  // 解决fence_i
+  io.inst.fence_i      := memoryUnit.ctrl.fence_i
+  io.data.fence_i      := memoryUnit.ctrl.fence_i
+  io.inst.dcache_stall := !io.data.dcache_ready
+
+  io.inst.req := !instFifo.full && !reset.asBool
 
   io.inst.complete_single_request := ctrl.fetchUnit.allow_to_go
   io.data.complete_single_request := ctrl.memoryUnit.allow_to_go

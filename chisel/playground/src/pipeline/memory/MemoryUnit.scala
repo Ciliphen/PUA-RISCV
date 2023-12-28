@@ -122,9 +122,9 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
     io.memoryStage.inst1.ex
   )
 
-  io.ctrl.flush     := io.fetchUnit.flush
-  io.ctrl.mem_stall := !dataMemoryAccess.memoryUnit.out.ready && dataMemoryAccess.memoryUnit.in.mem_en
-
-  io.fetchUnit.flush  := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.flush)
+  io.ctrl.flush       := io.fetchUnit.flush
+  io.ctrl.mem_stall   := !dataMemoryAccess.memoryUnit.out.ready && dataMemoryAccess.memoryUnit.in.mem_en
+  io.ctrl.fence_i     := mou.out.fence_i
+  io.fetchUnit.flush  := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.fence_i)
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.flush_pc, mou.out.target)
 }
