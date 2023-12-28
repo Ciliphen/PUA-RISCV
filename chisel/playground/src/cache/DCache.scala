@@ -107,6 +107,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val dirty = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B)))))
   val lru   = RegInit(VecInit(Seq.fill(nindex)(false.B))) // TODO:支持更多路数，目前只支持2路
 
+  // 对于uncached段使用writeFifo进行写回
   val writeFifo          = Module(new Queue(new WriteBufferUnit(), writeFifoDepth))
   val writeFifo_axi_busy = RegInit(false.B)
   val writeFifo_busy     = (writeFifo.io.deq.valid || writeFifo_axi_busy)
@@ -173,13 +174,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   val saved_rdata = RegInit(0.U(XLEN.W))
 
-  // forward last stored data in data bram
-  val last_waddr         = RegNext(replace_waddr)
-  val last_wstrb         = RegInit(VecInit(Seq.fill(nway)(0.U(XLEN.W))))
-  val last_wdata         = RegNext(replace_wdata)
-  val cache_data_forward = Wire(Vec(nway, UInt(XLEN.W)))
-
-  io.cpu.rdata := Mux(state === s_wait, saved_rdata, cache_data_forward(select_way))
+  io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(select_way))
 
   // bank tagv ram
   for { i <- 0 until nway } {
@@ -202,11 +197,6 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     tagRam.io.wdata := tag_wdata
 
     tag_compare_valid(i) := tag(i) === io.cpu.tlb.ptag && valid(index)(i) && io.cpu.tlb.translation_ok
-    cache_data_forward(i) := Mux(
-      last_waddr === bank_addr,
-      ((last_wstrb(i) & last_wdata) | (data(i) & (~last_wstrb(i)))),
-      data(i)
-    )
 
     replace_wstrb(i) := Mux(
       tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle && !tlb_fill,
@@ -214,7 +204,6 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       victim.wstrb(i)
     )
 
-    last_wstrb(i) := Cat((AXI_STRB_WID - 1 to 0 by -1).map(j => Fill(8, replace_wstrb(i)(j))))
   }
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
@@ -321,7 +310,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
                 dirty(index)(select_way) := true.B
               }
               when(!io.cpu.complete_single_request) {
-                saved_rdata := cache_data_forward(select_way)
+                saved_rdata := data(select_way)
                 state       := s_wait
               }
             }
