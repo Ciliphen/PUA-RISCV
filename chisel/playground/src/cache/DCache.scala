@@ -28,7 +28,7 @@ import cpu.defines.Const._
   本 CPU 的实现如下：
     每个bank分为多个dataBlocks，每个dataBlocks的宽度为AXI_DATA_WID，这样能方便的和AXI总线进行交互
     RV64实现中AXI_DATA_WID为64，所以每个dataBlocks可以存储1个数据
-    为了简化设计，目前一个bank中只有一个dataBlocks，即每个bank中只能存储一个数据
+    为了简化设计，目前*一个bank中只有一个dataBlocks*，即每个bank中只能存储一个数据
       这样的话dataBlocks可以被简化掉，直接用bank代替
       //TODO：解决AXI_DATA_WID小于XLEN的情况
 
@@ -82,24 +82,22 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // |                    |        | bank index | bank offset |
   // ==========================================================
 
-  val index      = io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
-  val exe_addr   = io.cpu.exe_addr(indexWidth + offsetWidth - 1, log2Ceil(XLEN / 8))
-  val bank_addr  = io.cpu.addr(indexWidth + offsetWidth - 1, log2Ceil(XLEN / 8)) // TODO：目前临时使用一下
+  val exe_index  = io.cpu.exe_addr(indexWidth + offsetWidth - 1, offsetWidth)
   val bank_index = io.cpu.addr(bankIndexWidth + bankOffsetWidth - 1, bankOffsetWidth)
-  val bank_offset =
-    if (bankOffsetWidth > log2Ceil(XLEN / 8))
-      io.cpu.addr(bankOffsetWidth - 1, log2Ceil(XLEN / 8)) // 保证地址对齐
-    else
-      0.U
+
+  // // 一个bank行内存了一个数据，所以bank_offset恒为0
+  // val bank_offset =
+  //   if (bankOffsetWidth > log2Ceil(XLEN / 8))
+  //     io.cpu.addr(bankOffsetWidth - 1, log2Ceil(XLEN / 8)) // 保证地址对齐
+  //   else
+  //     0.U
 
   val tlb_fill = RegInit(false.B)
   io.cpu.tlb.fill := tlb_fill
 
-  // 每个bank中只有一个dataBlocks
-  val dataBlocksPerBank = 1
   // axi信号中size的宽度，对于cached段，size为3位
   val cached_size = log2Ceil(AXI_DATA_WID / 8)
-  val cached_len  = (nbank * dataBlocksPerBank - 1)
+  val cached_len  = (nbank - 1)
 
   // * valid dirty * //
   // 每行有一个有效位和一个脏位
@@ -116,44 +114,31 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   writeFifo.io.enq.bits  := 0.U.asTypeOf(new WriteBufferUnit())
   writeFifo.io.deq.ready := false.B
 
-  val axi_cnt = Counter(cached_len + 1)
-
   // * victim cache * //
-  val victim = RegInit(0.U.asTypeOf(new Bundle {
-    val valid     = Bool()
-    val index     = UInt(indexWidth.W)
-    val waddr     = UInt((indexWidth + offsetWidth - log2Ceil(XLEN / 8)).W)
-    val wstrb     = Vec(nway, UInt(AXI_STRB_WID.W))
-    val working   = Bool()
-    val writeback = Bool()
+  val burst = RegInit(0.U.asTypeOf(new Bundle {
+    val wstrb = Vec(nway, UInt(nbank.W)) // 用于控制写回哪个bank
   }))
-  val victim_cnt  = Counter(cached_len + 1)
-  val victim_addr = Cat(victim.index, victim_cnt.value)
-
-  val fence = RegInit(false.B)
 
   // 用于解决在replace时读写时序不一致的问题
-  val read_ready_cnt = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
-  val read_buffer    = RegInit(VecInit(Seq.fill(nbank * dataBlocksPerBank)(0.U(XLEN.W))))
-
-  val ar_handshake = RegInit(false.B)
-  val aw_handshake = RegInit(false.B)
+  val bank_woffset     = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
+  val bank_replication = RegInit(VecInit(Seq.fill(nbank)(0.U(XLEN.W))))
 
   // 是否使用exe的地址进行提前访存
   val use_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
-
-  val data_raddr    = Mux(victim.valid, victim_addr, Mux(use_next_addr, exe_addr, bank_addr))
-  val replace_wstrb = Wire(Vec(nway, UInt(AXI_STRB_WID.W)))
-  val replace_waddr = Mux(victim.valid, victim.waddr, bank_addr)
+  val do_replace    = RegInit(false.B)
+  val replace_index = io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
+  val replace_wstrb = Wire(Vec(nway, Vec(nbank, UInt(AXI_STRB_WID.W))))
   val replace_wdata = Mux(state === s_replace, io.axi.r.bits.data, io.cpu.wdata)
 
-  val replace_way = lru(index)
+  val replace_way = lru(replace_index)
 
-  val tag_raddr = Mux(victim.valid, victim.index, Mux(use_next_addr, exe_addr, index))
-  val tag_wstrb = RegInit(VecInit(Seq.fill(nway)(false.B)))
-  val tag_wdata = RegInit(0.U(tagWidth.W))
+  val replace_dirty = dirty(replace_index)(replace_way)
 
-  val data = Wire(Vec(nway, UInt(XLEN.W)))
+  val tag_rindex = Mux(use_next_addr, exe_index, replace_index)
+  val tag_wstrb  = RegInit(VecInit(Seq.fill(nway)(false.B)))
+  val tag_wdata  = RegInit(0.U(tagWidth.W))
+
+  val data = Wire(Vec(nway, Vec(nbank, UInt(XLEN.W))))
   val tag  = RegInit(VecInit(Seq.fill(nway)(0.U(tagWidth.W))))
 
   val tag_compare_valid = Wire(Vec(nway, Bool()))
@@ -174,36 +159,37 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   val saved_rdata = RegInit(0.U(XLEN.W))
 
-  io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(select_way))
+  io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(select_way)(replace_index))
 
   // bank tagv ram
   for { i <- 0 until nway } {
-    val bank = Module(new SimpleDualPortRam(nindex * nbank, AXI_DATA_WID, byteAddressable = true))
-    bank.io.ren   := true.B
-    bank.io.raddr := data_raddr
-    data(i)       := bank.io.rdata
+    val bank = Seq.fill(nbank)(Module(new SimpleDualPortRam(nindex, AXI_DATA_WID, byteAddressable = true)))
+    for { j <- 0 until nbank } {
+      bank(j).io.ren   := true.B
+      bank(j).io.raddr := Mux(use_next_addr, exe_index, replace_index)
+      data(i)(j)       := bank(j).io.rdata
 
-    bank.io.wen   := replace_wstrb(i).orR
-    bank.io.waddr := replace_waddr
-    bank.io.wdata := replace_wdata
-    bank.io.wstrb := replace_wstrb(i)
+      bank(j).io.wen   := replace_wstrb(i)(j).orR
+      bank(j).io.waddr := replace_index
+      bank(j).io.wdata := replace_wdata
+      bank(j).io.wstrb := replace_wstrb(i)(j)
 
-    val tagRam = Module(new LUTRam(nindex, tagWidth))
-    tagRam.io.raddr := tag_raddr
-    tag(i)          := tagRam.io.rdata
+      val tagRam = Module(new LUTRam(nindex, tagWidth))
+      tagRam.io.raddr := tag_rindex
+      tag(i)          := tagRam.io.rdata
 
-    tagRam.io.wen   := tag_wstrb(i)
-    tagRam.io.waddr := victim.index
-    tagRam.io.wdata := tag_wdata
+      tagRam.io.wen   := tag_wstrb(i)
+      tagRam.io.waddr := replace_index
+      tagRam.io.wdata := tag_wdata
 
-    tag_compare_valid(i) := tag(i) === io.cpu.tlb.ptag && valid(index)(i) && io.cpu.tlb.translation_ok
+      tag_compare_valid(i) := tag(i) === io.cpu.tlb.ptag && valid(replace_index)(i) && io.cpu.tlb.translation_ok
 
-    replace_wstrb(i) := Mux(
-      tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle && !tlb_fill,
-      io.cpu.wstrb,
-      victim.wstrb(i)
-    )
-
+      replace_wstrb(i)(j) := Mux(
+        tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle && !tlb_fill,
+        io.cpu.wstrb,
+        burst.wstrb(i)(j)
+      )
+    }
   }
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
@@ -294,45 +280,51 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           } // when store buffer busy, read will stop at s_idle but stall pipeline.
         }.otherwise {
           when(!cache_hit) {
-            state := s_replace
-            axi_cnt.reset()
-            victim.index := index
-            victim_cnt.reset()
-            read_ready_cnt   := 0.U
-            victim.waddr     := Cat(index, 0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
-            victim.valid     := true.B
-            victim.writeback := dirty(index)(replace_way)
+            state                    := s_replace
+            bank_woffset             := 0.U
+            burst.wstrb(replace_way) := 1.U // 先写入第一块bank
+            when(replace_dirty) {
+              // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
+              (0 until nbank).map(i => bank_replication(i) := data(select_way)(i))
+            }
           }.otherwise {
             when(io.cpu.dcache_ready) {
               // update lru and mark dirty
               replace_way := ~select_way
               when(io.cpu.wen.orR) {
-                dirty(index)(select_way) := true.B
+                dirty(replace_index)(select_way) := true.B
               }
               when(!io.cpu.complete_single_request) {
-                saved_rdata := data(select_way)
+                saved_rdata := data(select_way)(bank_index)
                 state       := s_wait
               }
             }
           }
         }
       }.elsewhen(io.cpu.fence) {
-        when(dirty(index).contains(true.B)) {
-          when(!writeFifo_busy) {
-            state := s_writeback
-            axi_cnt.reset()
-            victim.index := index
-            victim_cnt.reset()
-            read_ready_cnt := 0.U
-            victim.valid   := true.B
-          }
-        }.otherwise {
-          when(valid(index).contains(true.B)) {
-            valid(index)(0) := false.B
-            valid(index)(1) := false.B
-          }
-          state := s_wait
-        }
+        assert(false.B, "fence not implemented")
+        // when(dirty(replace_index).contains(true.B)) {
+        //   when(!writeFifo_busy) {
+        //     state        := s_writeback
+        //     write_offset := 0.U // 从第一块bank开始写回
+
+        //     // for axi write
+        //     aw.addr := Cat(tag(dirty(replace_index)(1)), replace_index, 0.U(offsetWidth.W))
+        //     aw.len  := cached_len.U
+        //     aw.size := cached_size.U
+        //     awvalid := true.B
+        //     w.data  := data(dirty(replace_index)(1))(bank_index)
+        //     w.strb  := ~0.U(AXI_STRB_WID.W)
+        //     w.last  := false.B
+        //     wvalid  := true.B
+        //   }
+        // }.otherwise {
+        //   when(valid(replace_index).contains(true.B)) {
+        //     valid(replace_index)(0) := false.B
+        //     valid(replace_index)(1) := false.B
+        //   }
+        //   state := s_wait
+        // }
       }
     }
     is(s_uncached) {
@@ -346,74 +338,43 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       }
     }
     is(s_writeback) {
-      when(fence) {
-        when(victim_cnt.value =/= (cached_len).U) {
-          victim_cnt.inc()
-        }
-        read_ready_cnt              := victim_cnt.value
-        read_buffer(read_ready_cnt) := data(dirty(index)(1))
-        when(!aw_handshake) {
-          aw.addr      := Cat(tag(dirty(index)(1)), index, 0.U(offsetWidth.W))
-          aw.len       := cached_len.U
-          aw.size      := cached_size.U
-          awvalid      := true.B
-          w.data       := data(dirty(index)(1))
-          w.strb       := ~0.U(AXI_STRB_WID.W)
-          w.last       := false.B
-          wvalid       := true.B
-          aw_handshake := true.B
-        }
-        when(io.axi.aw.fire) {
-          awvalid := false.B
-        }
-        when(io.axi.w.fire) {
-          when(w.last) {
-            wvalid := false.B
-          }.otherwise {
-            w.data := Mux(
-              ((axi_cnt.value + 1.U) === read_ready_cnt),
-              data(dirty(index)(1)),
-              read_buffer(axi_cnt.value + 1.U)
-            )
-            axi_cnt.inc()
-            when(axi_cnt.value + 1.U === (cached_len).U) {
-              w.last := true.B
-            }
-          }
-        }
-        when(io.axi.b.valid) {
-          dirty(index)(dirty(index)(1)) := false.B
-          fence                         := false.B
-          victim.valid                  := false.B
-          acc_err                       := io.axi.b.bits.resp =/= RESP_OKEY.U
-          state                         := s_idle
-        }
-      }.otherwise {
-        aw_handshake := false.B
-        fence        := true.B
-        victim_cnt.inc()
-      }
+      assert(false.B, "writeback not implemented")
+      // when(burst_cnt.value =/= (cached_len).U) {
+      //   burst_cnt.inc()
+      // }
+      // read_ready_cnt              := burst_cnt.value
+      // read_buffer(read_ready_cnt) := data(dirty(index)(1))
+
+      // when(io.axi.aw.fire) {
+      //   awvalid := false.B
+      // }
+      // when(io.axi.w.fire) {
+      //   when(w.last) {
+      //     wvalid := false.B
+      //   }.otherwise {
+      //     w.data := Mux(
+      //       ((axi_cnt.value + 1.U) === read_ready_cnt),
+      //       data(dirty(index)(1)),
+      //       read_buffer(axi_cnt.value + 1.U)
+      //     )
+      //     axi_cnt.inc()
+      //     when(axi_cnt.value + 1.U === (cached_len).U) {
+      //       w.last := true.B
+      //     }
+      //   }
+      // }
+      // when(io.axi.b.valid) {
+      //   dirty(index)(dirty(index)(1)) := false.B
+      //   burst.valid                   := false.B
+      //   acc_err                       := io.axi.b.bits.resp =/= RESP_OKEY.U
+      //   state                         := s_idle
+      // }
     }
     is(s_replace) {
+      // 防止和写队列冲突
       when(!writeFifo_busy) {
-        when(victim.working) {
-          when(victim.writeback) {
-            when(victim_cnt.value =/= (cached_len).U) {
-              victim_cnt.inc()
-            }
-            read_ready_cnt              := victim_cnt.value
-            read_buffer(read_ready_cnt) := data(replace_way)
-            when(!aw_handshake) {
-              aw.addr      := Cat(tag(replace_way), index, 0.U(offsetWidth.W))
-              aw.len       := cached_len.U
-              aw.size      := cached_size.U
-              awvalid      := true.B
-              aw_handshake := true.B
-              w.data       := data(replace_way)
-              w.strb       := ~0.U(AXI_STRB_WID.W)
-              w.last       := false.B
-              wvalid       := true.B
-            }
+        when(do_replace) {
+          when(replace_dirty) {
             when(io.axi.aw.fire) {
               awvalid := false.B
             }
@@ -421,60 +382,62 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
               when(w.last) {
                 wvalid := false.B
               }.otherwise {
-                w.data := Mux(
-                  ((axi_cnt.value + 1.U) === read_ready_cnt),
-                  data(replace_way),
-                  read_buffer(axi_cnt.value + 1.U)
-                )
-                axi_cnt.inc()
-                when(axi_cnt.value + 1.U === (cached_len).U) {
+                bank_woffset := bank_woffset + 1.U
+                w.data       := bank_replication(bank_woffset)
+                when(bank_woffset + 1.U === (cached_len).U) {
                   w.last := true.B
                 }
               }
             }
             when(io.axi.b.valid) {
-              dirty(index)(replace_way) := false.B
-              victim.writeback          := false.B
+              // TODO: 增加此处的错误处理
+              // acc_err := io.axi.b.bits.resp =/= RESP_OKEY.U
+              replace_dirty := false.B // 写回完成，清除脏位
             }
-          }
-          when(!ar_handshake) {
-            ar.addr                   := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
-            ar.len                    := cached_len.U
-            ar.size                   := cached_size.U // 8 字节
-            arvalid                   := true.B
-            rready                    := true.B
-            ar_handshake              := true.B
-            victim.wstrb(replace_way) := ~0.U(AXI_STRB_WID.W)
-            tag_wstrb(replace_way)    := true.B
-            tag_wdata                 := io.cpu.tlb.ptag
-          }
+          } //上面都是写回部分的代码
           when(io.axi.ar.fire) {
             tag_wstrb(replace_way) := false.B
             arvalid                := false.B
           }
           when(io.axi.r.fire) {
             when(io.axi.r.bits.last) {
-              rready                    := false.B
-              victim.wstrb(replace_way) := 0.U
+              rready                   := false.B
+              burst.wstrb(replace_way) := 0.U
             }.otherwise {
-              victim.waddr := victim.waddr + 1.U
+              burst.wstrb(replace_way) := burst.wstrb(replace_way) << 1
             }
           }
           when(
-            (!victim.writeback || io.axi.b.valid) && ((ar_handshake && io.axi.r.valid && io.axi.r.bits.last) || (ar_handshake && !rready))
+            (!replace_dirty || io.axi.b.valid) && // 写回完成
+              ((io.axi.r.valid && io.axi.r.bits.last) || !rready) // 读取完成
           ) {
-            victim.valid              := false.B
-            valid(index)(replace_way) := true.B
-          }
-          when(!victim.valid) {
-            victim.working := false.B
-            state          := s_idle
+            valid(replace_index)(replace_way) := true.B
+            do_replace                        := false.B
+            state                             := s_idle
           }
         }.otherwise {
-          ar_handshake   := false.B
-          aw_handshake   := false.B
-          victim.working := true.B
-          victim_cnt.inc()
+          // 这里相当于增加了一拍，用于发射读写控制信号
+          do_replace := true.B
+
+          // for ar axi
+          ar.addr                  := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
+          ar.len                   := cached_len.U
+          ar.size                  := cached_size.U // 8 字节
+          arvalid                  := true.B
+          rready                   := true.B
+          burst.wstrb(replace_way) := 1.U // 先写入第一块bank
+          tag_wstrb(replace_way)   := true.B
+          tag_wdata                := io.cpu.tlb.ptag
+          when(replace_dirty) {
+            aw.addr := Cat(tag(replace_way), replace_index, 0.U(offsetWidth.W))
+            aw.len  := cached_len.U
+            aw.size := cached_size.U
+            awvalid := true.B
+            w.data  := data(replace_way)(bank_woffset)
+            w.strb  := ~0.U(AXI_STRB_WID.W)
+            w.last  := false.B
+            wvalid  := true.B
+          }
         }
       }
     }
