@@ -105,23 +105,20 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     valid := 0.U.asTypeOf(valid)
   }
 
-  // * virtual index * //
-  val virtual_index = io.cpu.addr(0)(indexWidth + offsetWidth - 1, offsetWidth)
-
   // * lru * //// TODO:检查lru的正确性，增加可拓展性，目前只支持两路的cache
   val lru = RegInit(VecInit(Seq.fill(nindex)(false.B)))
-  // 需要替换的路号
-  val replace_way = lru(virtual_index)
 
-  // * replace index * //
-  val replace_index = RegInit(0.U(indexWidth.W))
+  val replace_index = io.cpu.addr(0)(indexWidth + offsetWidth - 1, offsetWidth)
+  // 需要替换的路号
+  val replace_way = lru(replace_index)
+
   // 用于控制写入一行cache条目中的哪个bank, 一个bank可能有多次写入
   val replace_wstrb = RegInit(
     VecInit(Seq.fill(nway)(VecInit(Seq.fill(nbank)(VecInit(Seq.fill(instBlocksPerBank)((false.B)))))))
   )
 
   // * cache hit * //
-  val tag_compare_valid   = VecInit(Seq.tabulate(nway)(i => tag(i) === io.cpu.tlb.ptag && valid(i)(virtual_index)))
+  val tag_compare_valid   = VecInit(Seq.tabulate(nway)(i => tag(i) === io.cpu.tlb.ptag && valid(i)(replace_index)))
   val cache_hit           = tag_compare_valid.contains(true.B)
   val cache_hit_available = cache_hit && io.cpu.tlb.translation_ok && !io.cpu.tlb.uncached
   val select_way          = tag_compare_valid(1) // 1路命中时值为1，0路命中时值为0 //TODO:支持更多路数
@@ -248,12 +245,11 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           ar.size := cached_size.U
           arvalid := true.B
 
-          replace_index := virtual_index
           replace_wstrb(replace_way).map(_.map(_ := false.B))
           replace_wstrb(replace_way)(0)(0)  := true.B // 从第一个bank的第一个指令块开始写入
           tag_wstrb(replace_way)            := true.B
           tag_wdata                         := io.cpu.tlb.ptag
-          valid(replace_way)(virtual_index) := true.B
+          valid(replace_way)(replace_index) := true.B
         }.elsewhen(!io.cpu.icache_stall) {
           replace_way := ~select_way
           when(!io.cpu.complete_single_request) {
