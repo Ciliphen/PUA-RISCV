@@ -36,9 +36,8 @@ case class CacheConfig(
 // ==========================================================
   val config = CpuConfig()
   val nway   = 2 // 路数，目前只支持2路
-  // FIXME:增加DCache的大小，当数量增加时如设置8，128时会报栈溢出的错误
-  val nbank  = if (cacheType == "icache") 4 else 4 // 每个项目中的bank数
-  val nindex = if (cacheType == "icache") 64 else 64 // 每路的项目数
+  val nbank  = if (cacheType == "icache") 4 else 8 // 每个项目中的bank数
+  val nindex = if (cacheType == "icache") 64 else 128 // 每路的项目数
   val bitsPerBank = // 每个bank的位数
     if (cacheType == "icache") INST_WID * config.instFetchNum
     else XLEN

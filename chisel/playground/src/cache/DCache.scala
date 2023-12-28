@@ -127,7 +127,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val use_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
   val do_replace    = RegInit(false.B)
   val replace_index = io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
-  val replace_wstrb = Wire(Vec(nway, Vec(nbank, UInt(AXI_STRB_WID.W))))
+  val replace_wstrb = Wire(Vec(nbank, Vec(nway, UInt(AXI_STRB_WID.W))))
   val replace_wdata = Mux(state === s_replace, io.axi.r.bits.data, io.cpu.wdata)
 
   val replace_way = lru(replace_index)
@@ -138,7 +138,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val tag_wstrb  = RegInit(VecInit(Seq.fill(nway)(false.B)))
   val tag_wdata  = RegInit(0.U(tagWidth.W))
 
-  val data = Wire(Vec(nway, Vec(nbank, UInt(XLEN.W))))
+  val data = Wire(Vec(nbank, Vec(nway, UInt(XLEN.W))))
   val tag  = RegInit(VecInit(Seq.fill(nway)(0.U(tagWidth.W))))
 
   val tag_compare_valid = Wire(Vec(nway, Bool()))
@@ -159,7 +159,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   val saved_rdata = RegInit(0.U(XLEN.W))
 
-  io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(select_way)(replace_index))
+  io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(replace_index)(select_way))
 
   // bank tagv ram
   for { i <- 0 until nway } {
@@ -167,12 +167,12 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     for { j <- 0 until nbank } {
       bank(j).io.ren   := true.B
       bank(j).io.raddr := Mux(use_next_addr, exe_index, replace_index)
-      data(i)(j)       := bank(j).io.rdata
+      data(j)(i)       := bank(j).io.rdata
 
-      bank(j).io.wen   := replace_wstrb(i)(j).orR
+      bank(j).io.wen   := replace_wstrb(j)(i).orR
       bank(j).io.waddr := replace_index
       bank(j).io.wdata := replace_wdata
-      bank(j).io.wstrb := replace_wstrb(i)(j)
+      bank(j).io.wstrb := replace_wstrb(j)(i)
 
       val tagRam = Module(new LUTRam(nindex, tagWidth))
       tagRam.io.raddr := tag_rindex
@@ -184,10 +184,10 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
       tag_compare_valid(i) := tag(i) === io.cpu.tlb.ptag && valid(replace_index)(i) && io.cpu.tlb.translation_ok
 
-      replace_wstrb(i)(j) := Mux(
+      replace_wstrb(j)(i) := Mux(
         tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle && !tlb_fill,
         io.cpu.wstrb,
-        burst.wstrb(i)(j)
+        Fill(AXI_STRB_WID, burst.wstrb(i)(j))
       )
     }
   }
@@ -285,7 +285,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             burst.wstrb(replace_way) := 1.U // 先写入第一块bank
             when(replace_dirty) {
               // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
-              (0 until nbank).map(i => bank_replication(i) := data(select_way)(i))
+              (0 until nbank).map(i => bank_replication(i) := data(i)(select_way))
             }
           }.otherwise {
             when(io.cpu.dcache_ready) {
@@ -295,7 +295,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
                 dirty(replace_index)(select_way) := true.B
               }
               when(!io.cpu.complete_single_request) {
-                saved_rdata := data(select_way)(bank_index)
+                saved_rdata := data(bank_index)(select_way)
                 state       := s_wait
               }
             }
@@ -433,7 +433,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             aw.len  := cached_len.U
             aw.size := cached_size.U
             awvalid := true.B
-            w.data  := data(replace_way)(bank_woffset)
+            w.data  := data(bank_woffset)(replace_way)
             w.strb  := ~0.U(AXI_STRB_WID.W)
             w.last  := false.B
             wvalid  := true.B
