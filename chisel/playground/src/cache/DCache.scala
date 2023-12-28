@@ -82,7 +82,9 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // |                    |        | bank index | bank offset |
   // ==========================================================
 
-  val exe_index  = io.cpu.exe_addr(indexWidth + offsetWidth - 1, offsetWidth)
+  // exe级的index，用于访问第i行的数据
+  val exe_index = io.cpu.exe_addr(indexWidth + offsetWidth - 1, offsetWidth)
+  // mem级的bank的index，用于访问第i个bank的数据
   val bank_index = io.cpu.addr(bankIndexWidth + bankOffsetWidth - 1, bankOffsetWidth)
 
   // // 一个bank行内存了一个数据，所以bank_offset恒为0
@@ -159,7 +161,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   val saved_rdata = RegInit(0.U(XLEN.W))
 
-  io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(replace_index)(select_way))
+  io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(bank_index)(select_way))
 
   // bank tagv ram
   for { i <- 0 until nway } {
