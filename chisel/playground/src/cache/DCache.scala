@@ -107,20 +107,21 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val dirty = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B)))))
   val lru   = RegInit(VecInit(Seq.fill(nindex)(false.B))) // TODO:支持更多路数，目前只支持2路
 
-  val writeFifo = Module(new Queue(new WriteBufferUnit(), writeFifoDepth))
+  val writeFifo          = Module(new Queue(new WriteBufferUnit(), writeFifoDepth))
+  val writeFifo_axi_busy = RegInit(false.B)
+  val writeFifo_busy     = (writeFifo.io.deq.valid || writeFifo_axi_busy)
 
   writeFifo.io.enq.valid := false.B
   writeFifo.io.enq.bits  := 0.U.asTypeOf(new WriteBufferUnit())
   writeFifo.io.deq.ready := false.B
 
-  val axi_cnt        = Counter(cached_len + 1)
-  val read_ready_cnt = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
+  val axi_cnt = Counter(cached_len + 1)
 
   // * victim cache * //
   val victim = RegInit(0.U.asTypeOf(new Bundle {
     val valid     = Bool()
     val index     = UInt(indexWidth.W)
-    val waddr     = UInt((indexWidth + offsetWidth - log2Ceil(XLEN / 8) + 1).W)
+    val waddr     = UInt((indexWidth + offsetWidth - log2Ceil(XLEN / 8)).W)
     val wstrb     = Vec(nway, UInt(AXI_STRB_WID.W))
     val working   = Bool()
     val writeback = Bool()
@@ -128,12 +129,12 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val victim_cnt  = Counter(cached_len + 1)
   val victim_addr = Cat(victim.index, victim_cnt.value)
 
-  val fence_index = index
-  val fence = RegInit(0.U.asTypeOf(new Bundle {
-    val working = Bool()
-  }))
+  val fence = RegInit(false.B)
 
-  val read_buffer  = RegInit(VecInit(Seq.fill(16)(0.U(XLEN.W))))
+  // 用于解决在replace时读写时序不一致的问题
+  val read_ready_cnt = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
+  val read_buffer    = RegInit(VecInit(Seq.fill(nbank * dataBlocksPerBank)(0.U(XLEN.W))))
+
   val ar_handshake = RegInit(false.B)
   val aw_handshake = RegInit(false.B)
 
@@ -215,7 +216,6 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
     last_wstrb(i) := Cat((AXI_STRB_WID - 1 to 0 by -1).map(j => Fill(8, replace_wstrb(i)(j))))
   }
-  val writeFifo_axi_busy = RegInit(false.B)
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
   val arvalid = RegInit(false.B)
@@ -295,8 +295,8 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
               state := s_wait
             }
-          }.elsewhen(!(writeFifo.io.deq.valid || writeFifo_axi_busy)) {
-            ar.addr := Mux(io.cpu.rlen === 2.U, Cat(io.cpu.tlb.paddr(31, 2), 0.U(2.W)), io.cpu.tlb.paddr)
+          }.elsewhen(!writeFifo_busy) {
+            ar.addr := io.cpu.tlb.paddr
             ar.len  := 0.U
             ar.size := io.cpu.rlen
             arvalid := true.B
@@ -328,19 +328,19 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           }
         }
       }.elsewhen(io.cpu.fence) {
-        when(dirty(fence_index).contains(true.B)) {
-          when(!(writeFifo.io.deq.valid || writeFifo_axi_busy)) {
+        when(dirty(index).contains(true.B)) {
+          when(!writeFifo_busy) {
             state := s_writeback
             axi_cnt.reset()
-            victim.index := fence_index
+            victim.index := index
             victim_cnt.reset()
             read_ready_cnt := 0.U
             victim.valid   := true.B
           }
         }.otherwise {
-          when(valid(fence_index).contains(true.B)) {
-            valid(fence_index)(0) := false.B
-            valid(fence_index)(1) := false.B
+          when(valid(index).contains(true.B)) {
+            valid(index)(0) := false.B
+            valid(index)(1) := false.B
           }
           state := s_wait
         }
@@ -357,18 +357,18 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       }
     }
     is(s_writeback) {
-      when(fence.working) {
+      when(fence) {
         when(victim_cnt.value =/= (cached_len).U) {
           victim_cnt.inc()
         }
         read_ready_cnt              := victim_cnt.value
-        read_buffer(read_ready_cnt) := data(dirty(fence_index)(1))
+        read_buffer(read_ready_cnt) := data(dirty(index)(1))
         when(!aw_handshake) {
-          aw.addr      := Cat(tag(dirty(fence_index)(1)), fence_index, 0.U(6.W))
+          aw.addr      := Cat(tag(dirty(index)(1)), index, 0.U(offsetWidth.W))
           aw.len       := cached_len.U
           aw.size      := cached_size.U
           awvalid      := true.B
-          w.data       := data(dirty(fence_index)(1))
+          w.data       := data(dirty(index)(1))
           w.strb       := ~0.U(AXI_STRB_WID.W)
           w.last       := false.B
           wvalid       := true.B
@@ -383,7 +383,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           }.otherwise {
             w.data := Mux(
               ((axi_cnt.value + 1.U) === read_ready_cnt),
-              data(dirty(fence_index)(1)),
+              data(dirty(index)(1)),
               read_buffer(axi_cnt.value + 1.U)
             )
             axi_cnt.inc()
@@ -393,20 +393,20 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           }
         }
         when(io.axi.b.valid) {
-          dirty(fence_index)(dirty(fence_index)(1)) := false.B
-          fence.working                             := false.B
-          victim.valid                              := false.B
-          acc_err                                   := io.axi.b.bits.resp =/= RESP_OKEY.U
-          state                                     := s_idle
+          dirty(index)(dirty(index)(1)) := false.B
+          fence                         := false.B
+          victim.valid                  := false.B
+          acc_err                       := io.axi.b.bits.resp =/= RESP_OKEY.U
+          state                         := s_idle
         }
       }.otherwise {
-        aw_handshake  := false.B
-        fence.working := true.B
+        aw_handshake := false.B
+        fence        := true.B
         victim_cnt.inc()
       }
     }
     is(s_replace) {
-      when(!(writeFifo.io.deq.valid || writeFifo_axi_busy)) {
+      when(!writeFifo_busy) {
         when(victim.working) {
           when(victim.writeback) {
             when(victim_cnt.value =/= (cached_len).U) {

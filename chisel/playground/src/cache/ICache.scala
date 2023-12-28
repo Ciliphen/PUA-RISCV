@@ -148,7 +148,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     Seq.tabulate(instFetchNum)(i => cache_hit_available && i.U <= ((instFetchNum - 1).U - bank_offset))
   )
 
-  val saved = RegInit(VecInit(Seq.fill(instFetchNum)(0.U.asTypeOf(new Bundle {
+  val rdata_in_wait = RegInit(VecInit(Seq.fill(instFetchNum)(0.U.asTypeOf(new Bundle {
     val inst  = UInt(INST_WID.W)
     val valid = Bool()
   }))))
@@ -185,8 +185,8 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   }
 
   for { i <- 0 until instFetchNum } {
-    io.cpu.inst_valid(i) := Mux(state === s_idle && !tlb_fill, inst_valid(i), saved(i).valid) && io.cpu.req
-    io.cpu.inst(i)       := Mux(state === s_idle && !tlb_fill, inst(i), saved(i).inst)
+    io.cpu.inst_valid(i) := Mux(state === s_idle && !tlb_fill, inst_valid(i), rdata_in_wait(i).valid) && io.cpu.req
+    io.cpu.inst(i)       := Mux(state === s_idle && !tlb_fill, inst(i), rdata_in_wait(i).inst)
   }
 
   for { i <- 0 until nway } {
@@ -222,16 +222,16 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
     is(s_idle) {
       when(tlb_fill) {
         when(!io.cpu.tlb.hit) {
-          state          := s_wait
-          saved(0).inst  := 0.U
-          saved(0).valid := true.B
+          state                  := s_wait
+          rdata_in_wait(0).inst  := 0.U
+          rdata_in_wait(0).valid := true.B
         }
       }.elsewhen(io.cpu.req) {
         when(addr_err) {
-          acc_err        := true.B
-          state          := s_wait
-          saved(0).inst  := 0.U
-          saved(0).valid := true.B
+          acc_err                := true.B
+          state                  := s_wait
+          rdata_in_wait(0).inst  := 0.U
+          rdata_in_wait(0).valid := true.B
         }.elsewhen(!io.cpu.tlb.translation_ok) {
           tlb_fill := true.B
         }.elsewhen(io.cpu.tlb.uncached) {
@@ -258,8 +258,8 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           replace_way := ~select_way
           when(!io.cpu.complete_single_request) {
             state := s_wait
-            (1 until instFetchNum).foreach(i => saved(i).inst := inst(i))
-            (0 until instFetchNum).foreach(i => saved(i).valid := inst_valid(i))
+            (1 until instFetchNum).foreach(i => rdata_in_wait(i).inst := inst(i))
+            (0 until instFetchNum).foreach(i => rdata_in_wait(i).valid := inst_valid(i))
           }
         }
       }
@@ -272,11 +272,11 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         }
       }.elsewhen(io.axi.r.fire) {
         // * uncached not support burst transport * //
-        state          := s_wait
-        saved(0).inst  := Mux(ar.addr(2), io.axi.r.bits.data(63, 32), io.axi.r.bits.data(31, 0))
-        saved(0).valid := true.B
-        rready         := false.B
-        acc_err        := io.axi.r.bits.resp =/= RESP_OKEY.U
+        state                  := s_wait
+        rdata_in_wait(0).inst  := Mux(ar.addr(2), io.axi.r.bits.data(63, 32), io.axi.r.bits.data(31, 0))
+        rdata_in_wait(0).valid := true.B
+        rready                 := false.B
+        acc_err                := io.axi.r.bits.resp =/= RESP_OKEY.U
       }
     }
     is(s_replace) {
@@ -304,7 +304,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       // 等待流水线的allow_to_go信号，防止多次发出读请求
       when(io.cpu.complete_single_request) {
         state := s_idle
-        (0 until instFetchNum).foreach(i => saved(i).valid := false.B)
+        (0 until instFetchNum).foreach(i => rdata_in_wait(i).valid := false.B)
       }
     }
   }

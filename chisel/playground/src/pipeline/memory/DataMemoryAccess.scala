@@ -114,105 +114,105 @@ class DataMemoryAccess(implicit val config: CpuConfig) extends Module {
       lsExe.in.info.op        := func
       lsExe.in.wdata          := src2
       io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en || scInvalid
-      when(io.memoryUnit.out.ready) {
-        when(allow_to_go) {
-          state := s_idle
-        }
-        state := s_wait_allow;
-      }
-      when(amoReq) { state := s_amo_l }
-      when(lrReq) {
-        lsExe.in.mem_en         := true.B
-        lsExe.in.mem_addr       := src1
-        lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
-        lsExe.in.wdata          := DontCare
-        io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
-        when(lsExe.out.ready) {
-          when(allow_to_go) {
-            state := s_idle
-          }
-          state := s_wait_allow;
-        }
-      }
-      when(scReq) { state := Mux(scInvalid, s_idle, s_sc) }
+      // when(io.memoryUnit.out.ready) {
+      //   when(allow_to_go) {
+      //     state := s_idle
+      //   }
+      //   state := s_wait_allow;
+      // }
+      // when(amoReq) { state := s_amo_l }
+      // when(lrReq) {
+      //   lsExe.in.mem_en         := true.B
+      //   lsExe.in.mem_addr       := src1
+      //   lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
+      //   lsExe.in.wdata          := DontCare
+      //   io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
+      //   when(lsExe.out.ready) {
+      //     when(allow_to_go) {
+      //       state := s_idle
+      //     }
+      //     state := s_wait_allow;
+      //   }
+      // }
+      // when(scReq) { state := Mux(scInvalid, s_idle, s_sc) }
     }
 
-    is(s_amo_l) {
-      lsExe.in.mem_en         := true.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
-      lsExe.in.wdata          := DontCare
-      io.memoryUnit.out.ready := false.B
-      when(lsExe.out.ready) {
-        state := s_amo_l_wait;
-      }
-    }
+    //   is(s_amo_l) {
+    //     lsExe.in.mem_en         := true.B
+    //     lsExe.in.mem_addr       := src1
+    //     lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
+    //     lsExe.in.wdata          := DontCare
+    //     io.memoryUnit.out.ready := false.B
+    //     when(lsExe.out.ready) {
+    //       state := s_amo_l_wait;
+    //     }
+    //   }
 
-    is(s_amo_l_wait) {
-      lsExe.in.mem_en         := false.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
-      lsExe.in.wdata          := DontCare
-      io.memoryUnit.out.ready := false.B
-      atomMemReg              := lsExe.out.rdata
-      atomRegReg              := lsExe.out.rdata
-      when(lsExe.out.ready) {
-        state := s_amo_a;
-      }
-    }
+    //   is(s_amo_l_wait) {
+    //     lsExe.in.mem_en         := false.B
+    //     lsExe.in.mem_addr       := src1
+    //     lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
+    //     lsExe.in.wdata          := DontCare
+    //     io.memoryUnit.out.ready := false.B
+    //     atomMemReg              := lsExe.out.rdata
+    //     atomRegReg              := lsExe.out.rdata
+    //     when(lsExe.out.ready) {
+    //       state := s_amo_a;
+    //     }
+    //   }
 
-    is(s_amo_a) {
-      lsExe.in.mem_en         := false.B
-      lsExe.in.mem_addr       := DontCare
-      lsExe.in.info.op        := DontCare
-      lsExe.in.wdata          := DontCare
-      io.memoryUnit.out.ready := false.B
-      state                   := s_amo_s
-      atomMemReg              := atomAlu.out.result
-    }
+    //   is(s_amo_a) {
+    //     lsExe.in.mem_en         := false.B
+    //     lsExe.in.mem_addr       := DontCare
+    //     lsExe.in.info.op        := DontCare
+    //     lsExe.in.wdata          := DontCare
+    //     io.memoryUnit.out.ready := false.B
+    //     state                   := s_amo_s
+    //     atomMemReg              := atomAlu.out.result
+    //   }
 
-    is(s_amo_s) {
-      lsExe.in.mem_en         := true.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
-      lsExe.in.wdata          := atomMemReg
-      io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
-      when(lsExe.out.ready) {
-        when(allow_to_go) {
-          state := s_idle
-        }
-        state := s_wait_allow;
-      }
-    }
-    is(s_sc) {
-      lsExe.in.mem_en         := true.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
-      lsExe.in.wdata          := src2
-      io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
-      when(lsExe.out.ready) {
-        when(allow_to_go) {
-          state := s_idle
-        }
-        state := s_wait_allow;
-      }
-    }
-    is(s_wait_allow) {
-      lsExe.in.mem_en := false.B
-      lsExe.in.info.op := MuxCase(
-        func,
-        Seq(
-          lrReq -> Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw),
-          scReq -> Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
-        )
-      )
-      lsExe.in.mem_addr       := Mux(amoReq || lrReq || scReq, src1, src1 + imm)
-      lsExe.in.wdata          := DontCare
-      io.memoryUnit.out.ready := io.dataMemory.in.ready
-      when(allow_to_go && io.dataMemory.in.ready) {
-        state := s_idle
-      }
-    }
+    //   is(s_amo_s) {
+    //     lsExe.in.mem_en         := true.B
+    //     lsExe.in.mem_addr       := src1
+    //     lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
+    //     lsExe.in.wdata          := atomMemReg
+    //     io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
+    //     when(lsExe.out.ready) {
+    //       when(allow_to_go) {
+    //         state := s_idle
+    //       }
+    //       state := s_wait_allow;
+    //     }
+    //   }
+    //   is(s_sc) {
+    //     lsExe.in.mem_en         := true.B
+    //     lsExe.in.mem_addr       := src1
+    //     lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
+    //     lsExe.in.wdata          := src2
+    //     io.memoryUnit.out.ready := lsExe.out.ready && io.dataMemory.out.en
+    //     when(lsExe.out.ready) {
+    //       when(allow_to_go) {
+    //         state := s_idle
+    //       }
+    //       state := s_wait_allow;
+    //     }
+    //   }
+    //   is(s_wait_allow) {
+    //     lsExe.in.mem_en := false.B
+    //     lsExe.in.info.op := MuxCase(
+    //       func,
+    //       Seq(
+    //         lrReq -> Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw),
+    //         scReq -> Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
+    //       )
+    //     )
+    //     lsExe.in.mem_addr       := Mux(amoReq || lrReq || scReq, src1, src1 + imm)
+    //     lsExe.in.wdata          := DontCare
+    //     io.memoryUnit.out.ready := io.dataMemory.in.ready
+    //     when(allow_to_go && io.dataMemory.in.ready) {
+    //       state := s_idle
+    //     }
+    //   }
   }
   when(
     lsExe.out.loadAddrMisaligned ||
