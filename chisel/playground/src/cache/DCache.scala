@@ -149,6 +149,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   // 是否使用exe的地址进行提前访存
   val use_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
   val do_replace    = RegInit(false.B)
+  // replace index 表示行的索引
   val replace_index = io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
   val replace_wstrb = Wire(Vec(nbank, Vec(nway, UInt(AXI_STRB_WID.W))))
   val replace_wdata = Mux(state === s_replace, io.axi.r.bits.data, io.cpu.wdata)
@@ -193,8 +194,8 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val tag_raddr  = Mux(state === s_fence, dirty_index, tag_rindex)
 
   val wstrb = Wire(Vec(nindex, (Vec(nway, UInt(AXI_STRB_WID.W)))))
-  wstrb                            := 0.U.asTypeOf(wstrb)
-  wstrb(replace_index)(select_way) := io.cpu.wstrb
+  wstrb                         := 0.U.asTypeOf(wstrb)
+  wstrb(bank_index)(select_way) := io.cpu.wstrb
 
   // bank tagv ram
   val tagRam = Seq.fill(nway)(Module(new LUTRam(nindex, tagWidth)))
