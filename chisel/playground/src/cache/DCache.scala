@@ -103,15 +103,16 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   // * valid dirty * //
   // 每行有一个有效位和一个脏位
-  val valid = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B)))))
+  val valid = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B))))) // FIXME：nway放前面会导致栈溢出错误
   val dirty = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B)))))
   val lru   = RegInit(VecInit(Seq.fill(nindex)(false.B))) // TODO:支持更多路数，目前只支持2路
 
-  val dirty_table     = Wire(Vec(nindex, UInt(nway.W))) // 0:第0路脏位为真，1:第1路脏位为真，2:两路都为假
-  val dirty_index     = Wire(UInt(indexWidth.W))
-  val dirty_way       = dirty_table(dirty_index) // 用于指示哪个路的脏位为真
-  val writeback_index = RegInit(0.U(indexWidth.W))
-  val writeback_tag   = RegInit(0.U(tagWidth.W))
+  // 0:第0路脏位为真，1:第1路脏位为真，2:两路都为假
+  val dirty_table = Wire(Vec(nindex, UInt(log2Ceil(nway + 1).W)))
+  // 用于指示哪个行的脏位为真
+  val dirty_index = Wire(UInt(indexWidth.W))
+  // 用于指示哪个路的脏位为真
+  val dirty_way = dirty_table(dirty_index)
 
   for (i <- 0 until nindex) {
     dirty_table(i) := MuxCase(
@@ -125,7 +126,9 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
 
   dirty_index := PriorityEncoder(dirty_table.map(w => w =/= 2.U))
 
-  val fence            = RegInit(false.B)
+  // 表示进入fence的写回状态
+  val fence = RegInit(false.B)
+  // 表示准备好了fence的写回数据，因为bank读数据要两拍
   val fence_data_ready = RegInit(false.B)
 
   // 对于uncached段使用writeFifo进行写回
@@ -143,7 +146,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   }))
 
   // 用于解决在replace时读写时序不一致的问题
-  val bank_woffset     = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
+  val bank_windex      = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
   val bank_replication = RegInit(VecInit(Seq.fill(nbank)(0.U(XLEN.W))))
 
   // 是否使用exe的地址进行提前访存
@@ -318,7 +321,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         }.otherwise {
           when(!cache_hit) {
             state                    := s_replace
-            bank_woffset             := 0.U
+            bank_windex              := 0.U
             burst.wstrb(replace_way) := 1.U // 先写入第一块bank
             when(replace_dirty) {
               // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
@@ -370,15 +373,15 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           when(w.last) {
             wvalid := false.B
           }.otherwise {
-            bank_woffset := bank_woffset + 1.U
-            w.data       := data(bank_woffset + 1.U)(dirty_way)
-            when(bank_woffset + 1.U === (cached_len).U) {
+            bank_windex := bank_windex + 1.U
+            w.data      := data(bank_windex + 1.U)(dirty_way)
+            when(bank_windex + 1.U === (cached_len).U) {
               w.last := true.B
             }
           }
         }
         when(io.axi.b.valid) {
-          // TODO: 增加此处的错误处理
+          // TODO: 增加此处的acc_err错误处理
           // acc_err := io.axi.b.bits.resp =/= RESP_OKEY.U
           dirty(dirty_index)(dirty_way) := false.B // 写回完成，清除脏位
           fence_data_ready              := false.B
@@ -386,23 +389,21 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
         }
       }.elsewhen(dirty.asUInt.orR) {
         when(fence_data_ready) {
-          writeback_index := dirty_index // 方便debug
-          writeback_tag   := Mux(dirty_way === 0.U, tagRam(0).io.rdata, tagRam(1).io.rdata) // 方便debug
           // for axi write
           aw.addr := Cat(
             Mux(dirty_way === 0.U, tagRam(0).io.rdata, tagRam(1).io.rdata),
             dirty_index,
             0.U(offsetWidth.W)
           )
-          aw.len       := cached_len.U
-          aw.size      := cached_size.U
-          awvalid      := true.B
-          w.data       := data(0)(dirty_way) // 从第零块bank开始写回
-          w.strb       := ~0.U(AXI_STRB_WID.W)
-          w.last       := false.B
-          wvalid       := true.B
-          bank_woffset := 0.U
-          fence        := true.B
+          aw.len      := cached_len.U
+          aw.size     := cached_size.U
+          awvalid     := true.B
+          w.data      := data(0)(dirty_way) // 从第零块bank开始写回
+          w.strb      := ~0.U(AXI_STRB_WID.W)
+          w.last      := false.B
+          wvalid      := true.B
+          bank_windex := 0.U
+          fence       := true.B
         }.otherwise {
           fence_data_ready := true.B
         }
@@ -422,15 +423,15 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
               when(w.last) {
                 wvalid := false.B
               }.otherwise {
-                bank_woffset := bank_woffset + 1.U
-                w.data       := bank_replication(bank_woffset + 1.U)
-                when(bank_woffset + 1.U === (cached_len).U) {
+                bank_windex := bank_windex + 1.U
+                w.data      := bank_replication(bank_windex + 1.U)
+                when(bank_windex + 1.U === (cached_len).U) {
                   w.last := true.B
                 }
               }
             }
             when(io.axi.b.valid) {
-              // TODO: 增加此处的错误处理
+              // TODO: 增加此处的acc_err错误处理
               // acc_err := io.axi.b.bits.resp =/= RESP_OKEY.U
               replace_dirty := false.B // 写回完成，清除脏位
             }
@@ -469,15 +470,15 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
           tag_wstrb(replace_way)   := true.B
           tag_wdata                := io.cpu.tlb.ptag
           when(replace_dirty) {
-            aw.addr      := Cat(tag(replace_way), replace_index, 0.U(offsetWidth.W))
-            aw.len       := cached_len.U
-            aw.size      := cached_size.U
-            awvalid      := true.B
-            w.data       := data(0)(replace_way)
-            w.strb       := ~0.U(AXI_STRB_WID.W)
-            w.last       := false.B
-            wvalid       := true.B
-            bank_woffset := 0.U
+            aw.addr     := Cat(tag(replace_way), replace_index, 0.U(offsetWidth.W))
+            aw.len      := cached_len.U
+            aw.size     := cached_size.U
+            awvalid     := true.B
+            w.data      := data(0)(replace_way)
+            w.strb      := ~0.U(AXI_STRB_WID.W)
+            w.last      := false.B
+            wvalid      := true.B
+            bank_windex := 0.U
           }
         }
       }

@@ -99,14 +99,6 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   when(tlb_fill) { tlb_fill := false.B }
   io.cpu.tlb.fill := tlb_fill
 
-  // * fence * //
-  // fence指令时清空cache，等同于将所有valid位置0
-  when(io.cpu.fence_i) {
-    // TODO：还要考虑更复杂的情况，比如说打断了读
-    valid := 0.U.asTypeOf(valid)
-    state := s_fence
-  }
-
   // * lru * //// TODO:检查lru的正确性，增加可拓展性，目前只支持两路的cache
   val lru = RegInit(VecInit(Seq.fill(nindex)(false.B)))
 
@@ -306,11 +298,18 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       }
     }
     is(s_fence) {
-      // 等待dcache完成写回操作
-      when(io.cpu.complete_single_request && !io.cpu.dcache_stall) {
+      // 等待dcache完成写回操作，且等待axi总线完成读取操作，因为icache发生状态转移时可能正在读取数据
+      when(!io.cpu.dcache_stall && !io.axi.r.valid) {
         state := s_idle
       }
     }
+  }
+
+  // * fence * //
+  // 不论icache在什么状态，fence指令优先度最高，会强制将icache状态转移为s_fence
+  when(io.cpu.fence_i) {
+    valid := 0.U.asTypeOf(valid) // fence.i指令需要icache，等同于将所有valid位置0
+    state := s_fence
   }
 
   println("----------------------------------------")
