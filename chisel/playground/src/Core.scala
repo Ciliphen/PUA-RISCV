@@ -139,5 +139,5 @@ class Core(implicit val config: CpuConfig) extends Module {
   io.inst.req := !instFifo.full && !reset.asBool
 
   io.inst.complete_single_request := ctrl.fetchUnit.allow_to_go
-  io.data.complete_single_request := ctrl.memoryUnit.allow_to_go
+  io.data.complete_single_request := ctrl.memoryUnit.allow_to_go || ctrl.memoryUnit.complete_single_request
 }

@@ -88,12 +88,15 @@ class ExecuteCtrl(implicit val config: CpuConfig) extends Bundle {
 }
 
 class MemoryCtrl extends Bundle {
-  val fence_i   = Output(Bool())
   val flush     = Output(Bool())
   val mem_stall = Output(Bool())
 
   val allow_to_go = Input(Bool())
   val do_flush    = Input(Bool())
+
+  // to cache
+  val fence_i                 = Output(Bool())
+  val complete_single_request = Output(Bool()) // to dcache
 }
 
 class WriteBackCtrl extends Bundle {

@@ -2,8 +2,6 @@ import cpu._
 import circt.stage._
 
 import cpu.pipeline.execute.Csr
-import cpu.pipeline.memory.LSExe
-import cpu.pipeline.memory.AtomAlu
 import cache.DCache
 
 object TestMain extends App {

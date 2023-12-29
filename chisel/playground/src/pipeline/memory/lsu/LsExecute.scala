@@ -6,9 +6,9 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class LSExe extends Module {
+class LsExecute extends Module {
   val io = IO(new Bundle {
-    val dataMemory = new DataMemoryAccess_DataMemory()
+    val dataMemory = new Lsu_DataMemory()
     val in = Input(new Bundle {
       val mem_en   = Bool()
       val mem_addr = UInt(DATA_ADDR_WID.W)
@@ -138,7 +138,7 @@ class LSExe extends Module {
   io.dataMemory.out.wdata := reqWdata
 
   val is_amo = valid && LSUOpType.isAMO(op)
-  io.out.ready               := io.dataMemory.in.ready
+  io.out.ready               := io.dataMemory.in.ready && io.dataMemory.out.en
   io.out.rdata               := Mux(partialLoad, rdataPartialLoad, rdataSel)
   io.out.loadAddrMisaligned  := valid && !isStore && !is_amo && !addrAligned
   io.out.loadAccessFault     := valid && !isStore && !is_amo && (acc_err || has_acc_err)
