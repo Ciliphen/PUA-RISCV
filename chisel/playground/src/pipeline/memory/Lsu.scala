@@ -139,7 +139,8 @@ class Lsu(implicit val config: CpuConfig) extends Module {
       lsExe.in.wdata          := DontCare
       io.memoryUnit.out.ready := false.B
       when(lsExe.out.ready) {
-        state                   := s_amo_a;
+        state := s_amo_a;
+        // 告诉dcache已经完成一次访存操作，可以进入下一次访存
         complete_single_request := true.B
       }
       atomMemReg := lsExe.out.rdata
@@ -147,7 +148,6 @@ class Lsu(implicit val config: CpuConfig) extends Module {
     }
 
     is(s_amo_a) {
-      complete_single_request := false.B
       lsExe.in.mem_en         := false.B
       lsExe.in.mem_addr       := DontCare
       lsExe.in.info.op        := DontCare
@@ -187,6 +187,7 @@ class Lsu(implicit val config: CpuConfig) extends Module {
   ) {
     state                   := s_idle
     io.memoryUnit.out.ready := true.B
+    complete_single_request := false.B // 发生例外时应该由ctrl的allow to go控制
   }
 
   setLr     := io.memoryUnit.out.ready && (lrReq || scReq)
