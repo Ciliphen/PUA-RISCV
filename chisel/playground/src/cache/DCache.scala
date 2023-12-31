@@ -115,16 +115,16 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val dirty_way = dirty_table(dirty_index)
 
   for (i <- 0 until nindex) {
+    val dirtyMappings = (0 until nway).map { way =>
+      dirty(i)(way) -> way.U
+    }
     dirty_table(i) := MuxCase(
-      2.U,
-      Seq(
-        valid(i)(0) -> 0.U,
-        valid(i)(1) -> 1.U
-      )
+      nway.U,
+      dirtyMappings
     )
   }
 
-  dirty_index := PriorityEncoder(dirty_table.map(w => w =/= 2.U))
+  dirty_index := PriorityEncoder(dirty_table.map(w => w =/= nway.U))
 
   // 表示进入fence的写回状态
   val fence = RegInit(false.B)
@@ -221,7 +221,10 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
       tagRam(i).io.waddr := replace_index
       tagRam(i).io.wdata := tag_wdata
 
-      tag_compare_valid(i) := tag(i) === io.cpu.tlb.ptag && valid(replace_index)(i) && io.cpu.tlb.translation_ok
+      tag_compare_valid(i) :=
+        tag(i) === io.cpu.tlb.ptag && // tag相同
+        valid(replace_index)(i) && // cache行有效位为真
+        io.cpu.tlb.translation_ok // 页表有效
 
       replace_wstrb(j)(i) := Mux(
         tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle && !tlb_fill,
@@ -449,7 +452,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
             }
           }
           when(
-            (!replace_dirty || io.axi.b.valid) && // 写回完成
+            (!replace_dirty || io.axi.b.valid) && // 不需要替换或写回完成
               ((io.axi.r.valid && io.axi.r.bits.last) || !rready) // 读取完成
           ) {
             valid(replace_index)(replace_way) := true.B
