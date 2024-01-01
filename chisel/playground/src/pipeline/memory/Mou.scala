@@ -12,20 +12,17 @@ class Mou extends Module {
       val pc   = UInt(XLEN.W)
     })
     val out = Output(new Bundle {
+      val flush   = Bool()
       val fence_i = Bool()
       val target  = UInt(XLEN.W)
     })
   })
 
-  val valid   = io.in.info.valid
-  val fence_i = valid && io.in.info.fusel === FuType.mou && io.in.info.op === MOUOpType.fencei
+  val valid   = io.in.info.valid && io.in.info.fusel === FuType.mou
+  val fence_i = valid && io.in.info.op === MOUOpType.fencei
 
-  // TODO:增加其他fence指令时只要在后面加就行
+  io.out.flush   := valid
   io.out.fence_i := fence_i
-  io.out.target := MuxCase(
-    io.in.pc + 4.U,
-    Seq(
-      fence_i -> (io.in.pc + 4.U)
-    )
-  )
+  io.out.target  := io.in.pc + 4.U
+
 }

@@ -230,12 +230,17 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val seip              = meip
   val mip_has_interrupt = WireInit(mip)
   mip_has_interrupt.e.s := mip.e.s | seip
-  val interrupt_enable = Wire(UInt(INT_WID.W)) // 不用考虑ideleg
-  interrupt_enable := Fill(
-    INT_WID,
-    (((mode === ModeM) && mstatus.asTypeOf(new Mstatus()).ie.m) || (mode < ModeM))
+
+  val ideleg = (mideleg & mip_has_interrupt.asUInt)
+  def priviledgedEnableDetect(x: Bool): Bool = Mux(
+    x,
+    ((mode === ModeS) && mstatus.asTypeOf(new Mstatus()).ie.s) || (mode < ModeS),
+    ((mode === ModeM) && mstatus.asTypeOf(new Mstatus()).ie.m) || (mode < ModeM)
   )
-  io.decoderUnit.interrupt := mie(11, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
+
+  val interrupt_enable = Wire(Vec(INT_WID, Bool()))
+  interrupt_enable.zip(ideleg.asBools).map { case (x, y) => x := priviledgedEnableDetect(y) }
+  io.decoderUnit.interrupt := mie(INT_WID - 1, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
 
   // 优先使用inst0的信息
   val mem_pc        = io.memoryUnit.in.pc
@@ -298,8 +303,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
 
   val exceptionNO = ExcPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.exception(i), i.U, sum))
   val interruptNO = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
-  val causeNO     = Mux(has_interrupt, interruptNO, exceptionNO)
-  val cause       = (has_interrupt << (XLEN - 1)) | causeNO
+  val causeNO     = (has_interrupt << (XLEN - 1)) | Mux(has_interrupt, interruptNO, exceptionNO)
 
   val has_instrPageFault      = mem_ex.exception(instrPageFault)
   val has_loadPageFault       = mem_ex.exception(loadPageFault)
@@ -307,6 +311,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val has_loadAddrMisaligned  = mem_ex.exception(loadAddrMisaligned)
   val has_storeAddrMisaligned = mem_ex.exception(storeAddrMisaligned)
   val has_instrAddrMisaligned = mem_ex.exception(instrAddrMisaligned)
+
+  val deleg  = Mux(has_interrupt, mideleg, medeleg)
+  val delegS = (deleg(causeNO(log2Ceil(EXC_WID) - 1, 0))) && (mode < ModeM)
 
   val tval_wen = has_interrupt ||
     !(has_instrPageFault ||
@@ -324,28 +331,43 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
       has_loadAddrMisaligned ||
       has_storeAddrMisaligned
   ) {
-    mtval := SignedExtend(mem_ex.tval, XLEN)
+    val tval = SignedExtend(mem_ex.tval, XLEN)
+    when(mode === ModeM) {
+      mtval := tval
+    }.otherwise {
+      stval := tval
+    }
   }
 
   when(has_exc_int) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
-    mcause           := cause
-    mepc             := SignedExtend(mem_pc, XLEN)
-    mstatusNew.mpp   := mode
-    mstatusNew.pie.m := mstatusOld.ie.m
-    mstatusNew.ie.m  := false.B
-    mode             := ModeM
-    when(tval_wen) { mtval := 0.U }
+
+    when(delegS) {
+      scause           := causeNO
+      sepc             := SignedExtend(mem_pc, XLEN)
+      mstatusNew.spp   := mode
+      mstatusNew.pie.s := mstatusOld.ie.s
+      mstatusNew.ie.s  := false.B
+      mode             := ModeS
+      when(tval_wen) { stval := 0.U }
+    }.otherwise {
+      mcause           := causeNO
+      mepc             := SignedExtend(mem_pc, XLEN)
+      mstatusNew.mpp   := mode
+      mstatusNew.pie.m := mstatusOld.ie.m
+      mstatusNew.ie.m  := false.B
+      mode             := ModeM
+      when(tval_wen) { mtval := 0.U }
+    }
     mstatus := mstatusNew.asUInt
   }
 
   val ret_target = Wire(UInt(VADDR_WID.W))
   ret_target := DontCare
-  val trap_target = Wire(UInt(VADDR_WID.W))
-  val tvec        = mtvec
-  trap_target := tvec(VADDR_WID - 1, 0)
 
+  val trap_target = Wire(UInt(VADDR_WID.W))
+  val tvec        = Mux(delegS, stvec, mtvec)
   trap_target := (tvec(VADDR_WID - 1, 2) << 2) + Mux(
     tvec(0) && has_interrupt,
     (causeNO << 2),

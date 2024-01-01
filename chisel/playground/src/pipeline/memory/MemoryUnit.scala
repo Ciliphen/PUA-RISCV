@@ -128,6 +128,6 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.ctrl.fence_i                 := mou.out.fence_i
   io.ctrl.complete_single_request := lsu.memoryUnit.out.complete_single_request
 
-  io.fetchUnit.flush  := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.fence_i)
+  io.fetchUnit.flush  := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.flush)
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.flush_pc, mou.out.target)
 }

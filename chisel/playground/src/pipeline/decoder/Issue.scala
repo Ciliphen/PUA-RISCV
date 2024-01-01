@@ -57,10 +57,13 @@ class Issue(implicit val config: CpuConfig) extends Module {
       inst1.fusel === FuType.bru
     ).asUInt.orR
 
+    val is_mou = VecInit(
+      inst0.fusel === FuType.mou,
+      inst1.fusel === FuType.mou
+    ).asUInt.orR
+
     // 下面的情况只进行单发射
-    val single_issue =
-      VecInit(FuType.mou).contains(io.decodeInst(1).fusel) ||
-        is_bru
+    val single_issue = is_mou || is_bru
 
     // 指令1是否允许执行
     io.inst1.allow_to_go :=
