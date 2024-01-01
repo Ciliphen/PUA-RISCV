@@ -107,7 +107,7 @@ class DCache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   val dirty = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B)))))
   val lru   = RegInit(VecInit(Seq.fill(nindex)(false.B))) // TODO:支持更多路数，目前只支持2路
 
-  // 0:第0路脏位为真，1:第1路脏位为真，2:两路都为假
+  // 对于2路组相连的cache: 0:第0路脏位为真，1:第1路脏位为真，2:两路都为假
   val dirty_table = Wire(Vec(nindex, UInt(log2Ceil(nway + 1).W)))
   // 用于指示哪个行的脏位为真
   val dirty_index = Wire(UInt(indexWidth.W))

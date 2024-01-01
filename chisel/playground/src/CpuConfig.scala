@@ -10,7 +10,7 @@ case class CpuConfig(
   val hasMExtension: Boolean = true, // 是否有乘除法单元
   val hasAExtension: Boolean = true, // 是否有原子指令
   // 特权模式
-  val hasSMode: Boolean = false, // 是否有S模式
+  val hasSMode: Boolean = true, // 是否有S模式
   val hasUMode: Boolean = true, // 是否有U模式
   // 模块配置
   val hasCommitBuffer: Boolean = true, // 是否有提交缓存

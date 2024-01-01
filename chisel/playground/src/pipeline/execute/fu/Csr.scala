@@ -53,11 +53,13 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   })
 
   /* CSR寄存器定义 */
-  val mvendorid    = RegInit(0.U(XLEN.W)) // 厂商ID
-  val marchid      = RegInit(0.U(XLEN.W)) // 架构ID
-  val mimpid       = RegInit(0.U(XLEN.W)) // 实现ID
-  val mhartid      = RegInit(0.U(XLEN.W)) // 硬件线程ID
-  val mconfigptr   = RegInit(0.U(XLEN.W)) // 配置寄存器指针
+  // Machine Information Registers
+  val mvendorid = RegInit(UInt(XLEN.W), 0.U) // 厂商ID
+  val marchid   = RegInit(UInt(XLEN.W), 0.U) // 架构ID
+  val mimpid    = RegInit(UInt(XLEN.W), 0.U) // 实现ID
+  val mhartid   = RegInit(UInt(XLEN.W), 0.U) // 硬件线程ID
+
+  // Machine Trap Setup
   val mstatus_init = Wire(new Mstatus())
   mstatus_init     := 0.U.asTypeOf(new Mstatus())
   mstatus_init.uxl := 2.U
@@ -73,36 +75,64 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   if (config.hasUMode) { extensions = extensions :+ 'u' }
   misa_init.extensions := extensions.foldLeft(0.U)((sum, i) => sum | getMisaExt(i))
   val misa       = RegInit(UInt(XLEN.W), misa_init.asUInt) // ISA寄存器
-  val mie        = RegInit(0.U(XLEN.W)) // 中断使能寄存器
-  val mtvec      = RegInit(0.U(XLEN.W)) // 中断向量基址寄存器
-  val mcounteren = RegInit(0.U(XLEN.W)) // 计数器使能寄存器
-  val mscratch   = RegInit(0.U(XLEN.W)) // 临时寄存器
-  val mepc       = RegInit(0.U(XLEN.W)) // 异常程序计数器
-  val mcause     = RegInit(0.U(XLEN.W)) // 异常原因寄存器
-  val mtval      = RegInit(0.U(XLEN.W)) // 异常值寄存器
+  val medeleg    = RegInit(UInt(XLEN.W), 0.U) // 异常代理寄存器
+  val mideleg    = RegInit(UInt(XLEN.W), 0.U) // 中断代理寄存器
+  val mie        = RegInit(UInt(XLEN.W), 0.U) // 中断使能寄存器
+  val mtvec      = RegInit(UInt(XLEN.W), 0.U) // 中断向量基址寄存器
+  val mcounteren = RegInit(UInt(XLEN.W), 0.U) // 计数器使能寄存器
+
+  // Machine Trap Handling
+  val mscratch   = RegInit(UInt(XLEN.W), 0.U) // 临时寄存器
+  val mepc       = RegInit(UInt(XLEN.W), 0.U) // 异常程序计数器
+  val mcause     = RegInit(UInt(XLEN.W), 0.U) // 异常原因寄存器
+  val mtval      = RegInit(UInt(XLEN.W), 0.U) // 异常值寄存器
   val mipWire    = WireInit(0.U.asTypeOf(new Interrupt))
   val mipReg     = RegInit(0.U(64.W))
   val mipFixMask = "h77f".U(64.W)
   val mip        = (mipWire.asUInt | mipReg).asTypeOf(new Interrupt) // 中断挂起寄存器
-  val mcycle     = RegInit(0.U(XLEN.W)) // 时钟周期计数器
-  mcycle := mcycle + 1.U
-  val minstret = RegInit(0.U(XLEN.W)) // 指令计数器
 
-  val tselect = RegInit(1.U(XLEN.W)) // 跟踪寄存器选择寄存器
-  val tdata1  = RegInit(0.U(XLEN.W)) // 跟踪寄存器数据1寄存器
+  // Machine Memory Protection
+  val pmpcfg0  = RegInit(UInt(XLEN.W), 0.U)
+  val pmpcfg1  = RegInit(UInt(XLEN.W), 0.U)
+  val pmpcfg2  = RegInit(UInt(XLEN.W), 0.U)
+  val pmpcfg3  = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddr0 = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddr1 = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddr2 = RegInit(UInt(XLEN.W), 0.U)
+  val pmpaddr3 = RegInit(UInt(XLEN.W), 0.U)
 
-  // 仅供调试使用
-  val satp = RegInit(UInt(XLEN.W), 0.U)
-
-  val pmpcfg0      = RegInit(UInt(XLEN.W), 0.U)
-  val pmpcfg1      = RegInit(UInt(XLEN.W), 0.U)
-  val pmpcfg2      = RegInit(UInt(XLEN.W), 0.U)
-  val pmpcfg3      = RegInit(UInt(XLEN.W), 0.U)
-  val pmpaddr0     = RegInit(UInt(XLEN.W), 0.U)
-  val pmpaddr1     = RegInit(UInt(XLEN.W), 0.U)
-  val pmpaddr2     = RegInit(UInt(XLEN.W), 0.U)
-  val pmpaddr3     = RegInit(UInt(XLEN.W), 0.U)
   val pmpaddrWmask = "h3fffffff".U(64.W) // 32bit physical address
+
+  // Machine Counter/Timers
+  val mcycle = RegInit(UInt(XLEN.W), 0.U) // 时钟周期计数器
+  mcycle := mcycle + 1.U
+  val minstret = RegInit(UInt(XLEN.W), 0.U) // 指令计数器
+
+  // Supervisor Trap Setup
+  // sstatus 状态寄存器，源自mstatus
+  val sstatusWmask = "hc6122".U(XLEN.W)
+  val sstatusRmask = sstatusWmask | "h8000000300018000".U
+  // sedeleg 异常代理寄存器，未实现
+  // sideleg 中断代理寄存器，未实现
+  // sie 中断使能寄存器，源自mie
+  val sieMask    = "h222".U(64.W) & mideleg
+  val stvec      = RegInit(UInt(XLEN.W), 0.U) // 中断向量基址寄存器
+  val scounteren = RegInit(UInt(XLEN.W), 0.U) // 计数器使能寄存器
+
+  // Supervisor Trap Handling
+  val sscratch = RegInit(UInt(XLEN.W), 0.U) // 临时寄存器
+  val sepc     = RegInit(UInt(XLEN.W), 0.U) // 异常程序计数器
+  val scause   = RegInit(UInt(XLEN.W), 0.U) // 异常原因寄存器
+  val stval    = RegInit(UInt(XLEN.W), 0.U) // 异常值寄存器
+  // sip 中断挂起寄存器，源自mip
+  val sipMask = "h222".U(64.W) & mideleg
+
+  // Supervisor Protection and Translation
+  val satp = RegInit(UInt(XLEN.W), 0.U) // 页表基址寄存器
+
+  // Debug/Trace Registers (shared with Debug Mode)
+  val tselect = RegInit(1.U(XLEN.W)) // 跟踪寄存器选择寄存器
+  val tdata1  = RegInit(UInt(XLEN.W), 0.U) // 跟踪寄存器数据1寄存器
 
   val rdata = Wire(UInt(XLEN.W))
   val wdata = Wire(UInt(XLEN.W))
@@ -132,47 +162,26 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   }
 
   val mstatus_wmask = Mux(
-    wdata.asTypeOf(new Mstatus).mpp === ModeM || wdata.asTypeOf(new Mstatus).mpp === ModeU,
+    VecInit(ModeM, ModeS, ModeU).contains(wdata.asTypeOf(new Mstatus).mpp),
     "h0000000000021888".U(64.W),
     "h0000000000020088".U(64.W)
   )
 
   // CSR reg map
   val mapping = Map(
-    // User Trap Setup
-    // MaskedRegMap(Ustatus, ustatus),
-    // MaskedRegMap(Uie, uie, 0.U, MaskedRegMap.Unwritable),
-    // MaskedRegMap(Utvec, utvec),
-
-    // User Trap Handling
-    // MaskedRegMap(Uscratch, uscratch),
-    // MaskedRegMap(Uepc, uepc),
-    // MaskedRegMap(Ucause, ucause),
-    // MaskedRegMap(Utval, utval),
-    // MaskedRegMap(Uip, uip),
-
-    // User Floating-Point CSRs (not implemented)
-    // MaskedRegMap(Fflags, fflags),
-    // MaskedRegMap(Frm, frm),
-    // MaskedRegMap(Fcsr, fcsr),
-
     // User Counter/Timers
     MaskedRegMap(Cycle, mcycle),
-    // MaskedRegMap(Time, time),
-    // MaskedRegMap(Instret, minstret),
-    // // Supervisor Trap Setup TODO
-    // MaskedRegMap(Sstatus, mstatus, sstatusWmask, mstatusUpdateSideEffect, sstatusRmask),
-    // // MaskedRegMap(Sedeleg, Sedeleg),
-    // // MaskedRegMap(Sideleg, Sideleg),
-    // MaskedRegMap(Sie, mie, sieMask, MaskedRegMap.NoSideEffect, sieMask),
-    // MaskedRegMap(Stvec, stvec),
-    // MaskedRegMap(Scounteren, scounteren),
-    // // Supervisor Trap Handling
-    // MaskedRegMap(Sscratch, sscratch),
-    // MaskedRegMap(Sepc, sepc),
-    // MaskedRegMap(Scause, scause),
-    // MaskedRegMap(Stval, stval),
-    // MaskedRegMap(Sip, mip.asUInt, sipMask, MaskedRegMap.Unwritable, sipMask),
+    // Supervisor Trap Setup
+    MaskedRegMap(Sstatus, mstatus, sstatusWmask, mstatusUpdateSideEffect, sstatusRmask),
+    MaskedRegMap(Sie, mie, sieMask, MaskedRegMap.NoSideEffect, sieMask),
+    MaskedRegMap(Stvec, stvec),
+    MaskedRegMap(Scounteren, scounteren),
+    // Supervisor Trap Handling
+    MaskedRegMap(Sscratch, sscratch),
+    MaskedRegMap(Sepc, sepc),
+    MaskedRegMap(Scause, scause),
+    MaskedRegMap(Stval, stval),
+    MaskedRegMap(Sip, mip.asUInt, sipMask, MaskedRegMap.Unwritable, sipMask),
     // Supervisor Protection and Translation
     MaskedRegMap(Satp, satp),
     // Machine Information Registers
@@ -182,9 +191,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Mhartid, mhartid, 0.U, MaskedRegMap.Unwritable),
     // Machine Trap Setup
     MaskedRegMap(Mstatus, mstatus, mstatus_wmask),
-    MaskedRegMap(Misa, misa), // now MXL, EXT is not changeable
-    // MaskedRegMap(Medeleg, medeleg, "hbbff".U(64.W)), TODO
-    // MaskedRegMap(Mideleg, mideleg, "h222".U(64.W)),
+    MaskedRegMap(Misa, misa), // MXL，EXT目前不支持可变
+    MaskedRegMap(Medeleg, medeleg, "hbbff".U(XLEN.W)),
+    MaskedRegMap(Mideleg, mideleg, "h222".U(XLEN.W)),
     MaskedRegMap(Mie, mie),
     MaskedRegMap(Mtvec, mtvec),
     MaskedRegMap(Mcounteren, mcounteren),
@@ -207,7 +216,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     // Debug/Trace Registers (shared with Debug Mode)
     MaskedRegMap(Tselect, tselect, 0.U, MaskedRegMap.Unwritable), // 用于通过 risc-v test
     MaskedRegMap(Tdata1, tdata1, 0.U, MaskedRegMap.Unwritable)
-  ) //++ perfCntsLoMapping
+  )
 
   val mode = RegInit(Priv.m) // 当前特权模式
 
@@ -271,8 +280,8 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val illegal_addr = MaskedRegMap.isIllegalAddr(mapping, addr)
   // Fix Mip/Sip write
   val fixMapping = Map(
-    MaskedRegMap(Mip, mipReg.asUInt, mipFixMask)
-    // MaskedRegMap(Sip, mipReg.asUInt, sipMask, MaskedRegMap.NoSideEffect, sipMask) //TODO：增加sip
+    MaskedRegMap(Mip, mipReg.asUInt, mipFixMask),
+    MaskedRegMap(Sip, mipReg.asUInt, sipMask, MaskedRegMap.NoSideEffect, sipMask)
   )
   val rdataDummy = Wire(UInt(XLEN.W))
   MaskedRegMap.generate(fixMapping, addr, rdataDummy, wen, wdata)
@@ -346,7 +355,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   when(isMret) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
-    // mstatusNew.mpp.m := ModeU //TODO: add mode U
+    // mstatusNew.mpp.m := ModeU
     mstatusNew.ie.m  := mstatusOld.pie.m
     mode             := mstatusOld.mpp
     mstatusNew.pie.m := true.B
@@ -355,6 +364,31 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     lr               := false.B
     ret_target       := mepc(VADDR_WID - 1, 0)
   }
+
+  when(isSret) {
+    val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
+    val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
+    // mstatusNew.mpp.m := ModeU
+    mstatusNew.ie.s  := mstatusOld.pie.s
+    mode             := Cat(0.U(1.W), mstatusOld.spp)
+    mstatusNew.pie.s := true.B
+    mstatusNew.spp   := ModeU
+    mstatus          := mstatusNew.asUInt
+    lr               := false.B
+    ret_target       := sepc(VADDR_WID - 1, 0)
+  }
+
+  //TODO: add mode U
+  // when (isUret) {
+  //   val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
+  //   val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
+  //   // mstatusNew.mpp.m := ModeU
+  //   mstatusNew.ie.u := mstatusOld.pie.u
+  //   mode := ModeU
+  //   mstatusNew.pie.u := true.B
+  //   mstatus := mstatusNew.asUInt
+  //   ret_target := uepc(VADDR_WID-1, 0)
+  // }
 
   io.decoderUnit.mode   := mode
   io.executeUnit.out.ex := io.executeUnit.in.ex
