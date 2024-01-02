@@ -123,8 +123,8 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.ex.exception.map(_             := false.B)
   io.executeStage.inst0.ex.exception(illegalInstr)     := !info(0).inst_legal
   io.executeStage.inst0.ex.exception(instrAccessFault) := io.instFifo.inst(0).acc_err
-  io.executeStage.inst0.ex.exception(instrAddrMisaligned) := pc(0)(1, 0).orR ||
-    io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch
+  io.executeStage.inst0.ex.exception(instrAddrMisaligned) := pc(0)(log2Ceil(INST_WID / 8) - 1, 0).orR ||
+    io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst0.ex.exception(breakPoint) := info(0).inst(31, 20) === privEbreak &&
     info(0).op === CSROpType.jmp && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallM) := info(0).inst(31, 20) === privEcall &&
@@ -136,8 +136,9 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.ex.tval := MuxCase(
     0.U,
     Seq(
-      pc(0)(1, 0).orR                                        -> pc(0),
-      (io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch) -> io.fetchUnit.target
+      pc(0)(log2Ceil(INST_WID / 8) - 1, 0).orR                                        -> pc(0),
+      !info(0).inst_legal                                                             -> info(0).inst,
+      (io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch) -> io.fetchUnit.target
     )
   )
 
@@ -165,8 +166,8 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.ex.exception.map(_             := false.B)
   io.executeStage.inst1.ex.exception(illegalInstr)     := !info(1).inst_legal
   io.executeStage.inst1.ex.exception(instrAccessFault) := io.instFifo.inst(1).acc_err
-  io.executeStage.inst1.ex.exception(instrAddrMisaligned) := pc(1)(1, 0).orR ||
-    io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch
+  io.executeStage.inst1.ex.exception(instrAddrMisaligned) := pc(1)(log2Ceil(INST_WID / 8) - 1, 0).orR ||
+    io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst1.ex.exception(breakPoint) := info(1).inst(31, 20) === privEbreak &&
     info(1).op === CSROpType.jmp && info(1).fusel === FuType.csr
   io.executeStage.inst1.ex.exception(ecallM) := info(1).inst(31, 20) === privEcall &&
@@ -179,8 +180,9 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst1.ex.tval := MuxCase(
     0.U,
     Seq(
-      pc(1)(1, 0).orR                                        -> pc(1),
-      (io.fetchUnit.target(1, 0).orR && io.fetchUnit.branch) -> io.fetchUnit.target
+      pc(1)(log2Ceil(INST_WID / 8) - 1, 0).orR                                        -> pc(1),
+      !info(1).inst_legal                                                             -> info(1).inst,
+      (io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch) -> io.fetchUnit.target
     )
   )
 

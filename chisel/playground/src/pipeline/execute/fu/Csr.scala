@@ -55,6 +55,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     val memoryUnit  = new CsrMemoryUnit()
   })
 
+  // 目前的csr只支持64位
+  assert(XLEN == 64, "XLEN must be 64")
+
   /* CSR寄存器定义 */
   // Machine Information Registers
   val mvendorid = RegInit(UInt(XLEN.W), 0.U) // 厂商ID
@@ -65,6 +68,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   // Machine Trap Setup
   val mstatus_init = Wire(new Mstatus())
   mstatus_init     := 0.U.asTypeOf(new Mstatus())
+  mstatus_init.sxl := 2.U
   mstatus_init.uxl := 2.U
   val mstatus   = RegInit(UInt(XLEN.W), mstatus_init.asUInt) // 状态寄存器
   val misa_init = Wire(new Misa())
@@ -90,9 +94,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   val mcause     = RegInit(UInt(XLEN.W), 0.U) // 异常原因寄存器
   val mtval      = RegInit(UInt(XLEN.W), 0.U) // 异常值寄存器
   val mipWire    = WireInit(0.U.asTypeOf(new Interrupt))
-  val mipReg     = RegInit(0.U(64.W))
+  val mipReg     = RegInit(UInt(XLEN.W), 0.U)
   val mipFixMask = "h77f".U(64.W)
-  val mip        = (mipWire.asUInt | mipReg).asTypeOf(new Interrupt) // 中断挂起寄存器
+  val mip        = mipWire.asUInt | mipReg // 中断挂起寄存器
 
   // Machine Memory Protection
   val pmpcfg0  = RegInit(UInt(XLEN.W), 0.U)
@@ -184,7 +188,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Sepc, sepc),
     MaskedRegMap(Scause, scause),
     MaskedRegMap(Stval, stval),
-    MaskedRegMap(Sip, mip.asUInt, sipMask, MaskedRegMap.Unwritable, sipMask),
+    MaskedRegMap(Sip, mip, sipMask, MaskedRegMap.Unwritable, sipMask),
     // Supervisor Protection and Translation
     MaskedRegMap(Satp, satp),
     // Machine Information Registers
@@ -205,7 +209,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Mepc, mepc),
     MaskedRegMap(Mcause, mcause),
     MaskedRegMap(Mtval, mtval),
-    MaskedRegMap(Mip, mip.asUInt, 0.U, MaskedRegMap.Unwritable),
+    MaskedRegMap(Mip, mip, 0.U, MaskedRegMap.Unwritable),
     // Machine Memory Protection
     // MaskedRegMap(Pmpcfg0, pmpcfg0),
     // MaskedRegMap(Pmpcfg1, pmpcfg1),
@@ -231,8 +235,8 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   mipWire.e.m := meip
   mipWire.s.m := msip
   val seip              = meip
-  val mip_has_interrupt = WireInit(mip)
-  mip_has_interrupt.e.s := mip.e.s | seip
+  val mip_has_interrupt = WireInit(mip.asTypeOf(new Interrupt()))
+  mip_has_interrupt.e.s := mip.asTypeOf(new Interrupt).e.s | seip
 
   val ideleg = (mideleg & mip_has_interrupt.asUInt)
   def priviledgedEnableDetect(x: Bool): Bool = Mux(
@@ -270,7 +274,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
       CSROpType.wrt  -> src1,
       CSROpType.set  -> (rdata | src1),
       CSROpType.clr  -> (rdata & ~src1),
-      CSROpType.wrti -> csri, //TODO: csri --> src2
+      CSROpType.wrti -> csri,
       CSROpType.seti -> (rdata | csri),
       CSROpType.clri -> (rdata & ~csri)
     )
@@ -287,13 +291,12 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   MaskedRegMap.generate(mapping, addr, rdata, wen, wdata)
   val illegal_addr = MaskedRegMap.isIllegalAddr(mapping, addr)
   val write_satp   = (addr === Satp.U) && write
-  // Fix Mip/Sip write
-  val fixMapping = Map(
-    MaskedRegMap(Mip, mipReg.asUInt, mipFixMask),
-    MaskedRegMap(Sip, mipReg.asUInt, sipMask, MaskedRegMap.NoSideEffect, sipMask)
+  val ipMapping = Map(
+    MaskedRegMap(Mip, mipReg, mipFixMask),
+    MaskedRegMap(Sip, mipReg, sipMask, MaskedRegMap.NoSideEffect, sipMask)
   )
   val rdataDummy = Wire(UInt(XLEN.W))
-  MaskedRegMap.generate(fixMapping, addr, rdataDummy, wen, wdata)
+  MaskedRegMap.generate(ipMapping, addr, rdataDummy, wen, wdata)
 
   // CSR inst decode
   val ret = Wire(Bool())
