@@ -67,6 +67,13 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.ctrl.flush             := io.fetchUnit.flush
 
   io.csr.in.valid := is_csr.asUInt.orR
+  io.csr.in.pc := MuxCase(
+    0.U,
+    Seq(
+      is_csr(0) -> io.executeStage.inst0.pc,
+      is_csr(1) -> io.executeStage.inst1.pc
+    )
+  )
   io.csr.in.info := MuxCase(
     0.U.asTypeOf(new InstInfo()),
     Seq(
@@ -116,8 +123,8 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
   io.bpu.branch_inst      := io.executeStage.inst0.jb_info.branch_inst
 
   io.fetchUnit.flush := valid(0) && io.ctrl.allow_to_go &&
-    fu.branch.flush
-  io.fetchUnit.target := fu.branch.target
+    (fu.branch.flush || io.csr.out.flush)
+  io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.target, fu.branch.target)
 
   io.ctrl.fu_stall := fu.stall_req
 

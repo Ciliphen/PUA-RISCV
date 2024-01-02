@@ -18,8 +18,8 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
     val set_lr_addr = UInt(DATA_ADDR_WID.W)
   })
   val out = Output(new Bundle {
-    val flush    = Bool()
-    val flush_pc = UInt(XLEN.W)
+    val flush  = Bool()
+    val target = UInt(XLEN.W)
 
     val lr      = Bool()
     val lr_addr = UInt(DATA_ADDR_WID.W)
@@ -29,13 +29,16 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
 class CsrExecuteUnit(implicit val config: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
     val valid    = Bool()
+    val pc       = UInt(XLEN.W)
     val info     = new InstInfo()
     val src_info = new SrcInfo()
     val ex       = new ExceptionInfo()
   })
   val out = Output(new Bundle {
-    val rdata = UInt(XLEN.W)
-    val ex    = new ExceptionInfo()
+    val rdata  = UInt(XLEN.W)
+    val ex     = new ExceptionInfo()
+    val flush  = Bool()
+    val target = UInt(XLEN.W)
   })
 }
 
@@ -283,6 +286,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
 
   MaskedRegMap.generate(mapping, addr, rdata, wen, wdata)
   val illegal_addr = MaskedRegMap.isIllegalAddr(mapping, addr)
+  val write_satp   = (addr === Satp.U) && write
   // Fix Mip/Sip write
   val fixMapping = Map(
     MaskedRegMap(Mip, mipReg.asUInt, mipFixMask),
@@ -400,23 +404,13 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
     ret_target       := sepc(VADDR_WID - 1, 0)
   }
 
-  //TODO: add mode U
-  // when (isUret) {
-  //   val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
-  //   val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
-  //   // mstatusNew.mpp.m := ModeU
-  //   mstatusNew.ie.u := mstatusOld.pie.u
-  //   mode := ModeU
-  //   mstatusNew.pie.u := true.B
-  //   mstatus := mstatusNew.asUInt
-  //   ret_target := uepc(VADDR_WID-1, 0)
-  // }
-
   io.decoderUnit.mode   := mode
   io.executeUnit.out.ex := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInstr) :=
     (illegal_addr || illegal_access) && write | io.executeUnit.in.ex.exception(illegalInstr)
-  io.executeUnit.out.rdata   := rdata
-  io.memoryUnit.out.flush    := has_exc_int || ret
-  io.memoryUnit.out.flush_pc := Mux(has_exc_int, trap_target, ret_target)
+  io.executeUnit.out.rdata  := rdata
+  io.executeUnit.out.flush  := write_satp
+  io.executeUnit.out.target := io.executeUnit.in.pc + 4.U
+  io.memoryUnit.out.flush   := has_exc_int || ret
+  io.memoryUnit.out.target  := Mux(has_exc_int, trap_target, ret_target)
 }

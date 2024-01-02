@@ -129,5 +129,5 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
   io.ctrl.complete_single_request := lsu.memoryUnit.out.complete_single_request
 
   io.fetchUnit.flush  := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.flush)
-  io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.flush_pc, mou.out.target)
+  io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.target, mou.out.target)
 }
