@@ -56,7 +56,7 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   })
 
   // 目前的csr只支持64位
-  assert(XLEN == 64, "XLEN must be 64")
+  require(XLEN == 64, "XLEN must be 64")
 
   /* CSR寄存器定义 */
   // Machine Information Registers

@@ -16,7 +16,7 @@ case class CpuConfig(
   val hasCommitBuffer: Boolean = true, // 是否有提交缓存
   val decoderNum:      Int     = 2, // 译码级最大解码的指令数，也是同时访问寄存器的指令数
   val commitNum:       Int     = 2, // 同时提交的指令数, 也是最大发射的指令数
-  val instFetchNum:    Int     = 2, // iCache取到的指令数量，目前为2和4时验证正确
+  val instFetchNum:    Int     = 2, // iCache取到的指令数量，最大取值为4
   val instFifoDepth:   Int     = 8, // 指令缓存深度
   val mulClockNum:     Int     = 2, // 乘法器的时钟周期数
   val divClockNum:     Int     = 8, // 除法器的时钟周期数
@@ -36,8 +36,8 @@ case class CacheConfig(
 // ==========================================================
   val config = CpuConfig()
   val nway   = 2 // 路数，目前只支持2路
-  val nbank  = if (cacheType == "icache") 4 else 8 // 每个项目中的bank数
-  val nindex = if (cacheType == "icache") 64 else 128 // 每路的项目数
+  val nbank  = if (cacheType == "icache") (16 / config.instFetchNum) else 8 // 每个项目中的bank数
+  val nindex = if (cacheType == "icache") 64 else 64 // 每路的项目数
   val bitsPerBank = // 每个bank的位数
     if (cacheType == "icache") INST_WID * config.instFetchNum
     else XLEN
@@ -52,7 +52,10 @@ case class CacheConfig(
   require(isPow2(nbank))
   require(isPow2(bytesPerBank))
   require(
-    tagWidth + indexWidth + bankIndexWidth + bankOffsetWidth == PADDR_WID,
+    tagWidth + indexWidth + offsetWidth == PADDR_WID,
     "basic request calculation"
   )
+  require(isPow2(config.instFetchNum))
+  require(config.instFetchNum <= 4, "instFetchNum should be less than 4")
+  require(nbank * nindex * bytesPerBank <= 4 * 1024, "VIPT requires the cache size to be less than 4KB")
 }
