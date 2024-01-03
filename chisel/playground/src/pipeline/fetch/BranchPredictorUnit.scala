@@ -62,7 +62,7 @@ class GlobalBranchPredictor(
 
   io.decoder.branch_inst := io.decoder.info.valid &&
     FuType.bru === io.decoder.info.fusel && BRUOpType.isBranch(io.decoder.info.op)
-  io.decoder.branch_target := io.decoder.pc + imm
+  io.decoder.target := io.decoder.pc + imm
   // 局部预测模式
 
   val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
@@ -70,7 +70,7 @@ class GlobalBranchPredictor(
   val bht_index = io.decoder.pc(1 + BHT_DEPTH, 2)
   val pht_index = bht(bht_index)
 
-  io.decoder.pred_branch :=
+  io.decoder.branch :=
     io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
   val update_bht_index = io.execute.pc(1 + BHT_DEPTH, 2)
   val update_pht_index = bht(update_bht_index)
@@ -111,7 +111,7 @@ class AdaptiveTwoLevelPredictor(
 
   io.decoder.branch_inst := io.decoder.info.valid &&
     FuType.bru === io.decoder.info.fusel && BRUOpType.isBranch(io.decoder.info.op)
-  io.decoder.branch_target := io.decoder.pc + imm
+  io.decoder.target := io.decoder.pc + imm
 
   val bht       = RegInit(VecInit(Seq.fill(1 << BHT_DEPTH)(0.U(PHT_DEPTH.W))))
   val pht       = RegInit(VecInit(Seq.fill(1 << PHT_DEPTH)(strongly_taken)))
@@ -121,7 +121,7 @@ class AdaptiveTwoLevelPredictor(
     io.instBuffer.pht_index(i) := bht(io.instBuffer.pc(i)(1 + BHT_DEPTH, 2))
   }
 
-  io.decoder.pred_branch :=
+  io.decoder.branch :=
     io.decoder.branch_inst && (pht(pht_index) === weakly_taken || pht(pht_index) === strongly_taken)
   io.decoder.update_pht_index := bht(io.decoder.pc(1 + BHT_DEPTH, 2))
 

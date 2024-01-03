@@ -32,8 +32,8 @@ class DecoderBranchPredictorUnit extends Bundle {
   val pht_index = Output(UInt(bpuConfig.phtDepth.W))
 
   val branch_inst      = Input(Bool())
-  val pred_branch      = Input(Bool())
-  val branch_target    = Input(UInt(XLEN.W))
+  val branch           = Input(Bool())
+  val target           = Input(UInt(XLEN.W))
   val update_pht_index = Input(UInt(bpuConfig.phtDepth.W))
 }
 
@@ -89,10 +89,10 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   jumpCtrl.in.pc           := pc(0)
   jumpCtrl.in.src_info     := io.executeStage.inst0.src_info
 
-  val inst0_branch = jumpCtrl.out.jump || io.bpu.pred_branch
+  val inst0_branch = jumpCtrl.out.jump || io.bpu.branch
 
   io.fetchUnit.branch := inst0_branch && io.ctrl.allow_to_go
-  io.fetchUnit.target := Mux(io.bpu.pred_branch, io.bpu.branch_target, jumpCtrl.out.jump_target)
+  io.fetchUnit.target := Mux(io.bpu.branch, io.bpu.target, jumpCtrl.out.jump_target)
 
   io.instFifo.allow_to_go(0) := io.ctrl.allow_to_go
   io.bpu.pc                  := pc(0)
@@ -108,7 +108,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   io.executeStage.inst0.pc   := pc(0)
   io.executeStage.inst0.info := info(0)
   io.executeStage.inst0.src_info.src1_data := MuxCase(
-    SignedExtend(pc(0), INST_ADDR_WID),
+    SignedExtend(pc(0), XLEN),
     Seq(
       info(0).src1_ren                      -> forwardCtrl.out.inst(0).src1.rdata,
       (info(0).inst(6, 0) === "b0110111".U) -> 0.U
@@ -144,14 +144,14 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
 
   io.executeStage.inst0.jb_info.jump_regiser     := jumpCtrl.out.jump_register
   io.executeStage.inst0.jb_info.branch_inst      := io.bpu.branch_inst
-  io.executeStage.inst0.jb_info.pred_branch      := io.bpu.pred_branch
-  io.executeStage.inst0.jb_info.branch_target    := io.bpu.branch_target
+  io.executeStage.inst0.jb_info.pred_branch      := io.bpu.branch
+  io.executeStage.inst0.jb_info.branch_target    := io.bpu.target
   io.executeStage.inst0.jb_info.update_pht_index := io.bpu.update_pht_index
 
   io.executeStage.inst1.pc   := pc(1)
   io.executeStage.inst1.info := info(1)
   io.executeStage.inst1.src_info.src1_data := MuxCase(
-    SignedExtend(pc(1), INST_ADDR_WID),
+    SignedExtend(pc(1), XLEN),
     Seq(
       info(1).src1_ren                      -> forwardCtrl.out.inst(1).src1.rdata,
       (info(1).inst(6, 0) === "b0110111".U) -> 0.U

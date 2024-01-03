@@ -204,7 +204,7 @@ class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Modul
   rready <> io.axi.r.ready
 
   val acc_err  = RegInit(false.B)
-  val addr_err = io.cpu.addr(use_next_addr)(XLEN - 1, PADDR_WID).orR
+  val addr_err = io.cpu.addr(use_next_addr)(XLEN - 1, VADDR_WID).orR
 
   when(acc_err) { acc_err := false.B }
   io.cpu.acc_err := acc_err //TODO：实现cached段中的访存错误

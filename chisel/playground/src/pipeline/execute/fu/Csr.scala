@@ -15,14 +15,14 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
 
     val set_lr      = Bool()
     val set_lr_val  = Bool()
-    val set_lr_addr = UInt(DATA_ADDR_WID.W)
+    val set_lr_addr = UInt(XLEN.W)
   })
   val out = Output(new Bundle {
     val flush  = Bool()
     val target = UInt(XLEN.W)
 
     val lr      = Bool()
-    val lr_addr = UInt(DATA_ADDR_WID.W)
+    val lr_addr = UInt(XLEN.W)
   })
 }
 
@@ -147,9 +147,9 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   // Atom LR/SC Control Bits
   val set_lr      = WireInit(Bool(), false.B)
   val set_lr_val  = WireInit(Bool(), false.B)
-  val set_lr_addr = WireInit(UInt(DATA_ADDR_WID.W), 0.U)
+  val set_lr_addr = WireInit(UInt(XLEN.W), 0.U)
   val lr          = RegInit(Bool(), false.B)
-  val lr_addr     = RegInit(UInt(DATA_ADDR_WID.W), 0.U)
+  val lr_addr     = RegInit(UInt(XLEN.W), 0.U)
   set_lr                    := io.memoryUnit.in.set_lr
   set_lr_val                := io.memoryUnit.in.set_lr_val
   set_lr_addr               := io.memoryUnit.in.set_lr_addr

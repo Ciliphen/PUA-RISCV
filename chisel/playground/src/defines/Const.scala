@@ -7,7 +7,7 @@ import cpu.CpuConfig
 trait CoreParameter {
   def config    = new CpuConfig
   val XLEN      = if (config.isRV32) 32 else 64
-  val VADDR_WID = 32
+  val VADDR_WID = if (config.isRV32) 32 else 39
   val PADDR_WID = 32
 }
 
@@ -19,18 +19,14 @@ trait Constants extends CoreParameter {
   val EXC_WID = 16
 
   // inst rom
-  val INST_WID      = 32
-  val INST_ADDR_WID = XLEN
-
-  // data ram
-  val DATA_ADDR_WID = XLEN
+  val INST_WID = 32
 
   // GPR RegFile
   val AREG_NUM     = 32
   val REG_ADDR_WID = 5
 }
 
-trait AXIConst {
+trait AXIConst extends Constants {
   // AXI
   val BURST_FIXED    = 0
   val BURST_INCR     = 1
@@ -43,7 +39,7 @@ trait AXIConst {
   val RESP_DECERR = 3
 
   val AXI_ID_WID    = 4
-  val AXI_ADDR_WID  = 32
+  val AXI_ADDR_WID  = PADDR_WID // 32
   val AXI_DATA_WID  = 64
   val AXI_STRB_WID  = 8
   val AXI_RESP_WID  = 2

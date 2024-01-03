@@ -9,7 +9,7 @@ import cpu.CacheConfig
 class DTlbL1 extends Module {
   val io = IO(new Bundle {
     val cache = new Tlb_DCache()
-    val addr  = Input(UInt(DATA_ADDR_WID.W))
+    val addr  = Input(UInt(XLEN.W))
   })
 
   val cacheConfig = CacheConfig("dcache")

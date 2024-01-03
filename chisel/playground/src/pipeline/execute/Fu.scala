@@ -23,7 +23,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
     )
     val stall_req = Output(Bool())
     val dataMemory = new Bundle {
-      val addr = Output(UInt(DATA_ADDR_WID.W))
+      val addr = Output(UInt(XLEN.W))
     }
     val branch = new Bundle {
       val pred_branch   = Input(Bool())

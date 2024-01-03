@@ -11,7 +11,7 @@ class LsExecute extends Module {
     val dataMemory = new Lsu_DataMemory()
     val in = Input(new Bundle {
       val mem_en   = Bool()
-      val mem_addr = UInt(DATA_ADDR_WID.W)
+      val mem_addr = UInt(XLEN.W)
       val wdata    = UInt(XLEN.W)
       val info     = new InstInfo()
     })

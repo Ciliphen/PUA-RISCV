@@ -18,7 +18,7 @@ class Lsu_DataMemory extends Bundle {
     val rlen  = UInt(AXI_LEN_WID.W)
     val wen   = Bool()
     val wstrb = UInt(AXI_STRB_WID.W)
-    val addr  = UInt(DATA_ADDR_WID.W)
+    val addr  = UInt(XLEN.W)
     val wdata = UInt(XLEN.W)
   })
 }
@@ -31,7 +31,7 @@ class Lsu_MemoryUnit extends Bundle {
     val ex       = new ExceptionInfo()
 
     val lr      = Bool()
-    val lr_addr = UInt(DATA_ADDR_WID.W)
+    val lr_addr = UInt(XLEN.W)
 
     val allow_to_go = Bool()
   })
@@ -44,7 +44,7 @@ class Lsu_MemoryUnit extends Bundle {
 
     val set_lr      = Bool()
     val set_lr_val  = Bool()
-    val set_lr_addr = UInt(DATA_ADDR_WID.W)
+    val set_lr_addr = UInt(XLEN.W)
   })
 }
 
@@ -81,9 +81,9 @@ class Lsu(implicit val config: CpuConfig) extends Module {
   // Atom LR/SC Control Bits
   val setLr     = Wire(Bool())
   val setLrVal  = Wire(Bool())
-  val setLrAddr = Wire(UInt(DATA_ADDR_WID.W))
+  val setLrAddr = Wire(UInt(XLEN.W))
   val lr        = WireInit(Bool(), false.B)
-  val lrAddr    = WireInit(UInt(DATA_ADDR_WID.W), DontCare)
+  val lrAddr    = WireInit(UInt(XLEN.W), DontCare)
   io.memoryUnit.out.set_lr      := setLr
   io.memoryUnit.out.set_lr_val  := setLrVal
   io.memoryUnit.out.set_lr_addr := setLrAddr

@@ -32,7 +32,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     }
     val memoryStage = Output(new ExecuteUnitMemoryUnit())
     val dataMemory = new Bundle {
-      val addr = Output(UInt(DATA_ADDR_WID.W))
+      val addr = Output(UInt(XLEN.W))
     }
   })
 

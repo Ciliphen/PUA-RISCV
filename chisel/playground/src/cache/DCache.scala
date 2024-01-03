@@ -45,7 +45,7 @@ import cpu.defines.Const._
 
 class WriteBufferUnit extends Bundle {
   val data = UInt(XLEN.W)
-  val addr = UInt(DATA_ADDR_WID.W)
+  val addr = UInt(XLEN.W)
   val strb = UInt(AXI_STRB_WID.W)
   val size = UInt(AXI_SIZE_WID.W)
 }

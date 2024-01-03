@@ -16,7 +16,6 @@ class JumpCtrl(implicit val config: CpuConfig) extends Module {
       val forward  = Vec(config.commitNum, new DataForwardToDecoderUnit())
     })
     val out = Output(new Bundle {
-      val jump_inst     = Bool()
       val jump_register = Bool()
       val jump          = Bool()
       val jump_target   = UInt(XLEN.W)
@@ -28,8 +27,7 @@ class JumpCtrl(implicit val config: CpuConfig) extends Module {
   val fusel              = io.in.info.fusel
   val jump_inst          = VecInit(BRUOpType.jal).contains(op) && fusel === FuType.bru
   val jump_register_inst = VecInit(BRUOpType.jalr).contains(op) && fusel === FuType.bru
-  io.out.jump_inst := jump_inst || jump_register_inst
-  io.out.jump      := (jump_inst || jump_register_inst && !io.out.jump_register) && valid
+  io.out.jump := (jump_inst || jump_register_inst && !io.out.jump_register) && valid
   if (config.decoderNum == 2) {
     io.out.jump_register := jump_register_inst && io.in.info.src1_raddr.orR &&
     ((io.in.forward(0).exe.wen && io.in.info.src1_raddr === io.in.forward(0).exe.waddr) ||
