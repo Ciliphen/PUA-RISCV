@@ -74,8 +74,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   })
 
   // * fsm * //
-  val s_idle :: s_uncached :: s_fence :: s_replace :: s_wait :: Nil = Enum(5)
-  val state                                                         = RegInit(s_idle)
+  val s_idle :: s_uncached :: s_fence :: s_replace :: s_wait :: s_tlb_refill :: Nil = Enum(6)
+  val state                                                                         = RegInit(s_idle)
 
   // ==========================================================
   // |        tag         |  index |         offset           |
@@ -93,9 +93,6 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   //     io.cpu.addr(bankOffsetWidth - 1, log2Ceil(XLEN / 8)) // 保证地址对齐
   //   else
   //     0.U
-
-  val tlb_fill = RegInit(false.B)
-  io.cpu.tlb.fill := tlb_fill
 
   // axi信号中size的宽度，对于cached段，size为3位
   val cached_size = log2Ceil(AXI_DATA_WID / 8)
@@ -150,7 +147,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val bank_replication = RegInit(VecInit(Seq.fill(nbank)(0.U(XLEN.W))))
 
   // 是否使用exe的地址进行提前访存
-  val use_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
+  val use_next_addr = (state === s_idle) || (state === s_wait)
   val do_replace    = RegInit(false.B)
   // replace index 表示行的索引
   val replace_index = io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
@@ -179,7 +176,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val select_way = tag_compare_valid(1)
 
   val dcache_stall = Mux(
-    state === s_idle && !tlb_fill,
+    state === s_idle,
     Mux(
       io.cpu.en,
       (cached_stall || mmio_read_stall || mmio_write_stall || !io.cpu.tlb.translation_ok),
@@ -227,7 +224,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         io.cpu.tlb.translation_ok // 页表有效
 
       replace_wstrb(j)(i) := Mux(
-        tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle && !tlb_fill,
+        tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle,
         wstrb(j)(i),
         Fill(AXI_STRB_WID, burst.wstrb(i)(j))
       )
@@ -288,20 +285,11 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   switch(state) {
     is(s_idle) {
-      when(tlb_fill) {
-        tlb_fill := false.B
-        when(!io.cpu.tlb.hit) {
-          state := s_wait
-        }
-      }.elsewhen(io.cpu.en) {
+      when(io.cpu.en) {
         when(addr_err) {
           acc_err := true.B
         }.elsewhen(!io.cpu.tlb.translation_ok) {
-          when(io.cpu.tlb.tlb1_ok) {
-            state := s_wait
-          }.otherwise {
-            tlb_fill := true.B
-          }
+          state := s_tlb_refill
         }.elsewhen(io.cpu.tlb.uncached) {
           when(io.cpu.wen.orR) {
             when(writeFifo.io.enq.ready) {

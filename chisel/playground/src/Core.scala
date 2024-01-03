@@ -13,6 +13,8 @@ import pipeline.memory._
 import pipeline.writeback._
 import ctrl._
 import cache.mmu._
+import cache.mmu.DTlb
+import cache.mmu.ITlb
 
 class Core(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
@@ -35,14 +37,16 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   val memoryUnit     = Module(new MemoryUnit()).io
   val writeBackStage = Module(new WriteBackStage()).io
   val writeBackUnit  = Module(new WriteBackUnit()).io
-  val itlbL1         = Module(new ITlbL1()).io
-  val dtlbL1         = Module(new DTlbL1()).io
+  val itlbL1         = Module(new ITlb()).io
+  val dtlbL1         = Module(new DTlb()).io
 
   itlbL1.addr := fetchUnit.iCache.pc
   itlbL1.cache <> io.inst.tlb
+  itlbL1.csr <> csr.tlb
 
   dtlbL1.addr := memoryUnit.dataMemory.out.addr
   dtlbL1.cache <> io.data.tlb
+  dtlbL1.csr <> csr.tlb
 
   ctrl.decoderUnit <> decoderUnit.ctrl
   ctrl.executeUnit <> executeUnit.ctrl

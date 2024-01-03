@@ -24,9 +24,15 @@ case class CpuConfig(
   val branchPredictor: String  = "adaptive" // adaptive, global
 )
 
+/* BPU 的配置文件 */
 case class BranchPredictorConfig(
   val bhtDepth: Int = 5,
   val phtDepth: Int = 6)
+
+/* TLB L2 的配置文件 */
+case class TLBConfig(
+  nindex: Int = 16,
+  nway:   Int = 2)
 
 case class CacheConfig(
   cacheType: String = "icache" // icache, dcache

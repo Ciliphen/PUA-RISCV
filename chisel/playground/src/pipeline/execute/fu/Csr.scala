@@ -47,12 +47,18 @@ class CsrDecoderUnit extends Bundle {
   val interrupt = Output(UInt(INT_WID.W))
 }
 
+class CsrTlb extends Bundle {
+  val satp = Output(UInt(XLEN.W))
+  val mode = Output(Priv())
+}
+
 class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val io = IO(new Bundle {
     val ext_int     = Input(new ExtInterrupt())
     val decoderUnit = new CsrDecoderUnit()
     val executeUnit = new CsrExecuteUnit()
     val memoryUnit  = new CsrMemoryUnit()
+    val tlb         = new CsrTlb()
   })
 
   // 目前的csr只支持64位
@@ -407,6 +413,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     ret_target       := sepc(VADDR_WID - 1, 0)
   }
 
+  io.tlb.mode           := mode
+  io.tlb.satp           := satp
   io.decoderUnit.mode   := mode
   io.executeUnit.out.ex := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInstr) :=

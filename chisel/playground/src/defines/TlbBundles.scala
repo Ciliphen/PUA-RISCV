@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import cpu.defines.Const._
 import cpu.CacheConfig
+import cpu.TLBConfig
 
 trait Sv39Const extends CoreParameter {
   val PAddrBits = PADDR_WID
@@ -114,27 +115,51 @@ trait Sv39Const extends CoreParameter {
 
 }
 
-class Tlb_ICache extends Bundle {
-  val cacheConfig = CacheConfig("icache")
+trait HasTlbConst extends Sv39Const {
+  val tlbConfig = TLBConfig()
 
-  val fill     = Input(Bool())
-  val uncached = Output(Bool())
+  val maskLen  = vpn0Len + vpn1Len // 18
+  val metaLen  = vpnLen + asidLen + maskLen + flagLen // 27 + 16 + 18 + 8 = 69, is asid necessary
+  val dataLen  = ppnLen + PAddrBits //
+  val tlbLen   = metaLen + dataLen
+  val nway     = tlbConfig.nway
+  val nindex   = tlbConfig.nindex
+  val indexWid = log2Up(nindex)
+  val tagWid   = vpnLen - indexWid
 
-  val translation_ok = Output(Bool())
-  val hit            = Output(Bool())
-  val ptag           = Output(UInt(cacheConfig.tagWidth.W))
-  val paddr          = Output(UInt(PADDR_WID.W))
-}
+  def vaddrTlbBundle = new Bundle {
+    val tag   = UInt(tagWid.W)
+    val index = UInt(indexWid.W)
+    val off   = UInt(offsetLen.W)
+  }
 
-class Tlb_DCache extends Bundle {
-  val cacheConfig = CacheConfig("dcache")
+  def metaBundle = new Bundle {
+    val vpn  = UInt(vpnLen.W)
+    val asid = UInt(asidLen.W)
+    val mask = UInt(maskLen.W) // to support super page
+    val flag = UInt(flagLen.W)
+  }
 
-  val fill     = Input(Bool())
-  val uncached = Output(Bool())
-  val tlb1_ok  = Output(Bool())
+  def dataBundle = new Bundle {
+    val ppn     = UInt(ppnLen.W)
+    val pteaddr = UInt(PAddrBits.W) // pte addr, used to write back pte when flag changes (flag.d, flag.v)
+  }
 
-  val translation_ok = Output(Bool())
-  val hit            = Output(Bool())
-  val ptag           = Output(UInt(cacheConfig.tagWidth.W))
-  val paddr          = Output(UInt(PADDR_WID.W))
+  def tlbBundle = new Bundle {
+    val vpn     = UInt(vpnLen.W)
+    val asid    = UInt(asidLen.W)
+    val mask    = UInt(maskLen.W)
+    val flag    = UInt(flagLen.W)
+    val ppn     = UInt(ppnLen.W)
+    val pteaddr = UInt(PAddrBits.W)
+  }
+
+  def tlbBundle2 = new Bundle {
+    val meta = UInt(metaLen.W)
+    val data = UInt(dataLen.W)
+  }
+
+  def getIndex(vaddr: UInt): UInt = {
+    vaddr.asTypeOf(vaddrTlbBundle).index
+  }
 }

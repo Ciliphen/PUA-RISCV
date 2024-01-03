@@ -75,16 +75,15 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val bank_index  = io.cpu.addr(0)(offsetWidth - 1, bankOffsetWidth)
   val bank_offset = io.cpu.addr(0)(bankOffsetWidth - 1, log2Ceil(INST_WID / 8)) // PC低2位必定是0
 
-  val tlb_fill = RegInit(false.B)
   // * fsm * //
-  val s_idle :: s_uncached :: s_replace :: s_wait :: s_fence :: Nil = Enum(5)
-  val state                                                         = RegInit(s_idle)
+  val s_idle :: s_uncached :: s_replace :: s_wait :: s_fence :: s_tlb_refill :: Nil = Enum(6)
+  val state                                                                         = RegInit(s_idle)
 
   // nway 路，每路 nindex 行，每行 nbank 个 bank，每行的nbank共用一个valid
   val valid = RegInit(VecInit(Seq.fill(nway)(VecInit(Seq.fill(nindex)(false.B)))))
 
   // * should choose next addr * //
-  val use_next_addr = (state === s_idle && !tlb_fill) || (state === s_wait)
+  val use_next_addr = (state === s_idle) || (state === s_wait)
 
   // 读取一个cache条目中的所有bank行
   val data        = Wire(Vec(nway, Vec(nbank, Vec(instBlocksPerBank, UInt(AXI_DATA_WID.W)))))
@@ -94,10 +93,6 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val tag_raddr = io.cpu.addr(use_next_addr)(indexWidth + offsetWidth - 1, offsetWidth)
   val tag_wstrb = RegInit(VecInit(Seq.fill(nway)(false.B)))
   val tag_wdata = RegInit(0.U(tagWidth.W))
-
-  // * itlb * //
-  when(tlb_fill) { tlb_fill := false.B }
-  io.cpu.tlb.fill := tlb_fill
 
   // * lru * //// TODO:检查lru的正确性，增加可拓展性，目前只支持两路的cache
   val lru = RegInit(VecInit(Seq.fill(nindex)(false.B)))
@@ -176,8 +171,8 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   }
 
   for { i <- 0 until instFetchNum } {
-    io.cpu.inst_valid(i) := Mux(state === s_idle && !tlb_fill, inst_valid(i), rdata_in_wait(i).valid) && io.cpu.req
-    io.cpu.inst(i)       := Mux(state === s_idle && !tlb_fill, inst(i), rdata_in_wait(i).inst)
+    io.cpu.inst_valid(i) := Mux(state === s_idle, inst_valid(i), rdata_in_wait(i).valid) && io.cpu.req
+    io.cpu.inst(i)       := Mux(state === s_idle, inst(i), rdata_in_wait(i).inst)
   }
 
   for { i <- 0 until nway } {
@@ -191,7 +186,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     tagBram.io.wdata := tag_wdata
   }
 
-  io.cpu.icache_stall := Mux(state === s_idle && !tlb_fill, (!cache_hit_available && io.cpu.req), state =/= s_wait)
+  io.cpu.icache_stall := Mux(state === s_idle, (!cache_hit_available && io.cpu.req), state =/= s_wait)
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
   val arvalid = RegInit(false.B)
@@ -211,20 +206,14 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   switch(state) {
     is(s_idle) {
-      when(tlb_fill) {
-        when(!io.cpu.tlb.hit) {
-          state                  := s_wait
-          rdata_in_wait(0).inst  := 0.U
-          rdata_in_wait(0).valid := true.B
-        }
-      }.elsewhen(io.cpu.req) {
+      when(io.cpu.req) {
         when(addr_err) {
           acc_err                := true.B
           state                  := s_wait
           rdata_in_wait(0).inst  := 0.U
           rdata_in_wait(0).valid := true.B
         }.elsewhen(!io.cpu.tlb.translation_ok) {
-          tlb_fill := true.B
+          state := s_tlb_refill
         }.elsewhen(io.cpu.tlb.uncached) {
           state   := s_uncached
           ar.addr := io.cpu.tlb.paddr
@@ -300,6 +289,11 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     is(s_fence) {
       // 等待dcache完成写回操作，且等待axi总线完成读取操作，因为icache发生状态转移时可能正在读取数据
       when(!io.cpu.dcache_stall && !io.axi.r.valid) {
+        state := s_idle
+      }
+    }
+    is(s_tlb_refill) {
+      when(io.cpu.tlb.hit_L2){
         state := s_idle
       }
     }
