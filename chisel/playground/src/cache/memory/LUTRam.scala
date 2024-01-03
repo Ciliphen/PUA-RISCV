@@ -12,7 +12,7 @@ import cpu.CpuConfig
   * @param config
   *   implicit configuration to control generate ram for simulation or elaboration
   */
-class LUTRam(depth: Int, width: Int)(implicit val config: CpuConfig) extends Module {
+class LUTRam(depth: Int, width: Int)(implicit val cpuConfig: CpuConfig) extends Module {
   require(isPow2(depth))
   val waddridth = log2Ceil(depth)
   val io = IO(new Bundle {
@@ -25,14 +25,14 @@ class LUTRam(depth: Int, width: Int)(implicit val config: CpuConfig) extends Mod
     val writeOutput = Output(UInt(width.W))
   })
 
-  if (config.build) {
+  if (cpuConfig.build) {
     val bank = Module(
       new LUTRamIP(
-        wdataidth = width,
-        waddridth = waddridth,
+        wdataidth      = width,
+        waddridth      = waddridth,
         byteWriteWidth = width,
-        numberOfLines = depth,
-      ),
+        numberOfLines  = depth
+      )
     )
     bank.io.clka := clock
     bank.io.clkb := clock

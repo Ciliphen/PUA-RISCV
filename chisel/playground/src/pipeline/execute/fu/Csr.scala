@@ -7,7 +7,7 @@ import cpu.defines.Const._
 import cpu.CpuConfig
 import chisel3.util.experimental.BoringUtils
 
-class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
+class CsrMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
     val pc   = UInt(XLEN.W)
     val ex   = new ExceptionInfo()
@@ -26,7 +26,7 @@ class CsrMemoryUnit(implicit val config: CpuConfig) extends Bundle {
   })
 }
 
-class CsrExecuteUnit(implicit val config: CpuConfig) extends Bundle {
+class CsrExecuteUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
     val valid    = Bool()
     val pc       = UInt(XLEN.W)
@@ -47,7 +47,7 @@ class CsrDecoderUnit extends Bundle {
   val interrupt = Output(UInt(INT_WID.W))
 }
 
-class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
+class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val io = IO(new Bundle {
     val ext_int     = Input(new ExtInterrupt())
     val decoderUnit = new CsrDecoderUnit()
@@ -76,10 +76,10 @@ class Csr(implicit val config: CpuConfig) extends Module with HasCSRConst {
   misa_init.mxl := 2.U
   def getMisaExt(ext: Char): UInt = { 1.U << (ext.toInt - 'a'.toInt) }
   var extensions = List('i')
-  if (config.hasMExtension) { extensions = extensions :+ 'm' }
-  if (config.hasAExtension) { extensions = extensions :+ 'a' }
-  if (config.hasSMode) { extensions = extensions :+ 's' }
-  if (config.hasUMode) { extensions = extensions :+ 'u' }
+  if (cpuConfig.hasMExtension) { extensions = extensions :+ 'm' }
+  if (cpuConfig.hasAExtension) { extensions = extensions :+ 'a' }
+  if (cpuConfig.hasSMode) { extensions = extensions :+ 's' }
+  if (cpuConfig.hasUMode) { extensions = extensions :+ 'u' }
   misa_init.extensions := extensions.foldLeft(0.U)((sum, i) => sum | getMisaExt(i))
   val misa       = RegInit(UInt(XLEN.W), misa_init.asUInt) // ISA寄存器
   val medeleg    = RegInit(UInt(XLEN.W), 0.U) // 异常代理寄存器

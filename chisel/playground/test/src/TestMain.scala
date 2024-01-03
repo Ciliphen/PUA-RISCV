@@ -5,7 +5,7 @@ import cpu.pipeline.execute.Csr
 import cache.DCache
 
 object TestMain extends App {
-  implicit val config       = new CpuConfig()
+  implicit val cpuConfig       = new CpuConfig()
   implicit val dCacheConfig = CacheConfig(cacheType = "dcache")
   def top                   = new DCache(dCacheConfig)
   val useMFC                = false // use MLIR-based firrtl compiler

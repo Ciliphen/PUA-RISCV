@@ -9,7 +9,7 @@ import cpu.pipeline.decoder.RegWrite
 import cpu.pipeline.memory.ExecuteUnitMemoryUnit
 import cpu.pipeline.fetch.ExecuteUnitBranchPredictor
 
-class ExecuteUnit(implicit val config: CpuConfig) extends Module {
+class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl         = new ExecuteCtrl()
     val executeStage = Input(new DecoderUnitExecuteUnit())
@@ -22,7 +22,7 @@ class ExecuteUnit(implicit val config: CpuConfig) extends Module {
     val decoderUnit = new Bundle {
       val forward = Output(
         Vec(
-          config.commitNum,
+          cpuConfig.commitNum,
           new Bundle {
             val exe          = new RegWrite()
             val exe_mem_wreg = Bool()

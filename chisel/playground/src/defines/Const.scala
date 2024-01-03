@@ -5,9 +5,9 @@ import chisel3.util._
 import cpu.CpuConfig
 
 trait CoreParameter {
-  def config    = new CpuConfig
-  val XLEN      = if (config.isRV32) 32 else 64
-  val VADDR_WID = if (config.isRV32) 32 else 39
+  def cpuConfig = new CpuConfig
+  val XLEN      = if (cpuConfig.isRV32) 32 else 64
+  val VADDR_WID = if (cpuConfig.isRV32) 32 else 39
   val PADDR_WID = 32
 }
 
@@ -56,8 +56,8 @@ object Instructions extends HasInstrType with CoreParameter {
   def NOP           = 0x00000013.U
   val DecodeDefault = List(InstrN, FuType.csr, CSROpType.jmp)
   def DecodeTable = RVIInstr.table ++
-    (if (config.hasMExtension) RVMInstr.table else Array.empty) ++
-    (if (config.hasAExtension) RVAInstr.table else Array.empty) ++
+    (if (cpuConfig.hasMExtension) RVMInstr.table else Array.empty) ++
+    (if (cpuConfig.hasAExtension) RVAInstr.table else Array.empty) ++
     Priviledged.table ++
     RVZicsrInstr.table ++
     RVZifenceiInstr.table

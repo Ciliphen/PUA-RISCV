@@ -17,7 +17,7 @@ class MemoryUnitWriteBackUnit extends Bundle {
   val inst0 = new MemWbInst()
   val inst1 = new MemWbInst()
 }
-class WriteBackStage(implicit val config: CpuConfig) extends Module {
+class WriteBackStage(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl = Input(new Bundle {
       val allow_to_go = Bool()

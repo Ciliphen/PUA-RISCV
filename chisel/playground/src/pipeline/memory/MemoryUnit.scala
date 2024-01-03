@@ -9,7 +9,7 @@ import cpu.pipeline.decoder.RegWrite
 import cpu.pipeline.execute.CsrMemoryUnit
 import cpu.pipeline.writeback.MemoryUnitWriteBackUnit
 
-class MemoryUnit(implicit val config: CpuConfig) extends Module {
+class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl        = new MemoryCtrl()
     val memoryStage = Input(new ExecuteUnitMemoryUnit())
@@ -17,7 +17,7 @@ class MemoryUnit(implicit val config: CpuConfig) extends Module {
       val flush  = Bool()
       val target = UInt(XLEN.W)
     })
-    val decoderUnit    = Output(Vec(config.commitNum, new RegWrite()))
+    val decoderUnit    = Output(Vec(cpuConfig.commitNum, new RegWrite()))
     val csr            = Flipped(new CsrMemoryUnit())
     val writeBackStage = Output(new MemoryUnitWriteBackUnit())
     val dataMemory     = new Lsu_DataMemory()

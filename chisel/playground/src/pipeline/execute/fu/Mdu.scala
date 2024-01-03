@@ -6,7 +6,7 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class Mdu(implicit config: CpuConfig) extends Module {
+class Mdu(implicit cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val info        = Input(new InstInfo())
     val src_info    = Input(new SrcInfo())

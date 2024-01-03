@@ -6,7 +6,7 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class Ctrl(implicit val config: CpuConfig) extends Module {
+class Ctrl(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val cacheCtrl     = Flipped(new CacheCtrl())
     val fetchUnit     = Flipped(new FetchUnitCtrl())

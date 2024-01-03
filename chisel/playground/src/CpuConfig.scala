@@ -2,6 +2,7 @@ package cpu
 
 import chisel3.util._
 import cpu.defines.Const._
+import cpu.defines.Sv39Const
 
 case class CpuConfig(
   val build: Boolean = false, // 是否为build模式
@@ -29,33 +30,29 @@ case class BranchPredictorConfig(
 
 case class CacheConfig(
   cacheType: String = "icache" // icache, dcache
-) {
+) extends Sv39Const {
 // ==========================================================
 // |        tag         |  index |         offset           |
 // |                    |        | bank index | bank offset |
 // ==========================================================
-  val config = CpuConfig()
   val nway   = 2 // 路数，目前只支持2路
-  val nbank  = if (cacheType == "icache") (16 / config.instFetchNum) else 8 // 每个项目中的bank数
+  val nbank  = if (cacheType == "icache") (16 / cpuConfig.instFetchNum) else 8 // 每个项目中的bank数
   val nindex = if (cacheType == "icache") 64 else 64 // 每路的项目数
   val bitsPerBank = // 每个bank的位数
-    if (cacheType == "icache") INST_WID * config.instFetchNum
+    if (cacheType == "icache") INST_WID * cpuConfig.instFetchNum
     else XLEN
   val bytesPerBank    = bitsPerBank / 8 //每个bank中的字节数
   val indexWidth      = log2Ceil(nindex) // index的位宽
   val bankIndexWidth  = log2Ceil(nbank) // bank index的位宽
   val bankOffsetWidth = log2Ceil(bytesPerBank) // bank offset的位宽
   val offsetWidth     = bankIndexWidth + bankOffsetWidth // offset的位宽
-  val tagWidth        = 32 - indexWidth - offsetWidth // tag的位宽
+  val tagWidth        = PADDR_WID - offsetLen // tag的位宽
+  require(offsetWidth + indexWidth == offsetLen) // offsetLen是页内偏移的位宽，为简化设计，这里直接保证每路容量等于页大小
   require(isPow2(nindex))
   require(isPow2(nway))
   require(isPow2(nbank))
   require(isPow2(bytesPerBank))
-  require(
-    tagWidth + indexWidth + offsetWidth == PADDR_WID,
-    "basic request calculation"
-  )
-  require(isPow2(config.instFetchNum))
-  require(config.instFetchNum <= 4, "instFetchNum should be less than 4")
+  require(isPow2(cpuConfig.instFetchNum))
+  require(cpuConfig.instFetchNum <= 4, "instFetchNum should be less than 4")
   require(nbank * nindex * bytesPerBank <= 4 * 1024, "VIPT requires the cache size to be less than 4KB")
 }

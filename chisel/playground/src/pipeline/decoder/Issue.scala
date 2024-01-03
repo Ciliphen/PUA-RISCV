@@ -7,7 +7,7 @@ import cpu.defines.Const._
 import cpu.defines.Instructions._
 import cpu.CpuConfig
 
-class Issue(implicit val config: CpuConfig) extends Module with HasCSRConst {
+class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val io = IO(new Bundle {
     // 输入
     val allow_to_go = Input(Bool())
@@ -15,15 +15,15 @@ class Issue(implicit val config: CpuConfig) extends Module with HasCSRConst {
       val empty        = Bool()
       val almost_empty = Bool()
     })
-    val decodeInst = Input(Vec(config.decoderNum, new InstInfo()))
-    val execute    = Input(Vec(config.commitNum, new MemRead()))
+    val decodeInst = Input(Vec(cpuConfig.decoderNum, new InstInfo()))
+    val execute    = Input(Vec(cpuConfig.commitNum, new MemRead()))
     // 输出
     val inst1 = Output(new Bundle {
       val allow_to_go = Bool()
     })
   })
 
-  if (config.decoderNum == 2) {
+  if (cpuConfig.decoderNum == 2) {
     val inst0 = io.decodeInst(0)
     val inst1 = io.decodeInst(1)
 

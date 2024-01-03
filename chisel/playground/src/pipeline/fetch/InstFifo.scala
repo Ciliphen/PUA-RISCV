@@ -13,31 +13,31 @@ class BufferUnit extends Bundle {
   val pc        = UInt(XLEN.W)
 }
 
-class InstFifo(implicit val config: CpuConfig) extends Module {
+class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val do_flush = Input(Bool())
 
-    val ren  = Input(Vec(config.decoderNum, Bool()))
-    val read = Output(Vec(config.decoderNum, new BufferUnit()))
+    val ren  = Input(Vec(cpuConfig.decoderNum, Bool()))
+    val read = Output(Vec(cpuConfig.decoderNum, new BufferUnit()))
 
-    val wen   = Input(Vec(config.instFetchNum, Bool()))
-    val write = Input(Vec(config.instFetchNum, new BufferUnit()))
+    val wen   = Input(Vec(cpuConfig.instFetchNum, Bool()))
+    val write = Input(Vec(cpuConfig.instFetchNum, new BufferUnit()))
 
     val empty        = Output(Bool())
     val almost_empty = Output(Bool())
     val full         = Output(Bool())
   })
   // fifo buffer
-  val buffer = RegInit(VecInit(Seq.fill(config.instFifoDepth)(0.U.asTypeOf(new BufferUnit()))))
+  val buffer = RegInit(VecInit(Seq.fill(cpuConfig.instFifoDepth)(0.U.asTypeOf(new BufferUnit()))))
 
   // fifo ptr
-  val enq_ptr = RegInit(0.U(log2Ceil(config.instFifoDepth).W))
-  val deq_ptr = RegInit(0.U(log2Ceil(config.instFifoDepth).W))
-  val count   = RegInit(0.U(log2Ceil(config.instFifoDepth).W))
+  val enq_ptr = RegInit(0.U(log2Ceil(cpuConfig.instFifoDepth).W))
+  val deq_ptr = RegInit(0.U(log2Ceil(cpuConfig.instFifoDepth).W))
+  val count   = RegInit(0.U(log2Ceil(cpuConfig.instFifoDepth).W))
 
   // config.instFifoDepth - 1 is the last element, config.instFifoDepth - 2 is the last second element
   // the second last element's valid decide whether the fifo is full
-  io.full         := count >= (config.instFifoDepth - config.instFetchNum).U // TODO:这里的等于号还可以优化
+  io.full         := count >= (cpuConfig.instFifoDepth - cpuConfig.instFetchNum).U // TODO:这里的等于号还可以优化
   io.empty        := count === 0.U
   io.almost_empty := count === 1.U
 
@@ -72,9 +72,9 @@ class InstFifo(implicit val config: CpuConfig) extends Module {
   }
 
   // * enq * //
-  val enq_num = Wire(UInt(log2Ceil(config.instFetchNum + 1).W))
+  val enq_num = Wire(UInt(log2Ceil(cpuConfig.instFetchNum + 1).W))
 
-  for (i <- 0 until config.instFetchNum) {
+  for (i <- 0 until cpuConfig.instFetchNum) {
     when(io.wen(i)) {
       buffer(enq_ptr + i.U) := io.write(i)
     }
@@ -87,11 +87,11 @@ class InstFifo(implicit val config: CpuConfig) extends Module {
   }
 
   enq_num := 0.U
-  for (i <- 0 until config.instFetchNum) {
+  for (i <- 0 until cpuConfig.instFetchNum) {
     when(io.wen(i)) {
       enq_num := (i + 1).U
     }
   }
 
-  count := Mux(io.do_flush, 0.U, count + enq_num + config.instFifoDepth.U - deq_num)
+  count := Mux(io.do_flush, 0.U, count + enq_num + cpuConfig.instFifoDepth.U - deq_num)
 }

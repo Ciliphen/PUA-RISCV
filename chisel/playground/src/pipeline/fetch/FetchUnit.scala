@@ -7,7 +7,7 @@ import cpu.CpuConfig
 
 class FetchUnit(
   implicit
-  val config: CpuConfig)
+  val cpuConfig: CpuConfig)
     extends Module {
   val io = IO(new Bundle {
     val memory = new Bundle {
@@ -26,7 +26,7 @@ class FetchUnit(
       val full = Input(Bool())
     }
     val iCache = new Bundle {
-      val inst_valid = Input(Vec(config.instFetchNum, Bool()))
+      val inst_valid = Input(Vec(cpuConfig.instFetchNum, Bool()))
       val pc         = Output(UInt(XLEN.W))
       val pc_next    = Output(UInt(XLEN.W))
     }
@@ -40,7 +40,7 @@ class FetchUnit(
   val pc_next_temp = Wire(UInt(XLEN.W))
 
   pc_next_temp := pc
-  for (i <- 0 until config.instFetchNum) {
+  for (i <- 0 until cpuConfig.instFetchNum) {
     when(io.iCache.inst_valid(i)) {
       pc_next_temp := pc + ((i + 1) * 4).U
     }

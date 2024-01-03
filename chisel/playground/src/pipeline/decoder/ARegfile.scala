@@ -22,30 +22,30 @@ class RegWrite extends Bundle {
   val wdata = Output(UInt(XLEN.W))
 }
 
-class ARegFile(implicit val config: CpuConfig) extends Module {
+class ARegFile(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val read  = Flipped(Vec(config.decoderNum, new Src12Read()))
-    val write = Flipped(Vec(config.commitNum, new RegWrite()))
+    val read  = Flipped(Vec(cpuConfig.decoderNum, new Src12Read()))
+    val write = Flipped(Vec(cpuConfig.commitNum, new RegWrite()))
   })
 
   // 定义32个32位寄存器
   val regs = RegInit(VecInit(Seq.fill(AREG_NUM)(0.U(XLEN.W))))
 
   // 写寄存器堆
-  for (i <- 0 until (config.commitNum)) {
+  for (i <- 0 until (cpuConfig.commitNum)) {
     when(io.write(i).wen && io.write(i).waddr =/= 0.U) {
       regs(io.write(i).waddr) := io.write(i).wdata
     }
   }
 
   // 读寄存器堆
-  for (i <- 0 until (config.decoderNum)) {
+  for (i <- 0 until (cpuConfig.decoderNum)) {
     // src1
     when(io.read(i).src1.raddr === 0.U) {
       io.read(i).src1.rdata := 0.U
     }.otherwise {
       io.read(i).src1.rdata := regs(io.read(i).src1.raddr)
-      for (j <- 0 until (config.commitNum)) {
+      for (j <- 0 until (cpuConfig.commitNum)) {
         when(io.write(j).wen && io.read(i).src1.raddr === io.write(j).waddr) {
           io.read(i).src1.rdata := io.write(j).wdata
         }
@@ -56,7 +56,7 @@ class ARegFile(implicit val config: CpuConfig) extends Module {
       io.read(i).src2.rdata := 0.U
     }.otherwise {
       io.read(i).src2.rdata := regs(io.read(i).src2.raddr)
-      for (j <- 0 until (config.commitNum)) {
+      for (j <- 0 until (cpuConfig.commitNum)) {
         when(io.write(j).wen && io.read(i).src2.raddr === io.write(j).waddr) {
           io.read(i).src2.rdata := io.write(j).wdata
         }

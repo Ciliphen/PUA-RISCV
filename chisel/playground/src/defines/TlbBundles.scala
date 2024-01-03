@@ -5,13 +5,13 @@ import chisel3.util._
 import cpu.defines.Const._
 import cpu.CacheConfig
 
-sealed trait Sv39Const extends CoreParameter {
+trait Sv39Const extends CoreParameter {
   val PAddrBits = PADDR_WID
   val Level     = 3
-  val offLen    = 12
+  val offsetLen = 12
   val ppn0Len   = 9
   val ppn1Len   = 9
-  val ppn2Len   = PAddrBits - offLen - ppn0Len - ppn1Len // 2
+  val ppn2Len   = PAddrBits - offsetLen - ppn0Len - ppn1Len // 2
   val ppnLen    = ppn2Len + ppn1Len + ppn0Len
   val vpn2Len   = 9
   val vpn1Len   = 9
@@ -32,20 +32,20 @@ sealed trait Sv39Const extends CoreParameter {
   val pteResLen = XLEN - ppnLen - 2 - flagLen
 
   def vaBundle = new Bundle {
-    val vpn2 = UInt(vpn2Len.W)
-    val vpn1 = UInt(vpn1Len.W)
-    val vpn0 = UInt(vpn0Len.W)
-    val off  = UInt(offLen.W)
+    val vpn2   = UInt(vpn2Len.W)
+    val vpn1   = UInt(vpn1Len.W)
+    val vpn0   = UInt(vpn0Len.W)
+    val offset = UInt(offsetLen.W)
   }
 
   def vaBundle2 = new Bundle {
-    val vpn = UInt(vpnLen.W)
-    val off = UInt(offLen.W)
+    val vpn    = UInt(vpnLen.W)
+    val offset = UInt(offsetLen.W)
   }
 
   def vaBundle3 = new Bundle {
-    val vpn = UInt(vpnLen.W)
-    val off = UInt(offLen.W)
+    val vpn    = UInt(vpnLen.W)
+    val offset = UInt(offsetLen.W)
   }
 
   def vpnBundle = new Bundle {
@@ -55,15 +55,15 @@ sealed trait Sv39Const extends CoreParameter {
   }
 
   def paBundle = new Bundle {
-    val ppn2 = UInt(ppn2Len.W)
-    val ppn1 = UInt(ppn1Len.W)
-    val ppn0 = UInt(ppn0Len.W)
-    val off  = UInt(offLen.W)
+    val ppn2   = UInt(ppn2Len.W)
+    val ppn1   = UInt(ppn1Len.W)
+    val ppn0   = UInt(ppn0Len.W)
+    val offset = UInt(offsetLen.W)
   }
 
   def paBundle2 = new Bundle {
-    val ppn = UInt(ppnLen.W)
-    val off = UInt(offLen.W)
+    val ppn    = UInt(ppnLen.W)
+    val offset = UInt(offsetLen.W)
   }
 
   def paddrApply(ppn: UInt, vpnn: UInt): UInt = {
@@ -105,7 +105,7 @@ sealed trait Sv39Const extends CoreParameter {
   }
 
   def maskPaddr(ppn: UInt, vaddr: UInt, mask: UInt) = {
-    MaskData(vaddr, Cat(ppn, 0.U(offLen.W)), Cat(Fill(ppn2Len, 1.U(1.W)), mask, 0.U(offLen.W)))
+    MaskData(vaddr, Cat(ppn, 0.U(offsetLen.W)), Cat(Fill(ppn2Len, 1.U(1.W)), mask, 0.U(offsetLen.W)))
   }
 
   def MaskEQ(mask: UInt, pattern: UInt, vpn: UInt) = {
@@ -122,8 +122,8 @@ class Tlb_ICache extends Bundle {
 
   val translation_ok = Output(Bool())
   val hit            = Output(Bool())
-  val ptag            = Output(UInt(cacheConfig.tagWidth.W))
-  val paddr             = Output(UInt(PADDR_WID.W))
+  val ptag           = Output(UInt(cacheConfig.tagWidth.W))
+  val paddr          = Output(UInt(PADDR_WID.W))
 }
 
 class Tlb_DCache extends Bundle {
@@ -135,6 +135,6 @@ class Tlb_DCache extends Bundle {
 
   val translation_ok = Output(Bool())
   val hit            = Output(Bool())
-  val ptag            = Output(UInt(cacheConfig.tagWidth.W))
-  val paddr             = Output(UInt(PADDR_WID.W))
+  val ptag           = Output(UInt(cacheConfig.tagWidth.W))
+  val paddr          = Output(UInt(PADDR_WID.W))
 }

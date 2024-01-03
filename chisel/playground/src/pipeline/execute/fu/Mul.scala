@@ -17,7 +17,7 @@ class SignedMul extends BlackBox with HasBlackBoxResource {
   })
 }
 
-class Mul(implicit val config: CpuConfig) extends Module {
+class Mul(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val src1        = Input(UInt((XLEN + 1).W))
     val src2        = Input(UInt((XLEN + 1).W))
@@ -28,10 +28,10 @@ class Mul(implicit val config: CpuConfig) extends Module {
     val result = Output(UInt((2 * XLEN).W))
   })
 
-  if (config.build) {
+  if (cpuConfig.build) {
     // TODO:未经测试
     val signedMul = Module(new SignedMul()).io
-    val cnt       = RegInit(0.U(log2Ceil(config.mulClockNum + 1).W))
+    val cnt       = RegInit(0.U(log2Ceil(cpuConfig.mulClockNum + 1).W))
 
     cnt := MuxCase(
       cnt,
@@ -46,10 +46,10 @@ class Mul(implicit val config: CpuConfig) extends Module {
 
     signedMul.A := io.src1
     signedMul.B := io.src2
-    io.ready    := cnt >= config.mulClockNum.U
+    io.ready    := cnt >= cpuConfig.mulClockNum.U
     io.result   := signedMul.P((2 * XLEN) - 1, 0)
   } else {
-    val cnt = RegInit(0.U(log2Ceil(config.mulClockNum + 1).W))
+    val cnt = RegInit(0.U(log2Ceil(cpuConfig.mulClockNum + 1).W))
     cnt := MuxCase(
       cnt,
       Seq(
@@ -63,6 +63,6 @@ class Mul(implicit val config: CpuConfig) extends Module {
       signed := (io.src1.asSInt * io.src2.asSInt).asUInt
     }
     io.result := signed
-    io.ready  := cnt >= config.mulClockNum.U
+    io.ready  := cnt >= cpuConfig.mulClockNum.U
   }
 }

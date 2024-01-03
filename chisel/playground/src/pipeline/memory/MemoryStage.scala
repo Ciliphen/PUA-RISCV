@@ -14,12 +14,12 @@ class ExeMemInst extends Bundle {
   val ex       = new ExceptionInfo()
 }
 
-class ExecuteUnitMemoryUnit(implicit val config: CpuConfig) extends Bundle {
+class ExecuteUnitMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val inst0 = new ExeMemInst()
   val inst1 = new ExeMemInst()
 }
 
-class MemoryStage(implicit val config: CpuConfig) extends Module {
+class MemoryStage(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl = Input(new Bundle {
       val allow_to_go = Bool()

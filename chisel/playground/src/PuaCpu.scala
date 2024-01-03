@@ -5,7 +5,7 @@ import cpu._
 import cpu.defines._
 
 class PuaCpu extends Module {
-  implicit val config = new CpuConfig()
+  implicit val cpuConfig = new CpuConfig()
   val io = IO(new Bundle {
     val ext_int = Input(new ExtInterrupt())
     val axi     = new AXI()

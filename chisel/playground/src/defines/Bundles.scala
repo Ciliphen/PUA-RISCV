@@ -76,8 +76,8 @@ class ExecuteFuCtrl extends Bundle {
   val allow_to_go = Input(Bool())
 }
 
-class ExecuteCtrl(implicit val config: CpuConfig) extends Bundle {
-  val inst     = Output(Vec(config.commitNum, new MemRead()))
+class ExecuteCtrl(implicit val cpuConfig: CpuConfig) extends Bundle {
+  val inst     = Output(Vec(cpuConfig.commitNum, new MemRead()))
   val fu_stall = Output(Bool())
   val flush    = Output(Bool())
 
@@ -105,17 +105,17 @@ class WriteBackCtrl extends Bundle {
 }
 
 // cpu to icache
-class Cache_ICache(implicit val config: CpuConfig) extends Bundle {
+class Cache_ICache(implicit val cpuConfig: CpuConfig) extends Bundle {
   // read inst request from cpu
   val req                     = Output(Bool())
   val complete_single_request = Output(Bool()) // !cpu_stall
-  val addr                    = Output(Vec(config.instFetchNum, UInt(XLEN.W))) // virtual address and next virtual address
+  val addr                    = Output(Vec(cpuConfig.instFetchNum, UInt(XLEN.W))) // virtual address and next virtual address
   val fence_i                 = Output(Bool())
   val dcache_stall            = Output(Bool()) // dcache_stall
 
   // read inst result
-  val inst         = Input(Vec(config.instFetchNum, UInt(XLEN.W)))
-  val inst_valid   = Input(Vec(config.instFetchNum, Bool()))
+  val inst         = Input(Vec(cpuConfig.instFetchNum, UInt(XLEN.W)))
+  val inst_valid   = Input(Vec(cpuConfig.instFetchNum, Bool()))
   val acc_err      = Input(Bool())
   val icache_stall = Input(Bool()) // icache_stall
 

@@ -48,7 +48,7 @@ class Lsu_MemoryUnit extends Bundle {
   })
 }
 
-class Lsu(implicit val config: CpuConfig) extends Module {
+class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val memoryUnit = new Lsu_MemoryUnit()
     val dataMemory = new Lsu_DataMemory()

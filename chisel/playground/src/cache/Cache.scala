@@ -7,7 +7,7 @@ import cpu.defines.Const._
 import cpu.CpuConfig
 import cpu.CacheConfig
 
-class Cache(implicit config: CpuConfig) extends Module {
+class Cache(implicit cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val inst = Flipped(new Cache_ICache())
     val data = Flipped(new Cache_DCache())

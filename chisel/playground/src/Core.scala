@@ -14,7 +14,7 @@ import pipeline.writeback._
 import ctrl._
 import cache.mmu._
 
-class Core(implicit val config: CpuConfig) extends Module {
+class Core(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ext_int = Input(new ExtInterrupt())
     val inst    = new Cache_ICache()
@@ -57,7 +57,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   fetchUnit.iCache.inst_valid := io.inst.inst_valid
   io.inst.addr(0)             := fetchUnit.iCache.pc
   io.inst.addr(1)             := fetchUnit.iCache.pc_next
-  for (i <- 2 until config.instFetchNum) {
+  for (i <- 2 until cpuConfig.instFetchNum) {
     io.inst.addr(i) := fetchUnit.iCache.pc_next + ((i - 1) * 4).U
   }
 
@@ -68,7 +68,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   instFifo.ren <> decoderUnit.instFifo.allow_to_go
   decoderUnit.instFifo.inst <> instFifo.read
 
-  for (i <- 0 until config.instFetchNum) {
+  for (i <- 0 until cpuConfig.instFetchNum) {
     instFifo.write(i).pht_index := bpu.instBuffer.pht_index(i)
     bpu.instBuffer.pc(i)        := instFifo.write(i).pc
     instFifo.wen(i)             := io.inst.inst_valid(i)
@@ -80,7 +80,7 @@ class Core(implicit val config: CpuConfig) extends Module {
   decoderUnit.instFifo.info.empty        := instFifo.empty
   decoderUnit.instFifo.info.almost_empty := instFifo.almost_empty
   decoderUnit.regfile <> regfile.read
-  for (i <- 0 until (config.commitNum)) {
+  for (i <- 0 until (cpuConfig.commitNum)) {
     decoderUnit.forward(i).exe      := executeUnit.decoderUnit.forward(i).exe
     decoderUnit.forward(i).mem_wreg := executeUnit.decoderUnit.forward(i).exe_mem_wreg
     decoderUnit.forward(i).mem      := memoryUnit.decoderUnit(i)

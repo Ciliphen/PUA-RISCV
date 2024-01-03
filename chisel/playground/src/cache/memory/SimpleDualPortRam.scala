@@ -22,7 +22,7 @@ class SimpleDualPortRam(
   byteAddressable: Boolean
 )(
   implicit
-  val config: CpuConfig)
+  val cpuConfig: CpuConfig)
     extends Module {
   require(isPow2(depth))
   require(
@@ -42,7 +42,7 @@ class SimpleDualPortRam(
     val wdata = Input(UInt(width.W))
   })
 
-  if (config.build) {
+  if (cpuConfig.build) {
     val memory = Module(
       new SimpleDualPortRamIP(
         wdataidth      = width,

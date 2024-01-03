@@ -10,9 +10,9 @@ import cpu.pipeline.execute.DecoderUnitExecuteUnit
 import cpu.pipeline.fetch.BufferUnit
 import cpu.pipeline.execute
 
-class InstFifoDecoderUnit(implicit val config: CpuConfig) extends Bundle {
-  val allow_to_go = Output(Vec(config.decoderNum, Bool()))
-  val inst        = Input(Vec(config.decoderNum, new BufferUnit()))
+class InstFifoDecoderUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
+  val allow_to_go = Output(Vec(cpuConfig.decoderNum, Bool()))
+  val inst        = Input(Vec(cpuConfig.decoderNum, new BufferUnit()))
   val info = Input(new Bundle {
     val empty        = Bool()
     val almost_empty = Bool()
@@ -37,12 +37,12 @@ class DecoderBranchPredictorUnit extends Bundle {
   val update_pht_index = Input(UInt(bpuConfig.phtDepth.W))
 }
 
-class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExceptionNO with HasCSRConst {
+class DecoderUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExceptionNO with HasCSRConst {
   val io = IO(new Bundle {
     // 输入
     val instFifo = new InstFifoDecoderUnit()
-    val regfile  = Vec(config.decoderNum, new Src12Read())
-    val forward  = Input(Vec(config.commitNum, new DataForwardToDecoderUnit()))
+    val regfile  = Vec(cpuConfig.decoderNum, new Src12Read())
+    val forward  = Input(Vec(cpuConfig.commitNum, new DataForwardToDecoderUnit()))
     val csr      = Input(new execute.CsrDecoderUnit())
     // 输出
     val fetchUnit = new Bundle {
@@ -54,14 +54,14 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
     val ctrl         = new DecoderUnitCtrl()
   })
 
-  val decoder     = Seq.fill(config.decoderNum)(Module(new Decoder()))
+  val decoder     = Seq.fill(cpuConfig.decoderNum)(Module(new Decoder()))
   val jumpCtrl    = Module(new JumpCtrl()).io
   val forwardCtrl = Module(new ForwardCtrl()).io
   val issue       = Module(new Issue()).io
 
   val pc   = io.instFifo.inst.map(_.pc)
   val inst = io.instFifo.inst.map(_.inst)
-  val info = Wire(Vec(config.decoderNum, new InstInfo()))
+  val info = Wire(Vec(cpuConfig.decoderNum, new InstInfo()))
   val mode = io.csr.mode
 
   info          := decoder.map(_.io.out.info)
@@ -71,7 +71,7 @@ class DecoderUnit(implicit val config: CpuConfig) extends Module with HasExcepti
   issue.allow_to_go          := io.ctrl.allow_to_go
   issue.instFifo             := io.instFifo.info
   io.instFifo.allow_to_go(1) := issue.inst1.allow_to_go
-  for (i <- 0 until (config.decoderNum)) {
+  for (i <- 0 until (cpuConfig.decoderNum)) {
     decoder(i).io.in.inst      := inst(i)
     issue.decodeInst(i)        := info(i)
     issue.execute(i).mem_wreg  := io.forward(i).mem_wreg

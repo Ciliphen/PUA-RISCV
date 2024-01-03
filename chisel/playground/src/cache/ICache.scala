@@ -45,11 +45,11 @@ import cpu.defines.Const._
   =====================================
  */
 
-class ICache(cacheConfig: CacheConfig)(implicit config: CpuConfig) extends Module {
+class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Module {
   val nway            = cacheConfig.nway
   val nindex          = cacheConfig.nindex
   val nbank           = cacheConfig.nbank
-  val instFetchNum    = config.instFetchNum
+  val instFetchNum    = cpuConfig.instFetchNum
   val bankOffsetWidth = cacheConfig.bankOffsetWidth
   val bankIndexWidth  = cacheConfig.offsetWidth - bankOffsetWidth
   val bytesPerBank    = cacheConfig.bytesPerBank

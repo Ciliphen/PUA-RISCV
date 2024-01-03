@@ -6,11 +6,11 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class Fu(implicit val config: CpuConfig) extends Module {
+class Fu(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl = new ExecuteFuCtrl()
     val inst = Vec(
-      config.decoderNum,
+      cpuConfig.decoderNum,
       new Bundle {
         val pc       = Input(UInt(XLEN.W))
         val info     = Input(new InstInfo())
@@ -35,7 +35,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
     }
   })
 
-  val alu        = Seq.fill(config.decoderNum)(Module(new Alu()))
+  val alu        = Seq.fill(cpuConfig.decoderNum)(Module(new Alu()))
   val branchCtrl = Module(new BranchCtrl()).io
   val mdu        = Module(new Mdu()).io
 
@@ -51,7 +51,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
   io.branch.flush  := branchCtrl_flush
   io.branch.target := branchCtrl.out.target
 
-  for (i <- 0 until (config.commitNum)) {
+  for (i <- 0 until (cpuConfig.commitNum)) {
     alu(i).io.info     := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).info, 0.U.asTypeOf(new InstInfo()))
     alu(i).io.src_info := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).src_info, 0.U.asTypeOf(new SrcInfo()))
   }
@@ -79,7 +79,7 @@ class Fu(implicit val config: CpuConfig) extends Module {
   io.inst(1).result.alu := alu(1).io.result
   io.inst(1).result.mdu := mdu.result
 
-  val mem_addr = Seq.tabulate(config.commitNum)(i =>
+  val mem_addr = Seq.tabulate(cpuConfig.commitNum)(i =>
     Mux(
       LSUOpType.isAMO(io.inst(i).info.op),
       io.inst(i).src_info.src1_data,

@@ -40,7 +40,7 @@ class UnsignedDiv extends BlackBox with HasBlackBoxResource {
   })
 }
 
-class Div(implicit config: CpuConfig) extends Module {
+class Div(implicit cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val src1        = Input(UInt(XLEN.W))
     val src2        = Input(UInt(XLEN.W))
@@ -52,7 +52,7 @@ class Div(implicit config: CpuConfig) extends Module {
     val result = Output(UInt((2 * XLEN).W))
   })
 
-  if (config.build) {
+  if (cpuConfig.build) {
     // TODO：未经测试
     val signedDiv   = Module(new SignedDiv()).io
     val unsignedDiv = Module(new UnsignedDiv()).io
@@ -124,7 +124,7 @@ class Div(implicit config: CpuConfig) extends Module {
       Cat(unsignedDiv.m_axis_dout_tdata(XLEN - 1, 0), unsignedDiv.m_axis_dout_tdata((2 * XLEN) - 1, XLEN))
     io.result := Mux(io.signed, signedRes, unsignedRes)
   } else {
-    val cnt = RegInit(0.U(log2Ceil(config.divClockNum + 1).W))
+    val cnt = RegInit(0.U(log2Ceil(cpuConfig.divClockNum + 1).W))
     cnt := MuxCase(
       cnt,
       Seq(
@@ -159,7 +159,7 @@ class Div(implicit config: CpuConfig) extends Module {
       }
     }
 
-    io.ready  := cnt >= config.divClockNum.U
+    io.ready  := cnt >= cpuConfig.divClockNum.U
     io.result := Cat(remainder, quotient)
   }
 }

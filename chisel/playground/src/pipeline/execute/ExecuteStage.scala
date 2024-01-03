@@ -7,7 +7,7 @@ import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
 
 class IdExeInst0 extends Bundle {
-  val config   = new BranchPredictorConfig()
+  val cpuConfig   = new BranchPredictorConfig()
   val pc       = UInt(XLEN.W)
   val info     = new InstInfo()
   val src_info = new SrcInfo()
@@ -19,7 +19,7 @@ class IdExeInst0 extends Bundle {
     val branch_inst      = Bool()
     val pred_branch      = Bool()
     val branch_target    = UInt(XLEN.W)
-    val update_pht_index = UInt(config.phtDepth.W)
+    val update_pht_index = UInt(cpuConfig.phtDepth.W)
   }
 }
 
@@ -35,11 +35,11 @@ class DecoderUnitExecuteUnit extends Bundle {
   val inst1 = new IdExeInst1()
 }
 
-class ExecuteStage(implicit val config: CpuConfig) extends Module {
+class ExecuteStage(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl = Input(new Bundle {
-      val allow_to_go = Vec(config.decoderNum,Bool())
-      val clear             = Vec(config.decoderNum, Bool())
+      val allow_to_go = Vec(cpuConfig.decoderNum,Bool())
+      val clear             = Vec(cpuConfig.decoderNum, Bool())
     })
     val decoderUnit = Input(new DecoderUnitExecuteUnit())
     val executeUnit = Output(new DecoderUnitExecuteUnit())

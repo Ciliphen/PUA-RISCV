@@ -24,5 +24,5 @@ object Priviledged extends HasInstrType with CoreParameter {
     FENCE  -> List(InstrS, FuType.mou, MOUOpType.fence), // nop    InstrS -> !wen
     WFI    -> List(InstrI, FuType.alu, ALUOpType.add) // nop
     // FENCE          -> List(InstrB, FuType.mou, MOUOpType.fencei)
-  ) ++ (if (config.hasSMode) table_s else Array.empty)
+  ) ++ (if (cpuConfig.hasSMode) table_s else Array.empty)
 }

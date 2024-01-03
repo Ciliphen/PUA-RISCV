@@ -7,11 +7,11 @@ import cpu.defines.Const._
 import cpu.pipeline.decoder.RegWrite
 import cpu.CpuConfig
 
-class WriteBackUnit(implicit val config: CpuConfig) extends Module {
+class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl           = new WriteBackCtrl()
     val writeBackStage = Input(new MemoryUnitWriteBackUnit())
-    val regfile        = Output(Vec(config.commitNum, new RegWrite()))
+    val regfile        = Output(Vec(cpuConfig.commitNum, new RegWrite()))
     val debug          = new DEBUG()
   })
 
@@ -32,7 +32,7 @@ class WriteBackUnit(implicit val config: CpuConfig) extends Module {
   io.regfile(1).waddr := io.writeBackStage.inst1.info.reg_waddr
   io.regfile(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.info.fusel)
 
-  if (config.hasCommitBuffer) {
+  if (cpuConfig.hasCommitBuffer) {
     val buffer = Module(new CommitBuffer()).io
     buffer.enq(0).wb_pc       := io.writeBackStage.inst0.pc
     buffer.enq(0).wb_rf_wen   := io.writeBackStage.inst0.info.valid && io.ctrl.allow_to_go

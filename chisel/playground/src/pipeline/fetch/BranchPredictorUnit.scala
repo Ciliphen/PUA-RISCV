@@ -19,27 +19,27 @@ class ExecuteUnitBranchPredictor extends Bundle {
   val branch           = Output(Bool())
 }
 
-class BranchPredictorIO(implicit config: CpuConfig) extends Bundle {
+class BranchPredictorIO(implicit cpuConfig: CpuConfig) extends Bundle {
   val bpuConfig = new BranchPredictorConfig()
   val decoder   = Flipped(new DecoderBranchPredictorUnit())
 
   val instBuffer = new Bundle {
-    val pc        = Input(Vec(config.instFetchNum, UInt(XLEN.W)))
-    val pht_index = Output(Vec(config.instFetchNum, UInt(bpuConfig.phtDepth.W)))
+    val pc        = Input(Vec(cpuConfig.instFetchNum, UInt(XLEN.W)))
+    val pht_index = Output(Vec(cpuConfig.instFetchNum, UInt(bpuConfig.phtDepth.W)))
   }
 
   val execute = Flipped(new ExecuteUnitBranchPredictor())
 }
 
-class BranchPredictorUnit(implicit config: CpuConfig) extends Module {
+class BranchPredictorUnit(implicit cpuConfig: CpuConfig) extends Module {
   val io = IO(new BranchPredictorIO())
 
-  if (config.branchPredictor == "adaptive") {
+  if (cpuConfig.branchPredictor == "adaptive") {
     val adaptive_predictor = Module(new AdaptiveTwoLevelPredictor())
     io <> adaptive_predictor.io
   }
 
-  if (config.branchPredictor == "global") {
+  if (cpuConfig.branchPredictor == "global") {
     val global_predictor = Module(new GlobalBranchPredictor())
     io <> global_predictor.io
   }
@@ -52,7 +52,7 @@ class GlobalBranchPredictor(
   BHT_DEPTH:   Int = 4 // 取得PC的宽度
 )(
   implicit
-  config: CpuConfig)
+  cpuConfig: CpuConfig)
     extends Module {
   val io = IO(new BranchPredictorIO())
 
@@ -98,7 +98,7 @@ class GlobalBranchPredictor(
 class AdaptiveTwoLevelPredictor(
 )(
   implicit
-  config: CpuConfig)
+  cpuConfig: CpuConfig)
     extends Module {
   val bpuConfig = new BranchPredictorConfig()
   val PHT_DEPTH = bpuConfig.phtDepth
@@ -117,7 +117,7 @@ class AdaptiveTwoLevelPredictor(
   val pht       = RegInit(VecInit(Seq.fill(1 << PHT_DEPTH)(strongly_taken)))
   val pht_index = io.decoder.pht_index
 
-  for (i <- 0 until config.instFetchNum) {
+  for (i <- 0 until cpuConfig.instFetchNum) {
     io.instBuffer.pht_index(i) := bht(io.instBuffer.pc(i)(1 + BHT_DEPTH, 2))
   }
 
