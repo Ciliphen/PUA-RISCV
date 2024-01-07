@@ -31,11 +31,10 @@ class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     val instFifo_invalid = io.instFifo.empty || io.instFifo.almost_empty
 
     // 结构冲突
-    val mem_conflict    = inst0.fusel === FuType.lsu && inst1.fusel === FuType.lsu
-    val mul_conflict    = inst0.fusel === FuType.mdu && inst1.fusel === FuType.mdu
-    val div_conflict    = inst0.fusel === FuType.mdu && inst1.fusel === FuType.mdu
-    val csr_conflict    = inst0.fusel === FuType.csr && inst1.fusel === FuType.csr
-    val struct_conflict = mem_conflict || mul_conflict || div_conflict || csr_conflict
+    val lsu_conflict    = inst0.fusel === FuType.lsu && inst1.fusel === FuType.lsu // 访存单元最大支持1条指令的load和store
+    val mdu_conflict    = inst0.fusel === FuType.mdu && inst1.fusel === FuType.mdu // 乘除单元最大支持1条指令的乘除法
+    val csr_conflict    = inst0.fusel === FuType.csr && inst1.fusel === FuType.csr // csr单元最大支持1条指令的读写
+    val struct_conflict = lsu_conflict || mdu_conflict || csr_conflict
 
     // 写后读冲突
     val load_stall =
@@ -45,7 +44,7 @@ class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
         io.execute(1).mem_wreg && io.execute(1).reg_waddr.orR &&
           (inst1.src1_ren && inst1.src1_raddr === io.execute(1).reg_waddr ||
             inst1.src2_ren && inst1.src2_raddr === io.execute(1).reg_waddr)
-    val raw_reg =
+    val raw_reg = // inst1的源操作数是inst0的目的操作数
       inst0.reg_wen && inst0.reg_waddr.orR &&
         (inst0.reg_waddr === inst1.src1_raddr && inst1.src1_ren ||
           inst0.reg_waddr === inst1.src2_raddr && inst1.src2_ren)
