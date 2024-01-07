@@ -27,7 +27,7 @@ class DTlb extends Module with Sv39Const {
   io.cache.uncached       := AddressSpace.isMMIO(io.addr)
   io.cache.translation_ok := true.B
   io.cache.hit_L2         := true.B
-  io.cache.ptag           := io.addr(PADDR_WID - 1, offsetLen)
-  io.cache.paddr          := Cat(io.cache.ptag, io.addr(offsetLen - 1, 0))
+  io.cache.ptag           := io.addr(PADDR_WID - 1, pageOffsetLen)
+  io.cache.paddr          := Cat(io.cache.ptag, io.addr(pageOffsetLen - 1, 0))
 
 }

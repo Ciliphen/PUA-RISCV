@@ -17,7 +17,7 @@ class Tlb_ICache extends Bundle {
   val paddr          = Output(UInt(PADDR_WID.W))
 }
 
-class ITlb extends Module with Sv39Const with HasCSRConst {
+class ITlb extends Module with HasTlbConst with HasCSRConst {
   val io = IO(new Bundle {
     val addr  = Input(UInt(XLEN.W))
     val cache = new Tlb_ICache()
@@ -29,11 +29,12 @@ class ITlb extends Module with Sv39Const with HasCSRConst {
   val mode = WireInit(io.csr.mode)
 
   val vm_enabled = (satp.asTypeOf(satpBundle).mode === 8.U) && (mode < ModeM)
+  val itlb       = RegInit(0.U.asTypeOf(tlbBundle))
 
   io.cache.uncached       := AddressSpace.isMMIO(io.addr)
   io.cache.translation_ok := !vm_enabled
   io.cache.hit_L2         := true.B
-  io.cache.ptag           := Mux(vm_enabled, DontCare, io.addr(PADDR_WID - 1, offsetLen))
-  io.cache.paddr          := Cat(io.cache.ptag, io.addr(offsetLen - 1, 0))
+  io.cache.ptag           := Mux(vm_enabled, DontCare, io.addr(PADDR_WID - 1, pageOffsetLen))
+  io.cache.paddr          := Cat(io.cache.ptag, io.addr(pageOffsetLen - 1, 0))
 
 }

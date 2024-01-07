@@ -52,8 +52,8 @@ case class CacheConfig(
   val bankIndexWidth  = log2Ceil(nbank) // bank index的位宽
   val bankOffsetWidth = log2Ceil(bytesPerBank) // bank offset的位宽
   val offsetWidth     = bankIndexWidth + bankOffsetWidth // offset的位宽
-  val tagWidth        = PADDR_WID - offsetLen // tag的位宽
-  require(offsetWidth + indexWidth == offsetLen) // offsetLen是页内偏移的位宽，为简化设计，这里直接保证每路容量等于页大小
+  val tagWidth        = PADDR_WID - pageOffsetLen // tag的位宽
+  require(offsetWidth + indexWidth == pageOffsetLen) // offsetLen是页内偏移的位宽，为简化设计，这里直接保证每路容量等于页大小
   require(isPow2(nindex))
   require(isPow2(nway))
   require(isPow2(nbank))

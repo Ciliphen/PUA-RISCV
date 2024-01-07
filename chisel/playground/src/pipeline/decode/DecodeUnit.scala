@@ -1,4 +1,4 @@
-package cpu.pipeline.decoder
+package cpu.pipeline.decode
 
 import chisel3._
 import chisel3.util._
@@ -6,11 +6,11 @@ import chisel3.util.experimental.BoringUtils
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
-import cpu.pipeline.execute.DecoderUnitExecuteUnit
+import cpu.pipeline.execute.DecodeUnitExecuteUnit
 import cpu.pipeline.fetch.BufferUnit
 import cpu.pipeline.execute
 
-class InstFifoDecoderUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
+class InstFifoDecodeUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val allow_to_go = Output(Vec(cpuConfig.decoderNum, Bool()))
   val inst        = Input(Vec(cpuConfig.decoderNum, new BufferUnit()))
   val info = Input(new Bundle {
@@ -19,7 +19,7 @@ class InstFifoDecoderUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   })
 }
 
-class DataForwardToDecoderUnit extends Bundle {
+class DataForwardToDecodeUnit extends Bundle {
   val exe      = new RegWrite()
   val mem_wreg = Bool()
   val mem      = new RegWrite()
@@ -37,21 +37,21 @@ class DecoderBranchPredictorUnit extends Bundle {
   val update_pht_index = Input(UInt(bpuConfig.phtDepth.W))
 }
 
-class DecoderUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExceptionNO with HasCSRConst {
+class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExceptionNO with HasCSRConst {
   val io = IO(new Bundle {
     // 输入
-    val instFifo = new InstFifoDecoderUnit()
+    val instFifo = new InstFifoDecodeUnit()
     val regfile  = Vec(cpuConfig.decoderNum, new Src12Read())
-    val forward  = Input(Vec(cpuConfig.commitNum, new DataForwardToDecoderUnit()))
-    val csr      = Input(new execute.CsrDecoderUnit())
+    val forward  = Input(Vec(cpuConfig.commitNum, new DataForwardToDecodeUnit()))
+    val csr      = Input(new execute.CsrDecodeUnit())
     // 输出
     val fetchUnit = new Bundle {
       val branch = Output(Bool())
       val target = Output(UInt(XLEN.W))
     }
     val bpu          = new DecoderBranchPredictorUnit()
-    val executeStage = Output(new DecoderUnitExecuteUnit())
-    val ctrl         = new DecoderUnitCtrl()
+    val executeStage = Output(new DecodeUnitExecuteUnit())
+    val ctrl         = new DecodeUnitCtrl()
   })
 
   val decoder     = Seq.fill(cpuConfig.decoderNum)(Module(new Decoder()))

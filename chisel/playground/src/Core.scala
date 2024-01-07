@@ -7,7 +7,7 @@ import chisel3.internal.DontCareBinding
 import defines._
 import defines.Const._
 import pipeline.fetch._
-import pipeline.decoder._
+import pipeline.decode._
 import pipeline.execute._
 import pipeline.memory._
 import pipeline.writeback._
@@ -28,7 +28,7 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   val fetchUnit      = Module(new FetchUnit()).io
   val bpu            = Module(new BranchPredictorUnit()).io
   val instFifo       = Module(new InstFifo()).io
-  val decoderUnit    = Module(new DecoderUnit()).io
+  val decodeUnit     = Module(new DecodeUnit()).io
   val regfile        = Module(new ARegFile()).io
   val executeStage   = Module(new ExecuteStage()).io
   val executeUnit    = Module(new ExecuteUnit()).io
@@ -48,7 +48,7 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   dtlbL1.cache <> io.data.tlb
   dtlbL1.csr <> csr.tlb
 
-  ctrl.decoderUnit <> decoderUnit.ctrl
+  ctrl.decodeUnit <> decodeUnit.ctrl
   ctrl.executeUnit <> executeUnit.ctrl
   ctrl.memoryUnit <> memoryUnit.ctrl
   ctrl.writeBackUnit <> writeBackUnit.ctrl
@@ -56,7 +56,7 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
 
   fetchUnit.memory <> memoryUnit.fetchUnit
   fetchUnit.execute <> executeUnit.fetchUnit
-  fetchUnit.decoder <> decoderUnit.fetchUnit
+  fetchUnit.decode <> decodeUnit.fetchUnit
   fetchUnit.instFifo.full     := instFifo.full
   fetchUnit.iCache.inst_valid := io.inst.inst_valid
   io.inst.addr(0)             := fetchUnit.iCache.pc
@@ -65,12 +65,12 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
     io.inst.addr(i) := fetchUnit.iCache.pc_next + ((i - 1) * 4).U
   }
 
-  bpu.decoder <> decoderUnit.bpu
+  bpu.decode <> decodeUnit.bpu
   bpu.execute <> executeUnit.bpu
 
-  instFifo.do_flush := ctrl.decoderUnit.do_flush
-  instFifo.ren <> decoderUnit.instFifo.allow_to_go
-  decoderUnit.instFifo.inst <> instFifo.read
+  instFifo.do_flush := ctrl.decodeUnit.do_flush
+  instFifo.ren <> decodeUnit.instFifo.allow_to_go
+  decodeUnit.instFifo.inst <> instFifo.read
 
   for (i <- 0 until cpuConfig.instFetchNum) {
     instFifo.write(i).pht_index := bpu.instBuffer.pht_index(i)
@@ -81,25 +81,25 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
     instFifo.write(i).acc_err   := io.inst.acc_err
   }
 
-  decoderUnit.instFifo.info.empty        := instFifo.empty
-  decoderUnit.instFifo.info.almost_empty := instFifo.almost_empty
-  decoderUnit.regfile <> regfile.read
+  decodeUnit.instFifo.info.empty        := instFifo.empty
+  decodeUnit.instFifo.info.almost_empty := instFifo.almost_empty
+  decodeUnit.regfile <> regfile.read
   for (i <- 0 until (cpuConfig.commitNum)) {
-    decoderUnit.forward(i).exe      := executeUnit.decoderUnit.forward(i).exe
-    decoderUnit.forward(i).mem_wreg := executeUnit.decoderUnit.forward(i).exe_mem_wreg
-    decoderUnit.forward(i).mem      := memoryUnit.decoderUnit(i)
+    decodeUnit.forward(i).exe      := executeUnit.decodeUnit.forward(i).exe
+    decodeUnit.forward(i).mem_wreg := executeUnit.decodeUnit.forward(i).exe_mem_wreg
+    decodeUnit.forward(i).mem      := memoryUnit.decodeUnit(i)
   }
-  decoderUnit.csr <> csr.decoderUnit
-  decoderUnit.executeStage <> executeStage.decoderUnit
+  decodeUnit.csr <> csr.decodeUnit
+  decodeUnit.executeStage <> executeStage.decodeUnit
 
   executeStage.ctrl.clear(0) := ctrl.memoryUnit.flush ||
     ctrl.executeUnit.do_flush && ctrl.executeUnit.allow_to_go ||
-    !ctrl.decoderUnit.allow_to_go && ctrl.executeUnit.allow_to_go
+    !ctrl.decodeUnit.allow_to_go && ctrl.executeUnit.allow_to_go
   executeStage.ctrl.clear(1) := ctrl.memoryUnit.flush ||
-    (ctrl.executeUnit.do_flush && decoderUnit.instFifo.allow_to_go(1)) ||
-    (ctrl.executeUnit.allow_to_go && !decoderUnit.instFifo.allow_to_go(1))
+    (ctrl.executeUnit.do_flush && decodeUnit.instFifo.allow_to_go(1)) ||
+    (ctrl.executeUnit.allow_to_go && !decodeUnit.instFifo.allow_to_go(1))
   executeStage.ctrl.allow_to_go(0) := ctrl.executeUnit.allow_to_go
-  executeStage.ctrl.allow_to_go(1) := decoderUnit.instFifo.allow_to_go(1)
+  executeStage.ctrl.allow_to_go(1) := decodeUnit.instFifo.allow_to_go(1)
 
   executeUnit.executeStage <> executeStage.executeUnit
   executeUnit.csr <> csr.executeUnit

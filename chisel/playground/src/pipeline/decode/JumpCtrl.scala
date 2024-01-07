@@ -1,4 +1,4 @@
-package cpu.pipeline.decoder
+package cpu.pipeline.decode
 
 import chisel3._
 import chisel3.util._
@@ -13,7 +13,7 @@ class JumpCtrl(implicit val cpuConfig: CpuConfig) extends Module {
       val pc       = UInt(XLEN.W)
       val info     = new InstInfo()
       val src_info = new SrcInfo()
-      val forward  = Vec(cpuConfig.commitNum, new DataForwardToDecoderUnit())
+      val forward  = Vec(cpuConfig.commitNum, new DataForwardToDecodeUnit())
     })
     val out = Output(new Bundle {
       val jump_register = Bool()

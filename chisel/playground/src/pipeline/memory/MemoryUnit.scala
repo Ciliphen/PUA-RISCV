@@ -5,7 +5,7 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
-import cpu.pipeline.decoder.RegWrite
+import cpu.pipeline.decode.RegWrite
 import cpu.pipeline.execute.CsrMemoryUnit
 import cpu.pipeline.writeback.MemoryUnitWriteBackUnit
 
@@ -17,7 +17,7 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
       val flush  = Bool()
       val target = UInt(XLEN.W)
     })
-    val decoderUnit    = Output(Vec(cpuConfig.commitNum, new RegWrite()))
+    val decodeUnit    = Output(Vec(cpuConfig.commitNum, new RegWrite()))
     val csr            = Flipped(new CsrMemoryUnit())
     val writeBackStage = Output(new MemoryUnitWriteBackUnit())
     val dataMemory     = new Lsu_DataMemory()
@@ -93,12 +93,12 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   lsu.memoryUnit.in.lr      := io.csr.out.lr
   lsu.memoryUnit.in.lr_addr := io.csr.out.lr_addr
 
-  io.decoderUnit(0).wen   := io.writeBackStage.inst0.info.reg_wen
-  io.decoderUnit(0).waddr := io.writeBackStage.inst0.info.reg_waddr
-  io.decoderUnit(0).wdata := io.writeBackStage.inst0.rd_info.wdata(io.writeBackStage.inst0.info.fusel)
-  io.decoderUnit(1).wen   := io.writeBackStage.inst1.info.reg_wen
-  io.decoderUnit(1).waddr := io.writeBackStage.inst1.info.reg_waddr
-  io.decoderUnit(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.info.fusel)
+  io.decodeUnit(0).wen   := io.writeBackStage.inst0.info.reg_wen
+  io.decodeUnit(0).waddr := io.writeBackStage.inst0.info.reg_waddr
+  io.decodeUnit(0).wdata := io.writeBackStage.inst0.rd_info.wdata(io.writeBackStage.inst0.info.fusel)
+  io.decodeUnit(1).wen   := io.writeBackStage.inst1.info.reg_wen
+  io.decodeUnit(1).waddr := io.writeBackStage.inst1.info.reg_waddr
+  io.decodeUnit(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.info.fusel)
 
   io.writeBackStage.inst0.pc                        := io.memoryStage.inst0.pc
   io.writeBackStage.inst0.info                      := io.memoryStage.inst0.info

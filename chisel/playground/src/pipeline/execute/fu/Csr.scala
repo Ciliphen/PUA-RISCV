@@ -42,7 +42,7 @@ class CsrExecuteUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   })
 }
 
-class CsrDecoderUnit extends Bundle {
+class CsrDecodeUnit extends Bundle {
   val mode      = Output(Priv())
   val interrupt = Output(UInt(INT_WID.W))
 }
@@ -55,7 +55,7 @@ class CsrTlb extends Bundle {
 class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val io = IO(new Bundle {
     val ext_int     = Input(new ExtInterrupt())
-    val decoderUnit = new CsrDecoderUnit()
+    val decodeUnit  = new CsrDecodeUnit()
     val executeUnit = new CsrExecuteUnit()
     val memoryUnit  = new CsrMemoryUnit()
     val tlb         = new CsrTlb()
@@ -253,7 +253,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   val interrupt_enable = Wire(Vec(INT_WID, Bool()))
   interrupt_enable.zip(ideleg.asBools).map { case (x, y) => x := priviledgedEnableDetect(y) }
-  io.decoderUnit.interrupt := mie(INT_WID - 1, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
+  io.decodeUnit.interrupt := mie(INT_WID - 1, 0) & mip_has_interrupt.asUInt & interrupt_enable.asUInt
 
   // 优先使用inst0的信息
   val mem_pc        = io.memoryUnit.in.pc
@@ -415,7 +415,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   io.tlb.mode           := mode
   io.tlb.satp           := satp
-  io.decoderUnit.mode   := mode
+  io.decodeUnit.mode    := mode
   io.executeUnit.out.ex := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInstr) :=
     (illegal_addr || illegal_access) && write | io.executeUnit.in.ex.exception(illegalInstr)

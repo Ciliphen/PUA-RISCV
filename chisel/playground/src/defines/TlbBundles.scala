@@ -7,20 +7,18 @@ import cpu.CacheConfig
 import cpu.TLBConfig
 
 trait Sv39Const extends CoreParameter {
-  val PAddrBits = PADDR_WID
-  val Level     = 3
-  val offsetLen = 12
-  val ppn0Len   = 9
-  val ppn1Len   = 9
-  val ppn2Len   = PAddrBits - offsetLen - ppn0Len - ppn1Len // 2
-  val ppnLen    = ppn2Len + ppn1Len + ppn0Len
-  val vpn2Len   = 9
-  val vpn1Len   = 9
-  val vpn0Len   = 9
-  val vpnLen    = vpn2Len + vpn1Len + vpn0Len
+  val PAddrBits     = PADDR_WID // 32
+  val level         = 3
+  val pageOffsetLen = 12 // 页面大小为4KB，对应的偏移量长度为12位
+  val ppn0Len       = 9
+  val ppn1Len       = 9
+  val ppn2Len       = PAddrBits - pageOffsetLen - ppn0Len - ppn1Len // 2
+  val ppnLen        = ppn2Len + ppn1Len + ppn0Len // 20
+  val vpn2Len       = 9
+  val vpn1Len       = 9
+  val vpn0Len       = 9
+  val vpnLen        = vpn2Len + vpn1Len + vpn0Len // 27
 
-  //val paddrLen = PAddrBits
-  //val vaddrLen = VAddrBits
   val satpLen     = XLEN
   val satpModeLen = 4
   val asidLen     = 16
@@ -28,25 +26,23 @@ trait Sv39Const extends CoreParameter {
 
   val ptEntryLen = XLEN
   val satpResLen = XLEN - ppnLen - satpModeLen - asidLen
-  //val vaResLen = 25 // unused
-  //val paResLen = 25 // unused
-  val pteResLen = XLEN - ppnLen - 2 - flagLen
+  val pteResLen  = XLEN - ppnLen - 2 - flagLen
 
   def vaBundle = new Bundle {
     val vpn2   = UInt(vpn2Len.W)
     val vpn1   = UInt(vpn1Len.W)
     val vpn0   = UInt(vpn0Len.W)
-    val offset = UInt(offsetLen.W)
+    val offset = UInt(pageOffsetLen.W)
   }
 
   def vaBundle2 = new Bundle {
     val vpn    = UInt(vpnLen.W)
-    val offset = UInt(offsetLen.W)
+    val offset = UInt(pageOffsetLen.W)
   }
 
   def vaBundle3 = new Bundle {
     val vpn    = UInt(vpnLen.W)
-    val offset = UInt(offsetLen.W)
+    val offset = UInt(pageOffsetLen.W)
   }
 
   def vpnBundle = new Bundle {
@@ -59,12 +55,12 @@ trait Sv39Const extends CoreParameter {
     val ppn2   = UInt(ppn2Len.W)
     val ppn1   = UInt(ppn1Len.W)
     val ppn0   = UInt(ppn0Len.W)
-    val offset = UInt(offsetLen.W)
+    val offset = UInt(pageOffsetLen.W)
   }
 
   def paBundle2 = new Bundle {
     val ppn    = UInt(ppnLen.W)
-    val offset = UInt(offsetLen.W)
+    val offset = UInt(pageOffsetLen.W)
   }
 
   def paddrApply(ppn: UInt, vpnn: UInt): UInt = {
@@ -106,7 +102,7 @@ trait Sv39Const extends CoreParameter {
   }
 
   def maskPaddr(ppn: UInt, vaddr: UInt, mask: UInt) = {
-    MaskData(vaddr, Cat(ppn, 0.U(offsetLen.W)), Cat(Fill(ppn2Len, 1.U(1.W)), mask, 0.U(offsetLen.W)))
+    MaskData(vaddr, Cat(ppn, 0.U(pageOffsetLen.W)), Cat(Fill(ppn2Len, 1.U(1.W)), mask, 0.U(pageOffsetLen.W)))
   }
 
   def MaskEQ(mask: UInt, pattern: UInt, vpn: UInt) = {
@@ -120,7 +116,7 @@ trait HasTlbConst extends Sv39Const {
 
   val maskLen  = vpn0Len + vpn1Len // 18
   val metaLen  = vpnLen + asidLen + maskLen + flagLen // 27 + 16 + 18 + 8 = 69, is asid necessary
-  val dataLen  = ppnLen + PAddrBits //
+  val dataLen  = ppnLen + PAddrBits // 20 + 32 = 52
   val tlbLen   = metaLen + dataLen
   val nway     = tlbConfig.nway
   val nindex   = tlbConfig.nindex
@@ -130,7 +126,7 @@ trait HasTlbConst extends Sv39Const {
   def vaddrTlbBundle = new Bundle {
     val tag   = UInt(tagWid.W)
     val index = UInt(indexWid.W)
-    val off   = UInt(offsetLen.W)
+    val off   = UInt(pageOffsetLen.W)
   }
 
   def metaBundle = new Bundle {

@@ -14,7 +14,7 @@ class FetchUnit(
       val flush  = Input(Bool())
       val target = Input(UInt(XLEN.W))
     }
-    val decoder = new Bundle {
+    val decode = new Bundle {
       val branch = Input(Bool())
       val target = Input(UInt(XLEN.W))
     }
@@ -49,10 +49,10 @@ class FetchUnit(
   io.iCache.pc_next := MuxCase(
     pc_next_temp,
     Seq(
-      io.memory.flush   -> io.memory.target,
-      io.execute.flush  -> io.execute.target,
-      io.decoder.branch -> io.decoder.target,
-      io.instFifo.full  -> pc
+      io.memory.flush  -> io.memory.target,
+      io.execute.flush -> io.execute.target,
+      io.decode.branch -> io.decode.target,
+      io.instFifo.full -> pc
     )
   )
 }

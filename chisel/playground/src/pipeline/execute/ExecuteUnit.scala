@@ -5,21 +5,21 @@ import chisel3.util._
 import cpu.CpuConfig
 import cpu.defines._
 import cpu.defines.Const._
-import cpu.pipeline.decoder.RegWrite
+import cpu.pipeline.decode.RegWrite
 import cpu.pipeline.memory.ExecuteUnitMemoryUnit
 import cpu.pipeline.fetch.ExecuteUnitBranchPredictor
 
 class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val ctrl         = new ExecuteCtrl()
-    val executeStage = Input(new DecoderUnitExecuteUnit())
+    val executeStage = Input(new DecodeUnitExecuteUnit())
     val csr          = Flipped(new CsrExecuteUnit())
     val bpu          = new ExecuteUnitBranchPredictor()
     val fetchUnit = Output(new Bundle {
       val flush  = Bool()
       val target = UInt(XLEN.W)
     })
-    val decoderUnit = new Bundle {
+    val decodeUnit = new Bundle {
       val forward = Output(
         Vec(
           cpuConfig.commitNum,
@@ -177,13 +177,13 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
     io.memoryStage.inst1.ex.tval := io.fetchUnit.target
   }
 
-  io.decoderUnit.forward(0).exe.wen      := io.memoryStage.inst0.info.reg_wen
-  io.decoderUnit.forward(0).exe.waddr    := io.memoryStage.inst0.info.reg_waddr
-  io.decoderUnit.forward(0).exe.wdata    := io.memoryStage.inst0.rd_info.wdata(io.memoryStage.inst0.info.fusel)
-  io.decoderUnit.forward(0).exe_mem_wreg := io.ctrl.inst(0).mem_wreg
+  io.decodeUnit.forward(0).exe.wen      := io.memoryStage.inst0.info.reg_wen
+  io.decodeUnit.forward(0).exe.waddr    := io.memoryStage.inst0.info.reg_waddr
+  io.decodeUnit.forward(0).exe.wdata    := io.memoryStage.inst0.rd_info.wdata(io.memoryStage.inst0.info.fusel)
+  io.decodeUnit.forward(0).exe_mem_wreg := io.ctrl.inst(0).mem_wreg
 
-  io.decoderUnit.forward(1).exe.wen      := io.memoryStage.inst1.info.reg_wen
-  io.decoderUnit.forward(1).exe.waddr    := io.memoryStage.inst1.info.reg_waddr
-  io.decoderUnit.forward(1).exe.wdata    := io.memoryStage.inst1.rd_info.wdata(io.memoryStage.inst1.info.fusel)
-  io.decoderUnit.forward(1).exe_mem_wreg := io.ctrl.inst(1).mem_wreg
+  io.decodeUnit.forward(1).exe.wen      := io.memoryStage.inst1.info.reg_wen
+  io.decodeUnit.forward(1).exe.waddr    := io.memoryStage.inst1.info.reg_waddr
+  io.decodeUnit.forward(1).exe.wdata    := io.memoryStage.inst1.rd_info.wdata(io.memoryStage.inst1.info.fusel)
+  io.decodeUnit.forward(1).exe_mem_wreg := io.ctrl.inst(1).mem_wreg
 }

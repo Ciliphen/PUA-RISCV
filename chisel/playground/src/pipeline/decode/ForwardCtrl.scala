@@ -1,4 +1,4 @@
-package cpu.pipeline.decoder
+package cpu.pipeline.decode
 
 import chisel3._
 import chisel3.util._
@@ -10,7 +10,7 @@ import cpu.CpuConfig
 class ForwardCtrl(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val in = Input(new Bundle {
-      val forward = Vec(cpuConfig.commitNum, new DataForwardToDecoderUnit())
+      val forward = Vec(cpuConfig.commitNum, new DataForwardToDecodeUnit())
       val regfile = Vec(cpuConfig.decoderNum, new Src12Read())
     })
     val out = Output(new Bundle {

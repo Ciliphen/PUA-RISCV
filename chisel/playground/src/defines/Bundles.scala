@@ -62,7 +62,7 @@ class FetchUnitCtrl extends Bundle {
   val do_flush    = Input(Bool())
 }
 
-class DecoderUnitCtrl extends Bundle {
+class DecodeUnitCtrl extends Bundle {
   val inst0 = Output(new Bundle {
     val src1 = new SrcReadSignal()
     val src2 = new SrcReadSignal()

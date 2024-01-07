@@ -1,4 +1,4 @@
-package cpu.pipeline.decoder
+package cpu.pipeline.decode
 
 import chisel3._
 import chisel3.util._
