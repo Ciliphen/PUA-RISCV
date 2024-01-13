@@ -109,7 +109,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   // * cache hit * //
   val tag_compare_valid   = VecInit(Seq.tabulate(nway)(i => tag(i) === io.cpu.tlb.ptag && valid(i)(replace_index)))
   val cache_hit           = tag_compare_valid.contains(true.B)
-  val cache_hit_available = cache_hit && io.cpu.tlb.translation_ok && !io.cpu.tlb.uncached
+  val cache_hit_available = cache_hit && io.cpu.tlb.l1_hit && !io.cpu.tlb.uncached
   val select_way          = tag_compare_valid(1) // 1路命中时值为1，0路命中时值为0 //TODO:支持更多路数
 
   // 将一个 bank 中的指令分成 instFetchNum 份，每份 INST_WID bit
@@ -187,6 +187,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   }
 
   io.cpu.icache_stall := Mux(state === s_idle, (!cache_hit_available && io.cpu.req), state =/= s_wait)
+  io.cpu.tlb.addr     := io.cpu.addr(0)
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
   val arvalid = RegInit(false.B)
@@ -212,7 +213,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           state                  := s_wait
           rdata_in_wait(0).inst  := 0.U
           rdata_in_wait(0).valid := true.B
-        }.elsewhen(!io.cpu.tlb.translation_ok) {
+        }.elsewhen(!io.cpu.tlb.l1_hit) {
           state := s_tlb_refill
         }.elsewhen(io.cpu.tlb.uncached) {
           state   := s_uncached
@@ -292,11 +293,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         state := s_idle
       }
     }
-    is(s_tlb_refill) {
-      when(io.cpu.tlb.hit_L2){
-        state := s_idle
-      }
-    }
+    is(s_tlb_refill) {}
   }
 
   // * fence * //

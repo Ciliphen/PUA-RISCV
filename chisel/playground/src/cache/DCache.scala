@@ -179,7 +179,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     state === s_idle,
     Mux(
       io.cpu.en,
-      (cached_stall || mmio_read_stall || mmio_write_stall || !io.cpu.tlb.translation_ok),
+      (cached_stall || mmio_read_stall || mmio_write_stall || !io.cpu.tlb.l1_hit),
       io.cpu.fence_i || fence
     ),
     state =/= s_wait
@@ -189,6 +189,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val saved_rdata = RegInit(0.U(XLEN.W))
 
   io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(bank_index)(select_way))
+
+  io.cpu.tlb.addr := io.cpu.addr
 
   val bank_raddr = Mux(state === s_fence, dirty_index, Mux(use_next_addr, exe_index, replace_index))
   val tag_raddr  = Mux(state === s_fence, dirty_index, tag_rindex)
@@ -221,7 +223,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       tag_compare_valid(i) :=
         tag(i) === io.cpu.tlb.ptag && // tag相同
         valid(replace_index)(i) && // cache行有效位为真
-        io.cpu.tlb.translation_ok // 页表有效
+        io.cpu.tlb.l1_hit // 页表有效
 
       replace_wstrb(j)(i) := Mux(
         tag_compare_valid(i) && io.cpu.en && io.cpu.wen.orR && !io.cpu.tlb.uncached && state === s_idle,
@@ -288,7 +290,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       when(io.cpu.en) {
         when(addr_err) {
           acc_err := true.B
-        }.elsewhen(!io.cpu.tlb.translation_ok) {
+        }.elsewhen(!io.cpu.tlb.l1_hit) {
           state := s_tlb_refill
         }.elsewhen(io.cpu.tlb.uncached) {
           when(io.cpu.wen.orR) {
