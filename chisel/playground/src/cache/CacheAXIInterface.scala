@@ -53,8 +53,8 @@ class CacheAXIInterface extends Module {
       ar_sel_lock := true.B
       ar_sel_val  := ar_sel
     }
-
   }
+
   io.axi.ar.bits.id    := Cat(0.U(3.W), ar_sel)
   io.axi.ar.bits.addr  := Mux(ar_sel, io.dcache.ar.bits.addr, io.icache.ar.bits.addr)
   io.axi.ar.bits.len   := Mux(ar_sel, io.dcache.ar.bits.len, io.icache.ar.bits.len)

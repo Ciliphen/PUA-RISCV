@@ -5,24 +5,24 @@ import chisel3.util._
 import cpu.defines.Const._
 
 class Mstatus extends Bundle {
-  val sd = Output(UInt(1.W))
+  val sd = Output(Bool())
 
   val pad1 = if (XLEN == 64) Output(UInt(27.W)) else null
   val sxl  = if (XLEN == 64) Output(UInt(2.W)) else null
   val uxl  = if (XLEN == 64) Output(UInt(2.W)) else null
   val pad0 = if (XLEN == 64) Output(UInt(9.W)) else Output(UInt(8.W))
 
-  val tsr  = Output(UInt(1.W))
-  val tw   = Output(UInt(1.W))
-  val tvm  = Output(UInt(1.W))
-  val mxr  = Output(UInt(1.W))
-  val sum  = Output(UInt(1.W))
-  val mprv = Output(UInt(1.W))
+  val tsr  = Output(Bool())
+  val tw   = Output(Bool())
+  val tvm  = Output(Bool())
+  val mxr  = Output(Bool())
+  val sum  = Output(Bool())
+  val mprv = Output(Bool())
   val xs   = Output(UInt(2.W))
   val fs   = Output(UInt(2.W))
   val mpp  = Output(UInt(2.W))
   val hpp  = Output(UInt(2.W))
-  val spp  = Output(UInt(1.W))
+  val spp  = Output(Bool())
   val pie  = new Priv
   val ie   = new Priv
 }

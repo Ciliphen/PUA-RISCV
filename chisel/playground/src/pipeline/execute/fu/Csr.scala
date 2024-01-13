@@ -48,8 +48,9 @@ class CsrDecodeUnit extends Bundle {
 }
 
 class CsrTlb extends Bundle {
-  val satp = Output(UInt(XLEN.W))
-  val mode = Output(Priv())
+  val satp    = Output(UInt(XLEN.W))
+  val mstatus = Output(UInt(XLEN.W))
+  val mode    = Output(Priv())
 }
 
 class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
@@ -415,6 +416,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   io.tlb.mode           := mode
   io.tlb.satp           := satp
+  io.tlb.mstatus        := mstatus
   io.decodeUnit.mode    := mode
   io.executeUnit.out.ex := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInstr) :=

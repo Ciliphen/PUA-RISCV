@@ -21,18 +21,14 @@ case class CpuConfig(
   val instFifoDepth:   Int     = 8, // 指令缓存深度
   val mulClockNum:     Int     = 2, // 乘法器的时钟周期数
   val divClockNum:     Int     = 8, // 除法器的时钟周期数
-  val branchPredictor: String  = "adaptive" // adaptive, global
+  val branchPredictor: String  = "adaptive", // adaptive, global
+  val tlbEntries:      Int     = 16 // TLB的条目数
 )
 
 /* BPU 的配置文件 */
 case class BranchPredictorConfig(
   val bhtDepth: Int = 5,
   val phtDepth: Int = 6)
-
-/* TLB L2 的配置文件 */
-case class TLBConfig(
-  nindex: Int = 16,
-  nway:   Int = 2)
 
 case class CacheConfig(
   cacheType: String = "icache" // icache, dcache
