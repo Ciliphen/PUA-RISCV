@@ -8,7 +8,25 @@ import cpu.CacheConfig
 import cpu.pipeline.execute.CsrTlb
 import cpu.CpuConfig
 
-class Tlb_Cache extends Bundle with Sv39Const {
+object AccessType {
+  def apply() = UInt(2.W)
+  def fetch   = "b00".U
+  def load    = "b01".U
+  def store   = "b10".U
+}
+
+class Tlb_Ptw extends Bundle with Sv39Const {
+  val vpn         = Decoupled(UInt(vpnLen.W))
+  val access_type = Output(AccessType())
+  val pte = Flipped(Decoupled(new Bundle {
+    val access_fault = Bool()
+    val page_fault   = Bool()
+    val entry        = pteBundle
+    val addr         = UInt(PADDR_WID.W)
+  }))
+}
+
+class Tlb_ICache extends Bundle with Sv39Const {
   val addr                    = Input(UInt(XLEN.W))
   val complete_single_request = Input(Bool())
 
@@ -20,22 +38,17 @@ class Tlb_Cache extends Bundle with Sv39Const {
   val page_fault   = Output(Bool())
 }
 
-class Tlb_Ptw extends Bundle with Sv39Const {
-  val vpn = Decoupled(UInt(vpnLen.W))
-  val pte = Flipped(Decoupled(new Bundle {
-    val access_fault = Bool()
-    val page_fault   = Bool()
-    val entry        = pteBundle
-    val addr         = UInt(PADDR_WID.W)
-  }))
+class Tlb_DCache extends Tlb_ICache {
+  val ptw         = new Tlb_Ptw()
+  val access_type = Input(AccessType())
+  val csr         = new CsrTlb()
 }
 
 class Tlb extends Module with HasTlbConst with HasCSRConst {
   val io = IO(new Bundle {
-    val icache = new Tlb_Cache()
-    val dcache = new Tlb_Cache()
+    val icache = new Tlb_ICache()
+    val dcache = new Tlb_DCache()
     val csr    = Flipped(new CsrTlb())
-    val ptw    = new Tlb_Ptw()
     val fence_vma = Input(new Bundle {
       val src1 = UInt(XLEN.W)
       val src2 = UInt(XLEN.W)
@@ -93,22 +106,12 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
 
   // 使用随机的方法替换TLB条目
   val replace_index = new Counter(cpuConfig.tlbEntries)
+  replace_index.inc()
 
   val ipage_fault   = RegInit(false.B)
   val dpage_fault   = RegInit(false.B)
   val iaccess_fault = RegInit(false.B)
   val daccess_fault = RegInit(false.B)
-
-  io.icache.hit          := false.B
-  io.dcache.hit          := false.B
-  io.icache.access_fault := iaccess_fault
-  io.dcache.access_fault := daccess_fault
-  io.icache.page_fault   := ipage_fault
-  io.dcache.page_fault   := dpage_fault
-
-  io.ptw.vpn.valid := false.B
-  io.ptw.vpn.bits  := DontCare
-  io.ptw.pte.ready := true.B
 
   // ptw的请求标志，0位为指令tlb请求，1位为数据tlb请求
   val req_ptw = WireInit(VecInit(Seq.fill(2)(false.B)))
@@ -118,14 +121,28 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   // 我们默认优先发送数据tlb的请求
   val ar_sel = Mux(ar_sel_lock, ar_sel_val, !req_ptw(0) && req_ptw(1))
 
-  when(io.ptw.vpn.valid) {
-    when(io.ptw.vpn.ready) {
+  when(io.dcache.ptw.vpn.valid) {
+    when(io.dcache.ptw.vpn.ready) {
       ar_sel_lock := false.B
     }.otherwise {
       ar_sel_lock := true.B
       ar_sel_val  := ar_sel
     }
   }
+
+  io.icache.hit          := false.B
+  io.dcache.hit          := false.B
+  io.icache.access_fault := iaccess_fault
+  io.dcache.access_fault := daccess_fault
+  io.icache.page_fault   := ipage_fault
+  io.dcache.page_fault   := dpage_fault
+
+  // 将ptw模块集成到dcache中，ptw通过dcache的axi进行内存访问
+  io.dcache.ptw.vpn.valid   := false.B
+  io.dcache.ptw.access_type := Mux(ar_sel === 0.U, AccessType.fetch, io.dcache.access_type)
+  io.dcache.ptw.vpn.bits    := Mux(ar_sel === 0.U, ivpn, dvpn)
+  io.dcache.ptw.pte.ready   := true.B // 恒为true
+  io.dcache.csr <> io.csr
 
   // 指令虚实地址转换
   switch(immu_state) {
@@ -167,24 +184,22 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
     is(search_l2) {
       when(il2_hit_vec.asUInt.orR) {
         immu_state := search_l1
-        itlb       := tlbl2(il2_hit_vec.indexWhere(_ === true.B))
+        itlb       := tlbl2(PriorityEncoder(il2_hit_vec))
       }.otherwise {
         req_ptw(0) := true.B
-        when(ar_sel === 0.U) {
-          io.ptw.vpn.valid := true.B
-          io.ptw.vpn.bits  := ivpn
-          immu_state       := search_pte
+        when(ar_sel === 0.U && io.dcache.ptw.vpn.ready) {
+          io.dcache.ptw.vpn.valid := true.B
+          immu_state              := search_pte
         }
       }
     }
     is(search_pte) {
-      io.ptw.vpn.valid := true.B
-      io.ptw.vpn.bits  := ivpn
-      when(io.ptw.pte.valid) {
-        when(io.ptw.pte.bits.access_fault) {
-          io.icache.access_fault := true.B
-          immu_state             := search_fault
-        }.elsewhen(io.ptw.pte.bits.page_fault) {
+      io.dcache.ptw.vpn.valid := true.B
+      when(io.dcache.ptw.pte.valid) {
+        when(io.dcache.ptw.pte.bits.access_fault) {
+          iaccess_fault := true.B
+          immu_state    := search_fault
+        }.elsewhen(io.dcache.ptw.pte.bits.page_fault) {
           ipage_fault := true.B
           immu_state  := search_fault
         }.otherwise {
@@ -192,9 +207,9 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
           val replace_entry = Wire(tlbBundle)
           replace_entry.vpn          := ivpn
           replace_entry.asid         := satp.asid
-          replace_entry.flag         := io.ptw.pte.bits.entry.flag
-          replace_entry.ppn          := io.ptw.pte.bits.entry.ppn
-          replace_entry.pteaddr      := io.ptw.pte.bits.addr
+          replace_entry.flag         := io.dcache.ptw.pte.bits.entry.flag
+          replace_entry.ppn          := io.dcache.ptw.pte.bits.entry.ppn
+          replace_entry.pteaddr      := io.dcache.ptw.pte.bits.addr
           tlbl2(replace_index.value) := replace_entry
           itlb                       := replace_entry
           immu_state                 := search_l1

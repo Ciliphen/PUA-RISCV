@@ -7,6 +7,7 @@ import cpu.CacheConfig
 import cpu.defines._
 import cpu.CpuConfig
 import cpu.defines.Const._
+import icache.mmu.AccessType
 
 /*
   整个宽度为PADDR_WID的地址
@@ -50,7 +51,7 @@ class WriteBufferUnit extends Bundle {
   val size = UInt(AXI_SIZE_WID.W)
 }
 
-class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Module {
+class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Module with Sv39Const with HasCSRConst {
   val nway            = cacheConfig.nway
   val nindex          = cacheConfig.nindex
   val nbank           = cacheConfig.nbank
@@ -73,9 +74,15 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     val axi = new DCache_AXIInterface()
   })
 
-  // * fsm * //
+  // dcache的状态机
   val s_idle :: s_uncached :: s_fence :: s_replace :: s_wait :: s_tlb_refill :: Nil = Enum(6)
   val state                                                                         = RegInit(s_idle)
+
+  // ptw的状态机
+  val s_handshake :: s_send :: s_receive :: s_check :: s_set :: Nil = Enum(5)
+  val ptw_state                                                     = RegInit(s_handshake)
+
+  io.cpu.tlb.ptw.vpn.ready := false.B
 
   // ==========================================================
   // |        tag         |  index |         offset           |
@@ -190,7 +197,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(bank_index)(select_way))
 
-  io.cpu.tlb.addr := io.cpu.addr
+  io.cpu.tlb.addr        := io.cpu.addr
+  io.cpu.tlb.access_type := Mux(io.cpu.en && io.cpu.wen.orR, AccessType.store, AccessType.load)
 
   val bank_raddr = Mux(state === s_fence, dirty_index, Mux(use_next_addr, exe_index, replace_index))
   val tag_raddr  = Mux(state === s_fence, dirty_index, tag_rindex)
@@ -334,16 +342,19 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
             }
           }
         }
-      }.elsewhen(io.cpu.fence_i) {
-        // fence.i 需要将所有脏位为true的行写回
-        when(dirty.asUInt.orR) {
-          when(!writeFifo_busy) {
-            state            := s_fence
-            fence_data_ready := false.B // bank读数据要两拍
+      }.otherwise {
+        io.cpu.tlb.ptw.vpn.ready := ptw_state === s_handshake
+        when(io.cpu.fence_i) {
+          // fence.i 需要将所有脏位为true的行写回
+          when(dirty.asUInt.orR) {
+            when(!writeFifo_busy) {
+              state            := s_fence
+              fence_data_ready := false.B // bank读数据要两拍
+            }
+          }.otherwise {
+            // 当所有脏位为fault时，fence.i可以直接完成
+            state := s_wait
           }
-        }.otherwise {
-          // 当所有脏位为fault时，fence.i可以直接完成
-          state := s_wait
         }
       }
     }
@@ -351,7 +362,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       when(arvalid && io.axi.ar.ready) {
         arvalid := false.B
       }
-      when(io.axi.r.valid) {
+      when(io.axi.r.fire) {
+        rready      := false.B
         saved_rdata := io.axi.r.bits.data
         acc_err     := io.axi.r.bits.resp =/= RESP_OKEY.U
         state       := s_wait
@@ -483,7 +495,170 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       }
     }
     is(s_tlb_refill) {
-      // TODO
+      io.cpu.tlb.ptw.vpn.ready := ptw_state === s_handshake
+    }
+  }
+
+  // ==========================================================
+  // 实现页表访问，回填tlb
+  val satp        = io.cpu.tlb.csr.satp.asTypeOf(satpBundle)
+  val mstatus     = io.cpu.tlb.csr.mstatus.asTypeOf(new Mstatus)
+  val mode        = io.cpu.tlb.csr.mode
+  val sum         = mstatus.sum
+  val mxr         = mstatus.mxr
+  val vpn         = io.cpu.tlb.ptw.vpn.bits.asTypeOf(vpnBundle)
+  val access_type = io.cpu.tlb.access_type
+  val ppn         = RegInit(0.U(ppnLen.W))
+  val vpn_index   = RegInit(0.U(log2Up(level).W)) // 页表访问的层级
+  val pte         = RegInit(0.U.asTypeOf(pteBundle)) // 页表项
+
+  io.cpu.tlb.ptw.pte.valid             := false.B
+  io.cpu.tlb.ptw.pte.bits              := DontCare
+  io.cpu.tlb.ptw.pte.bits.access_fault := false.B
+  io.cpu.tlb.ptw.pte.bits.page_fault   := false.B
+  require(AXI_DATA_WID == XLEN) // 目前只考虑了AXI_DATA_WID == XLEN的情况
+
+  def raisePageFault(): Unit = {
+    io.cpu.tlb.ptw.pte.valid           := true.B
+    io.cpu.tlb.ptw.pte.bits.page_fault := true.B
+    ptw_state                          := s_handshake
+  }
+
+  def modeCheck(): Unit = {
+    switch(mode) {
+      is(ModeS) {
+        when(pte.flag.u && !sum) {
+          raisePageFault()
+        }.otherwise {
+          ptw_state := s_set
+        }
+      }
+      is(ModeU) {
+        when(!pte.flag.u) {
+          raisePageFault()
+        }.otherwise {
+          ptw_state := s_set
+        }
+      }
+    }
+  }
+
+  switch(ptw_state) {
+    is(s_handshake) {
+      // 页表访问虚地址握手
+      when(io.cpu.tlb.ptw.vpn.valid) {
+        vpn_index := (level - 1).U
+        ppn       := satp.ppn
+        ptw_state := s_send
+      }
+    }
+    is(s_send) {
+      arvalid := true.B
+      val vpnn = Mux1H(
+        Seq(
+          (vpn_index === 0.U) -> vpn.vpn0,
+          (vpn_index === 1.U) -> vpn.vpn1,
+          (vpn_index === 2.U) -> vpn.vpn2
+        )
+      )
+      ar.addr   := paddrApply(ppn, vpnn)
+      ar.size   := log2Ceil(AXI_DATA_WID / 8).U // 一个pte的大小是8字节
+      ar.len    := 0.U // 读一拍即可
+      ptw_state := s_receive
+      rready    := true.B
+    }
+    is(s_receive) {
+      when(io.axi.ar.fire) {
+        arvalid := false.B
+      }
+      when(io.axi.r.fire) {
+        rready := false.B
+        val pte_temp = io.axi.r.bits.data.asTypeOf(pteBundle)
+        when(!pte_temp.flag.v || !pte_temp.flag.r && pte_temp.flag.w) {
+          raisePageFault()
+        }.otherwise {
+          when(pte_temp.flag.r || pte_temp.flag.x) {
+            // 找到了叶子页
+            pte       := pte_temp
+            ptw_state := s_check
+          }.otherwise {
+            // 该pte指向下一个页表
+            vpn_index := vpn_index - 1.U
+            when(vpn_index - 1.U < 0.U) {
+              raisePageFault()
+            }.otherwise {
+              ppn       := pte_temp.ppn
+              ptw_state := s_send
+            }
+          }
+        }
+      }
+    }
+    is(s_check) {
+      // 检查权限
+      switch(access_type) {
+        is(AccessType.load) {
+          when(mxr) {
+            when(!pte.flag.r && !pte.flag.x) {
+              raisePageFault()
+            }.otherwise {
+              modeCheck()
+            }
+          }.otherwise {
+            when(!pte.flag.r) {
+              raisePageFault()
+            }.otherwise {
+              modeCheck()
+            }
+          }
+        }
+        is(AccessType.store) {
+          when(!pte.flag.w) {
+            raisePageFault()
+          }.otherwise {
+            modeCheck()
+          }
+        }
+        is(AccessType.fetch) {
+          when(!pte.flag.x) {
+            raisePageFault()
+          }.otherwise {
+            modeCheck()
+          }
+        }
+      }
+    }
+    is(s_set) {
+      when(
+        vpn_index > 0.U && (
+          vpn_index === 1.U && pte.ppn(0) ||
+            vpn_index === 2.U && pte.ppn(1, 0).orR
+        )
+      ) {
+        raisePageFault()
+      }.elsewhen(!pte.flag.a || access_type === AccessType.store && !pte.flag.d) {
+        raisePageFault() // 使用软件的方式设置脏位以及访问位
+      }.otherwise {
+        // 翻译成功
+        io.cpu.tlb.ptw.pte.valid      := true.B
+        io.cpu.tlb.ptw.pte.bits.addr  := ar.addr
+        io.cpu.tlb.ptw.pte.bits.entry := pte
+        val ppn_set = WireInit(ppnBundle)
+        when(vpn_index === 2.U) {
+          ppn_set.ppn2 := pte.ppn.asTypeOf(ppnBundle).ppn2
+          ppn_set.ppn1 := vpn.vpn1
+          ppn_set.ppn0 := vpn.vpn0
+        }.elsewhen(vpn_index === 1.U) {
+          ppn_set.ppn2 := pte.ppn.asTypeOf(ppnBundle).ppn2
+          ppn_set.ppn1 := pte.ppn.asTypeOf(ppnBundle).ppn1
+          ppn_set.ppn0 := vpn.vpn0
+        }.otherwise {
+          ppn_set := pte.ppn.asTypeOf(ppnBundle)
+        }
+        io.cpu.tlb.ptw.pte.bits.entry.ppn := ppn_set.asUInt
+
+        ptw_state := s_handshake
+      }
     }
   }
 

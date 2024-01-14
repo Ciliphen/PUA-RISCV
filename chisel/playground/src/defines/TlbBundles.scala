@@ -66,6 +66,12 @@ trait Sv39Const extends CoreParameter {
     val offset = UInt(pageOffsetLen.W)
   }
 
+  def ppnBundle = new Bundle {
+    val ppn2 = UInt(ppn2Len.W)
+    val ppn1 = UInt(ppn1Len.W)
+    val ppn0 = UInt(ppn0Len.W)
+  }
+
   def paddrApply(ppn: UInt, vpnn: UInt): UInt = {
     Cat(Cat(ppn, vpnn), 0.U(3.W))
   }
@@ -75,14 +81,14 @@ trait Sv39Const extends CoreParameter {
     val ppn      = UInt(ppnLen.W)
     val rsw      = UInt(2.W)
     val flag = new Bundle {
-      val d = UInt(1.W)
-      val a = UInt(1.W)
-      val g = UInt(1.W)
-      val u = UInt(1.W)
-      val x = UInt(1.W)
-      val w = UInt(1.W)
-      val r = UInt(1.W)
-      val v = UInt(1.W)
+      val d = Bool()
+      val a = Bool()
+      val g = Bool()
+      val u = Bool()
+      val x = Bool()
+      val w = Bool()
+      val r = Bool()
+      val v = Bool()
     }
   }
 

@@ -5,7 +5,7 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
-import icache.mmu.Tlb_Cache
+import icache.mmu.{Tlb_DCache, Tlb_ICache}
 
 class ExceptionInfo extends Bundle {
   val exception = Vec(EXC_WID, Bool())
@@ -121,7 +121,7 @@ class Cache_ICache(implicit val cpuConfig: CpuConfig) extends Bundle {
   val icache_stall = Input(Bool()) // icache_stall
 
   // tlb
-  val tlb = new Tlb_Cache()
+  val tlb = new Tlb_ICache()
 }
 
 // cpu to dcache
@@ -140,7 +140,7 @@ class Cache_DCache extends Bundle {
   val acc_err      = Input(Bool())
   val dcache_ready = Input(Bool())
 
-  val tlb = new Tlb_Cache()
+  val tlb = new Tlb_DCache()
 }
 
 // axi
