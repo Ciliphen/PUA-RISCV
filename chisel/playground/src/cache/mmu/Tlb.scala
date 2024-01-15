@@ -108,7 +108,6 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
 
   // 使用随机的方法替换TLB条目
   val replace_index = new Counter(cpuConfig.tlbEntries)
-  replace_index.inc()
 
   val ipage_fault   = RegInit(false.B)
   val dpage_fault   = RegInit(false.B)
@@ -248,7 +247,8 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
           replace_entry.pteaddr      := io.dcache.ptw.pte.bits.addr
           tlbl2(replace_index.value) := replace_entry
           itlb                       := replace_entry
-          immu_state                 := search_l1
+          replace_index.inc()
+          immu_state := search_l1
         }
       }
     }
@@ -343,7 +343,8 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
           replace_entry.pteaddr      := io.dcache.ptw.pte.bits.addr
           tlbl2(replace_index.value) := replace_entry
           dtlb                       := replace_entry
-          dmmu_state                 := search_l1
+          replace_index.inc()
+          dmmu_state := search_l1
         }
       }
     }

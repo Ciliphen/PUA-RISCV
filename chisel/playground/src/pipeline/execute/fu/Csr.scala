@@ -125,8 +125,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   // Supervisor Trap Setup
   // sstatus 状态寄存器，源自mstatus
-  val sstatusWmask = "hc6122".U(XLEN.W)
-  val sstatusRmask = sstatusWmask | "h8000000300018000".U
+  val sstatusWmask = "h00000000000c0122".U(XLEN.W)
+  val sstatusRmask = "h80000000000de762".U(XLEN.W)
   // sedeleg 异常代理寄存器，未实现
   // sideleg 中断代理寄存器，未实现
   // sie 中断使能寄存器，源自mie
@@ -178,8 +178,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   val mstatus_wmask = Mux(
     VecInit(ModeM, ModeS, ModeU).contains(wdata.asTypeOf(new Mstatus).mpp),
-    "h0000000000021888".U(64.W),
-    "h0000000000020088".U(64.W)
+    "h00000000007e19aa".U(64.W),
+    "h00000000007e01aa".U(64.W)
   )
 
   // CSR reg map
