@@ -6,6 +6,7 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 import icache.mmu.{Tlb_DCache, Tlb_ICache}
+import cpu.pipeline.memory.Mou
 
 class ExceptionInfo extends Bundle {
   val exception = Vec(EXC_WID, Bool())
@@ -88,6 +89,11 @@ class ExecuteCtrl(implicit val cpuConfig: CpuConfig) extends Bundle {
   val fu = new ExecuteFuCtrl()
 }
 
+class MouTlb extends Bundle {
+  val valid    = Bool()
+  val src_info = new SrcInfo()
+}
+
 class MemoryCtrl extends Bundle {
   val flush     = Output(Bool())
   val mem_stall = Output(Bool())
@@ -98,6 +104,8 @@ class MemoryCtrl extends Bundle {
   // to cache
   val fence_i                 = Output(Bool())
   val complete_single_request = Output(Bool()) // to dcache
+  // to tlb
+  val sfence_vma = Output(new MouTlb())
 }
 
 class WriteBackCtrl extends Bundle {

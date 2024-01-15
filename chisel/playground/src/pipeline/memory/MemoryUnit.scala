@@ -17,7 +17,7 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
       val flush  = Bool()
       val target = UInt(XLEN.W)
     })
-    val decodeUnit    = Output(Vec(cpuConfig.commitNum, new RegWrite()))
+    val decodeUnit     = Output(Vec(cpuConfig.commitNum, new RegWrite()))
     val csr            = Flipped(new CsrMemoryUnit())
     val writeBackStage = Output(new MemoryUnitWriteBackUnit())
     val dataMemory     = new Lsu_DataMemory()
@@ -127,6 +127,9 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
 
   io.ctrl.fence_i                 := mou.out.fence_i
   io.ctrl.complete_single_request := lsu.memoryUnit.out.complete_single_request
+
+  io.ctrl.sfence_vma.valid    := mou.out.sfence_vma
+  io.ctrl.sfence_vma.src_info := io.memoryStage.inst0.src_info
 
   io.fetchUnit.flush  := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.flush)
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.target, mou.out.target)

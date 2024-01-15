@@ -49,13 +49,10 @@ class Tlb_DCache extends Tlb_ICache {
 
 class Tlb extends Module with HasTlbConst with HasCSRConst {
   val io = IO(new Bundle {
-    val icache = new Tlb_ICache()
-    val dcache = new Tlb_DCache()
-    val csr    = Flipped(new CsrTlb())
-    // val fence_vma = Input(new Bundle {
-    //   val src1 = UInt(XLEN.W)
-    //   val src2 = UInt(XLEN.W)
-    // })
+    val icache     = new Tlb_ICache()
+    val dcache     = new Tlb_DCache()
+    val csr        = Flipped(new CsrTlb())
+    val sfence_vma = Input(new MouTlb())
   })
 
   val satp    = io.csr.satp.asTypeOf(satpBundle)
@@ -298,6 +295,58 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         dpage_fault   := false.B
         daccess_fault := false.B
         dmmu_state    := search_l1
+      }
+    }
+  }
+
+  val src1 = io.sfence_vma.src_info.src1_data
+  val src2 = io.sfence_vma.src_info.src2_data
+  when(io.sfence_vma.valid) {
+    when(!src1.orR && !src2.orR) {
+      // 将所有tlb的有效位置为0
+      itlb.flag.v := false.B
+      dtlb.flag.v := false.B
+      for (i <- 0 until cpuConfig.tlbEntries) {
+        tlbl2(i).flag.v := false.B
+      }
+    }.elsewhen(!src1.orR && src2.orR) {
+      // 将asid一致的且g不为1的tlb的有效位置为0
+      when(itlb.asid === src2 && !itlb.flag.g) {
+        itlb.flag.v := false.B
+      }
+      when(dtlb.asid === src2 && !dtlb.flag.g) {
+        dtlb.flag.v := false.B
+      }
+      for (i <- 0 until cpuConfig.tlbEntries) {
+        when(tlbl2(i).asid === src2 && !tlbl2(i).flag.g) {
+          tlbl2(i).flag.v := false.B
+        }
+      }
+    }.elsewhen(src1.orR && !src2.orR) {
+      // 将vpn一致的tlb的有效位置为0
+      when(itlb.vpn === src1) {
+        itlb.flag.v := false.B
+      }
+      when(dtlb.vpn === src1) {
+        dtlb.flag.v := false.B
+      }
+      for (i <- 0 until cpuConfig.tlbEntries) {
+        when(tlbl2(i).vpn === src1) {
+          tlbl2(i).flag.v := false.B
+        }
+      }
+    }.elsewhen(src1.orR && src2.orR) {
+      // 将asid一致的且vpn一致的tlb的有效位置为0，g为1的除外
+      when(itlb.asid === src2 && itlb.vpn === src1 && !itlb.flag.g) {
+        itlb.flag.v := false.B
+      }
+      when(dtlb.asid === src2 && dtlb.vpn === src1 && !dtlb.flag.g) {
+        dtlb.flag.v := false.B
+      }
+      for (i <- 0 until cpuConfig.tlbEntries) {
+        when(tlbl2(i).asid === src2 && tlbl2(i).vpn === src1 && !tlbl2(i).flag.g) {
+          tlbl2(i).flag.v := false.B
+        }
       }
     }
   }

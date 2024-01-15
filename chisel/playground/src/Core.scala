@@ -40,6 +40,7 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   tlb.icache <> io.inst.tlb
   tlb.dcache <> io.data.tlb
   tlb.csr <> csr.tlb
+  tlb.sfence_vma <> memoryUnit.ctrl.sfence_vma
 
   ctrl.decodeUnit <> decodeUnit.ctrl
   ctrl.executeUnit <> executeUnit.ctrl
