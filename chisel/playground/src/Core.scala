@@ -109,16 +109,17 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
 
   csr.ext_int := io.ext_int
 
-  memoryUnit.dataMemory.in.rdata   := io.data.rdata
-  memoryUnit.dataMemory.in.acc_err := io.data.access_fault
-  memoryUnit.dataMemory.in.ready   := io.data.dcache_ready
-  io.data.en                       := memoryUnit.dataMemory.out.en
-  io.data.rlen                     := memoryUnit.dataMemory.out.rlen
-  io.data.wen                      := memoryUnit.dataMemory.out.wen
-  io.data.wdata                    := memoryUnit.dataMemory.out.wdata
-  io.data.addr                     := memoryUnit.dataMemory.out.addr
-  io.data.wstrb                    := memoryUnit.dataMemory.out.wstrb
-  io.data.exe_addr                 := executeUnit.dataMemory.addr
+  memoryUnit.dataMemory.in.rdata        := io.data.rdata
+  memoryUnit.dataMemory.in.access_fault := io.data.access_fault
+  memoryUnit.dataMemory.in.page_fault   := io.data.page_fault
+  memoryUnit.dataMemory.in.ready        := io.data.dcache_ready
+  io.data.en                            := memoryUnit.dataMemory.out.en
+  io.data.rlen                          := memoryUnit.dataMemory.out.rlen
+  io.data.wen                           := memoryUnit.dataMemory.out.wen
+  io.data.wdata                         := memoryUnit.dataMemory.out.wdata
+  io.data.addr                          := memoryUnit.dataMemory.out.addr
+  io.data.wstrb                         := memoryUnit.dataMemory.out.wstrb
+  io.data.exe_addr                      := executeUnit.dataMemory.addr
 
   writeBackStage.memoryUnit <> memoryUnit.writeBackStage
   writeBackStage.ctrl.allow_to_go := ctrl.writeBackUnit.allow_to_go

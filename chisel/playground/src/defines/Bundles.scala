@@ -147,6 +147,7 @@ class Cache_DCache extends Bundle {
 
   val rdata        = Input(UInt(XLEN.W))
   val access_fault = Input(Bool())
+  val page_fault   = Input(Bool())
   val dcache_ready = Input(Bool())
 
   val tlb = new Tlb_DCache()

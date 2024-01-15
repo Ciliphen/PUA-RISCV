@@ -261,9 +261,11 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   io.axi.b.ready := true.B
 
   val access_fault = RegInit(false.B)
+  val page_fault   = RegInit(false.B)
   val addr_err     = io.cpu.addr(XLEN - 1, VADDR_WID).orR
 
   io.cpu.access_fault := access_fault
+  io.cpu.page_fault   := page_fault
 
   // write buffer
   when(writeFifo_axi_busy) {
@@ -294,7 +296,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   switch(state) {
     is(s_idle) {
-      access_fault := false.B // 在idle时清除acc_err
+      access_fault := false.B // 在idle时清除access_fault
+      page_fault   := false.B // 在idle时清除page_fault
       when(io.cpu.en) {
         when(addr_err) {
           access_fault := true.B
@@ -496,6 +499,17 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     }
     is(s_tlb_refill) {
       io.cpu.tlb.ptw.vpn.ready := ptw_state === s_handshake
+      when(io.cpu.tlb.access_fault) {
+        access_fault := true.B
+        state        := s_wait
+      }.elsewhen(io.cpu.tlb.page_fault) {
+        page_fault := true.B
+        state      := s_wait
+      }.otherwise {
+        when(io.cpu.tlb.hit) {
+          state := s_idle
+        }
+      }
     }
   }
 
@@ -503,7 +517,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   // 实现页表访问，回填tlb
   val satp        = io.cpu.tlb.csr.satp.asTypeOf(satpBundle)
   val mstatus     = io.cpu.tlb.csr.mstatus.asTypeOf(new Mstatus)
-  val mode        = io.cpu.tlb.csr.mode
+  val mode        = Mux(io.cpu.tlb.access_type === AccessType.fetch, io.cpu.tlb.csr.imode, io.cpu.tlb.csr.dmode)
   val sum         = mstatus.sum
   val mxr         = mstatus.mxr
   val vpn         = io.cpu.tlb.ptw.vpn.bits.asTypeOf(vpnBundle)

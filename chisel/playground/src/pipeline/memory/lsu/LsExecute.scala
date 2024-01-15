@@ -20,6 +20,8 @@ class LsExecute extends Module {
       val storeAddrMisaligned = Bool()
       val loadAccessFault     = Bool()
       val storeAccessFault    = Bool()
+      val loadPageFault       = Bool()
+      val storePageFault      = Bool()
       val rdata               = UInt(XLEN.W)
       val ready               = Bool()
     })
@@ -83,8 +85,9 @@ class LsExecute extends Module {
   val reqWdata = if (XLEN == 32) genWdata32(io.in.wdata, size) else genWdata(io.in.wdata, size)
   val reqWmask = if (XLEN == 32) genWmask32(addr, size) else genWmask(addr, size)
 
-  val rdata   = io.dataMemory.in.rdata
-  val acc_err = io.dataMemory.in.acc_err
+  val rdata        = io.dataMemory.in.rdata
+  val access_fault = io.dataMemory.in.access_fault
+  val page_fault   = io.dataMemory.in.page_fault
 
   val rdataSel64 = LookupTree(
     addr(2, 0),
@@ -141,7 +144,9 @@ class LsExecute extends Module {
   io.out.ready               := io.dataMemory.in.ready && io.dataMemory.out.en
   io.out.rdata               := Mux(partialLoad, rdataPartialLoad, rdataSel)
   io.out.loadAddrMisaligned  := valid && !isStore && !is_amo && !addrAligned
-  io.out.loadAccessFault     := valid && !isStore && !is_amo && (acc_err || has_acc_err)
+  io.out.loadAccessFault     := valid && !isStore && !is_amo && (access_fault || has_acc_err)
+  io.out.loadPageFault       := valid && !isStore && !is_amo && page_fault
   io.out.storeAddrMisaligned := valid && (isStore || is_amo) && !addrAligned
-  io.out.storeAccessFault    := valid && (isStore || is_amo) && (acc_err || has_acc_err)
+  io.out.storeAccessFault    := valid && (isStore || is_amo) && (access_fault || has_acc_err)
+  io.out.storePageFault      := valid && (isStore || is_amo) && page_fault
 }

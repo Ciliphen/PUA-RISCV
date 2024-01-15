@@ -211,7 +211,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   switch(state) {
     is(s_idle) {
-      access_fault := false.B // 在idle时清除acc_err
+      access_fault := false.B // 在idle时清除access_fault
       page_fault   := false.B // 在idle时清除page_fault
       when(io.cpu.req) {
         when(addr_err) {

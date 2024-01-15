@@ -57,19 +57,20 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
 
   val satp    = io.csr.satp.asTypeOf(satpBundle)
   val mstatus = io.csr.mstatus.asTypeOf(new Mstatus)
-  val mode    = io.csr.mode
+  val imode   = io.csr.imode
+  val dmode   = io.csr.dmode
   //  当SUM=0时，S模式内存访问U模式可访问的页面（U=1）将出现故障。
   //  当SUM=1时，这些访问是允许的。当基于页面的虚拟内存不生效时，SUM无效。
   //  请注意，虽然SUM通常在不在S模式下执行时被忽略，但当MPRV=1和MPP=S时，SUM有效。
-  val sum_valid = (mode === ModeS) || mstatus.mprv && mstatus.mpp === ModeS
-  val sum       = mstatus.sum
+  val sum = mstatus.sum
   // 当MXR=0时，只有标记为可读的页面（R=1）的加载才会成功。
   // 当MXR=1时，标记为可读或可执行的页面（R=1或X=1）的加载才会成功。
   // 当基于页面的虚拟内存无效时，MXR无效。
   val mxr = mstatus.mxr
 
   // 只有当satp.mode为8且当前模式低于M模式时，才启用虚拟内存
-  val vm_enabled = (satp.mode === 8.U) && (mode < ModeM)
+  val ivm_enabled = (satp.mode === 8.U) && (imode < ModeM)
+  val dvm_enabled = (satp.mode === 8.U) && (dmode < ModeM)
 
   val itlb  = RegInit(0.U.asTypeOf(tlbBundle))
   val dtlb  = RegInit(0.U.asTypeOf(tlbBundle))
@@ -120,7 +121,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   val ar_sel_lock = RegInit(false.B)
   val ar_sel_val  = RegInit(false.B)
   // 我们默认优先发送数据tlb的请求
-  val ar_sel = Mux(ar_sel_lock, ar_sel_val, !req_ptw(0) && req_ptw(1))
+  val ar_sel = Mux(ar_sel_lock, ar_sel_val, req_ptw(0) && !req_ptw(1))
 
   when(io.dcache.ptw.vpn.valid) {
     when(io.dcache.ptw.vpn.ready) {
@@ -140,13 +141,13 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
 
   // 将ptw模块集成到dcache中，ptw通过dcache的axi进行内存访问
   io.dcache.ptw.vpn.valid   := false.B
-  io.dcache.ptw.access_type := Mux(ar_sel === 0.U, AccessType.fetch, io.dcache.access_type)
-  io.dcache.ptw.vpn.bits    := Mux(ar_sel === 0.U, ivpn, dvpn)
+  io.dcache.ptw.access_type := Mux(ar_sel, AccessType.fetch, io.dcache.access_type)
+  io.dcache.ptw.vpn.bits    := Mux(ar_sel, ivpn, dvpn)
   io.dcache.ptw.pte.ready   := true.B // 恒为true
   io.dcache.csr <> io.csr
 
   def imodeCheck(): Unit = {
-    switch(mode) {
+    switch(imode) {
       is(ModeS) {
         when(itlb.flag.u && sum === 0.U) {
           ipage_fault := true.B
@@ -167,7 +168,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   }
 
   def dmodeCheck(): Unit = {
-    switch(mode) {
+    switch(dmode) {
       is(ModeS) {
         when(dtlb.flag.u && sum === 0.U) {
           dpage_fault := true.B
@@ -196,7 +197,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         // 在icache实现访问tlb的pma和pmp权限检查
         ipage_fault   := false.B
         iaccess_fault := false.B
-        when(!vm_enabled) {
+        when(!ivm_enabled) {
           io.icache.hit := true.B
         }.elsewhen(itlbl1_hit) {
           // 在这里进行取指需要的所有的权限检查
@@ -222,7 +223,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         itlb       := tlbl2(PriorityEncoder(il2_hit_vec))
       }.otherwise {
         req_ptw(0) := true.B
-        when(ar_sel === 0.U && io.dcache.ptw.vpn.ready) {
+        when(ar_sel && io.dcache.ptw.vpn.ready) {
           io.dcache.ptw.vpn.valid := true.B
           immu_state              := search_pte
         }
@@ -269,7 +270,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         // 在dcache实现访问tlb的pma和pmp权限检查
         dpage_fault   := false.B
         daccess_fault := false.B
-        when(!vm_enabled) {
+        when(!dvm_enabled) {
           io.dcache.hit := true.B
         }.elsewhen(dtlbl1_hit) {
           // 在这里进行取指需要的所有的权限检查
@@ -316,8 +317,8 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         dmmu_state := search_l1
         dtlb       := tlbl2(PriorityEncoder(il2_hit_vec))
       }.otherwise {
-        req_ptw(0) := true.B
-        when(ar_sel === 0.U && io.dcache.ptw.vpn.ready) {
+        req_ptw(1) := true.B
+        when(!ar_sel && io.dcache.ptw.vpn.ready) {
           io.dcache.ptw.vpn.valid := true.B
           dmmu_state              := search_pte
         }
@@ -408,11 +409,11 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   }
 
   io.icache.uncached := AddressSpace.isMMIO(io.icache.addr)
-  io.icache.ptag     := Mux(vm_enabled, itlb.ppn, io.icache.addr(PADDR_WID - 1, pageOffsetLen))
+  io.icache.ptag     := Mux(ivm_enabled, itlb.ppn, io.icache.addr(PADDR_WID - 1, pageOffsetLen))
   io.icache.paddr    := Cat(io.icache.ptag, io.icache.addr(pageOffsetLen - 1, 0))
 
   io.dcache.uncached := AddressSpace.isMMIO(io.dcache.addr)
-  io.dcache.ptag     := Mux(vm_enabled, dtlb.ppn, io.dcache.addr(PADDR_WID - 1, pageOffsetLen))
+  io.dcache.ptag     := Mux(dvm_enabled, dtlb.ppn, io.dcache.addr(PADDR_WID - 1, pageOffsetLen))
   io.dcache.paddr    := Cat(io.dcache.ptag, io.dcache.addr(pageOffsetLen - 1, 0))
 
 }

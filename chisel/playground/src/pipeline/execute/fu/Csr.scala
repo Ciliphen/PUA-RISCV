@@ -50,7 +50,8 @@ class CsrDecodeUnit extends Bundle {
 class CsrTlb extends Bundle {
   val satp    = Output(UInt(XLEN.W))
   val mstatus = Output(UInt(XLEN.W))
-  val mode    = Output(Priv())
+  val imode   = Output(Priv())
+  val dmode   = Output(Priv())
 }
 
 class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
@@ -245,11 +246,13 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mip_has_interrupt = WireInit(mip.asTypeOf(new Interrupt()))
   mip_has_interrupt.e.s := mip.asTypeOf(new Interrupt).e.s | seip
 
+  val mstatusBundle = mstatus.asTypeOf(new Mstatus())
+
   val ideleg = (mideleg & mip_has_interrupt.asUInt)
   def priviledgedEnableDetect(x: Bool): Bool = Mux(
     x,
-    ((mode === ModeS) && mstatus.asTypeOf(new Mstatus()).ie.s) || (mode < ModeS),
-    ((mode === ModeM) && mstatus.asTypeOf(new Mstatus()).ie.m) || (mode < ModeM)
+    ((mode === ModeS) && mstatusBundle.ie.s) || (mode < ModeS),
+    ((mode === ModeM) && mstatusBundle.ie.m) || (mode < ModeM)
   )
 
   val interrupt_enable = Wire(Vec(INT_WID, Bool()))
@@ -414,7 +417,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     ret_target       := sepc(VADDR_WID - 1, 0)
   }
 
-  io.tlb.mode           := mode
+  io.tlb.imode          := mode
+  io.tlb.dmode          := Mux(mstatusBundle.mprv, mstatusBundle.mpp, mode)
   io.tlb.satp           := satp
   io.tlb.mstatus        := mstatus
   io.decodeUnit.mode    := mode

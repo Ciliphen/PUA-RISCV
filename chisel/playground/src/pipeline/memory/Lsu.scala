@@ -9,9 +9,10 @@ import chisel3.util.experimental.BoringUtils
 
 class Lsu_DataMemory extends Bundle {
   val in = Input(new Bundle {
-    val acc_err = Bool()
-    val ready   = Bool()
-    val rdata   = UInt(XLEN.W)
+    val access_fault = Bool()
+    val page_fault   = Bool()
+    val ready        = Bool()
+    val rdata        = UInt(XLEN.W)
   })
   val out = Output(new Bundle {
     val en    = Bool()
@@ -183,7 +184,9 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
     lsExe.out.loadAddrMisaligned ||
       lsExe.out.storeAddrMisaligned ||
       lsExe.out.loadAccessFault ||
-      lsExe.out.storeAccessFault
+      lsExe.out.storeAccessFault ||
+      lsExe.out.loadPageFault ||
+      lsExe.out.storePageFault
   ) {
     state                   := s_idle
     io.memoryUnit.out.ready := true.B
@@ -201,6 +204,8 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   io.memoryUnit.out.ex.exception(storeAddrMisaligned) := lsExe.out.storeAddrMisaligned
   io.memoryUnit.out.ex.exception(loadAccessFault)     := lsExe.out.loadAccessFault
   io.memoryUnit.out.ex.exception(storeAccessFault)    := lsExe.out.storeAccessFault
+  io.memoryUnit.out.ex.exception(loadPageFault)       := lsExe.out.loadPageFault
+  io.memoryUnit.out.ex.exception(storePageFault)      := lsExe.out.storePageFault
 
   io.memoryUnit.out.ex.tval := io.dataMemory.out.addr
   io.memoryUnit.out.rdata := MuxCase(
