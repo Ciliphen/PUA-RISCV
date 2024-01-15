@@ -6,11 +6,12 @@ import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
 
 class BufferUnit extends Bundle {
-  val bpuConfig = new BranchPredictorConfig()
-  val inst      = UInt(XLEN.W)
-  val pht_index = UInt(bpuConfig.phtDepth.W)
-  val acc_err   = Bool()
-  val pc        = UInt(XLEN.W)
+  val bpuConfig    = new BranchPredictorConfig()
+  val inst         = UInt(XLEN.W)
+  val pht_index    = UInt(bpuConfig.phtDepth.W)
+  val access_fault = Bool()
+  val page_fault   = Bool()
+  val pc           = UInt(XLEN.W)
 }
 
 class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {

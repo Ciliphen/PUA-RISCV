@@ -66,12 +66,13 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   decodeUnit.instFifo.inst <> instFifo.read
 
   for (i <- 0 until cpuConfig.instFetchNum) {
-    instFifo.write(i).pht_index := bpu.instBuffer.pht_index(i)
-    bpu.instBuffer.pc(i)        := instFifo.write(i).pc
-    instFifo.wen(i)             := io.inst.inst_valid(i)
-    instFifo.write(i).pc        := io.inst.addr(0) + (i * 4).U
-    instFifo.write(i).inst      := io.inst.inst(i)
-    instFifo.write(i).acc_err   := io.inst.acc_err
+    instFifo.write(i).pht_index    := bpu.instBuffer.pht_index(i)
+    bpu.instBuffer.pc(i)           := instFifo.write(i).pc
+    instFifo.wen(i)                := io.inst.inst_valid(i)
+    instFifo.write(i).pc           := io.inst.addr(0) + (i * 4).U
+    instFifo.write(i).inst         := io.inst.inst(i)
+    instFifo.write(i).access_fault := io.inst.access_fault
+    instFifo.write(i).page_fault   := io.inst.page_fault
   }
 
   decodeUnit.instFifo.info.empty        := instFifo.empty
@@ -108,7 +109,7 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   csr.ext_int := io.ext_int
 
   memoryUnit.dataMemory.in.rdata   := io.data.rdata
-  memoryUnit.dataMemory.in.acc_err := io.data.acc_err
+  memoryUnit.dataMemory.in.acc_err := io.data.access_fault
   memoryUnit.dataMemory.in.ready   := io.data.dcache_ready
   io.data.en                       := memoryUnit.dataMemory.out.en
   io.data.rlen                     := memoryUnit.dataMemory.out.rlen

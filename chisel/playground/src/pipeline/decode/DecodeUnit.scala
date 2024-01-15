@@ -122,7 +122,8 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   (0 until (INT_WID)).foreach(i => io.executeStage.inst0.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst0.ex.exception.map(_             := false.B)
   io.executeStage.inst0.ex.exception(illegalInstr)     := !info(0).inst_legal
-  io.executeStage.inst0.ex.exception(instrAccessFault) := io.instFifo.inst(0).acc_err
+  io.executeStage.inst0.ex.exception(instrAccessFault) := io.instFifo.inst(0).access_fault
+  io.executeStage.inst0.ex.exception(instrPageFault)   := io.instFifo.inst(0).page_fault
   io.executeStage.inst0.ex.exception(instrAddrMisaligned) := pc(0)(log2Ceil(INST_WID / 8) - 1, 0).orR ||
     io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst0.ex.exception(breakPoint) := info(0).inst(31, 20) === privEbreak &&
@@ -165,7 +166,8 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   (0 until (INT_WID)).foreach(i => io.executeStage.inst1.ex.interrupt(i) := io.csr.interrupt(i))
   io.executeStage.inst1.ex.exception.map(_             := false.B)
   io.executeStage.inst1.ex.exception(illegalInstr)     := !info(1).inst_legal
-  io.executeStage.inst1.ex.exception(instrAccessFault) := io.instFifo.inst(1).acc_err
+  io.executeStage.inst1.ex.exception(instrAccessFault) := io.instFifo.inst(1).access_fault
+  io.executeStage.inst1.ex.exception(instrPageFault)   := io.instFifo.inst(1).page_fault
   io.executeStage.inst1.ex.exception(instrAddrMisaligned) := pc(1)(log2Ceil(INST_WID / 8) - 1, 0).orR ||
     io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
   io.executeStage.inst1.ex.exception(breakPoint) := info(1).inst(31, 20) === privEbreak &&

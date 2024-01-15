@@ -27,6 +27,7 @@ class Tlb_Ptw extends Bundle with Sv39Const {
 }
 
 class Tlb_ICache extends Bundle with Sv39Const {
+  val en                      = Input(Bool())
   val addr                    = Input(UInt(XLEN.W))
   val complete_single_request = Input(Bool())
 
@@ -39,9 +40,11 @@ class Tlb_ICache extends Bundle with Sv39Const {
 }
 
 class Tlb_DCache extends Tlb_ICache {
-  val ptw         = new Tlb_Ptw()
   val access_type = Input(AccessType())
-  val csr         = new CsrTlb()
+
+  // ptw 相关参数
+  val ptw = new Tlb_Ptw()
+  val csr = new CsrTlb()
 }
 
 class Tlb extends Module with HasTlbConst with HasCSRConst {
@@ -49,10 +52,10 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
     val icache = new Tlb_ICache()
     val dcache = new Tlb_DCache()
     val csr    = Flipped(new CsrTlb())
-    val fence_vma = Input(new Bundle {
-      val src1 = UInt(XLEN.W)
-      val src2 = UInt(XLEN.W)
-    })
+    // val fence_vma = Input(new Bundle {
+    //   val src1 = UInt(XLEN.W)
+    //   val src2 = UInt(XLEN.W)
+    // })
   })
 
   val satp    = io.csr.satp.asTypeOf(satpBundle)
@@ -103,6 +106,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
 
   val search_l1 :: search_l2 :: search_pte :: search_fault :: Nil = Enum(4)
   val immu_state                                                  = RegInit(search_l1)
+  val dmmu_state                                                  = RegInit(search_l1)
 
   // 使用随机的方法替换TLB条目
   val replace_index = new Counter(cpuConfig.tlbEntries)
@@ -144,41 +148,45 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   io.dcache.ptw.pte.ready   := true.B // 恒为true
   io.dcache.csr <> io.csr
 
-  // 指令虚实地址转换
+  // ---------------------------------------------------
+  // ----------------- 指令虚实地址转换 -----------------
+  // ---------------------------------------------------
   switch(immu_state) {
     is(search_l1) {
-      // TODO：在这里实现访问tlb的pma和pmp权限检查
-      ipage_fault   := false.B
-      iaccess_fault := false.B
-      when(!vm_enabled) {
-        io.icache.hit := true.B
-      }.elsewhen(itlbl1_hit) {
-        // 在这里进行取指需要的所有的权限检查
-        // 0. X位检查，只有可执行的页面才能取指
-        // 1. M模式，不可能到这里，因为vm_enabled为false
-        // 2. S模式，如果U位为1，需要检查SUM
-        // 3. U模式，必须保证U位为1
-        io.icache.hit := false.B // 只有权限检查通过后可以置为true
-        when(!itlb.flag.x) {
-          ipage_fault := true.B
-          immu_state  := search_fault
-        }.elsewhen(mode === ModeS) {
-          when(itlb.flag.u && sum === 0.U) {
+      when(io.icache.en) {
+        // 在icache实现访问tlb的pma和pmp权限检查
+        ipage_fault   := false.B
+        iaccess_fault := false.B
+        when(!vm_enabled) {
+          io.icache.hit := true.B
+        }.elsewhen(itlbl1_hit) {
+          // 在这里进行取指需要的所有的权限检查
+          // 0. X位检查，只有可执行的页面才能取指
+          // 1. M模式，不可能到这里，因为vm_enabled为false
+          // 2. S模式，如果U位为1，需要检查SUM
+          // 3. U模式，必须保证U位为1
+          io.icache.hit := false.B // 只有权限检查通过后可以置为true
+          when(!itlb.flag.x) {
             ipage_fault := true.B
             immu_state  := search_fault
-          }.otherwise {
-            io.icache.hit := true.B
+          }.elsewhen(mode === ModeS) {
+            when(itlb.flag.u && sum === 0.U) {
+              ipage_fault := true.B
+              immu_state  := search_fault
+            }.otherwise {
+              io.icache.hit := true.B
+            }
+          }.elsewhen(mode === ModeU) {
+            when(!itlb.flag.u) {
+              ipage_fault := true.B
+              immu_state  := search_fault
+            }.otherwise {
+              io.icache.hit := true.B
+            }
           }
-        }.elsewhen(mode === ModeU) {
-          when(!itlb.flag.u) {
-            ipage_fault := true.B
-            immu_state  := search_fault
-          }.otherwise {
-            io.icache.hit := true.B
-          }
+        }.otherwise {
+          immu_state := search_l2
         }
-      }.otherwise {
-        immu_state := search_l2
       }
     }
     is(search_l2) {
@@ -221,6 +229,75 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         ipage_fault   := false.B
         iaccess_fault := false.B
         immu_state    := search_l1
+      }
+    }
+  }
+
+  // ---------------------------------------------------
+  // ----------------- 指令虚实地址转换 -----------------
+  // ---------------------------------------------------
+  switch(dmmu_state) {
+    is(search_l1) {
+      when(io.dcache.en) {
+        // 在dcache实现访问tlb的pma和pmp权限检查
+        dpage_fault   := false.B
+        daccess_fault := false.B
+        when(!vm_enabled) {
+          io.dcache.hit := true.B
+        }.elsewhen(dtlbl1_hit) {
+          // 在这里进行取指需要的所有的权限检查
+          // 0. X位检查，只有可执行的页面才能取指
+          // 1. M模式，不可能到这里，因为vm_enabled为false
+          // 2. S模式，如果U位为1，需要检查SUM
+          // 3. U模式，必须保证U位为1
+          io.dcache.hit := false.B // 只有权限检查通过后可以置为true
+          // TODO:增加权限检查
+
+        }.otherwise {
+          dmmu_state := search_l2
+        }
+      }
+    }
+    is(search_l2) {
+      when(il2_hit_vec.asUInt.orR) {
+        dmmu_state := search_l1
+        dtlb       := tlbl2(PriorityEncoder(il2_hit_vec))
+      }.otherwise {
+        req_ptw(0) := true.B
+        when(ar_sel === 0.U && io.dcache.ptw.vpn.ready) {
+          io.dcache.ptw.vpn.valid := true.B
+          dmmu_state              := search_pte
+        }
+      }
+    }
+    is(search_pte) {
+      io.dcache.ptw.vpn.valid := true.B
+      when(io.dcache.ptw.pte.valid) {
+        when(io.dcache.ptw.pte.bits.access_fault) {
+          daccess_fault := true.B
+          dmmu_state    := search_fault
+        }.elsewhen(io.dcache.ptw.pte.bits.page_fault) {
+          dpage_fault := true.B
+          dmmu_state  := search_fault
+        }.otherwise {
+          // 在内存中找寻到了页表，将其写入TLB
+          val replace_entry = Wire(tlbBundle)
+          replace_entry.vpn          := ivpn
+          replace_entry.asid         := satp.asid
+          replace_entry.flag         := io.dcache.ptw.pte.bits.entry.flag
+          replace_entry.ppn          := io.dcache.ptw.pte.bits.entry.ppn
+          replace_entry.pteaddr      := io.dcache.ptw.pte.bits.addr
+          tlbl2(replace_index.value) := replace_entry
+          dtlb                       := replace_entry
+          dmmu_state                 := search_l1
+        }
+      }
+    }
+    is(search_fault) {
+      when(io.dcache.complete_single_request) {
+        dpage_fault   := false.B
+        daccess_fault := false.B
+        dmmu_state    := search_l1
       }
     }
   }

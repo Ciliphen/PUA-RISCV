@@ -109,15 +109,16 @@ class WriteBackCtrl extends Bundle {
 class Cache_ICache(implicit val cpuConfig: CpuConfig) extends Bundle {
   // read inst request from cpu
   val req                     = Output(Bool())
-  val complete_single_request = Output(Bool()) // !cpu_stall
+  val complete_single_request = Output(Bool())
   val addr                    = Output(Vec(cpuConfig.instFetchNum, UInt(XLEN.W))) // virtual address and next virtual address
   val fence_i                 = Output(Bool())
-  val dcache_stall            = Output(Bool()) // dcache_stall
+  val dcache_stall            = Output(Bool())
 
   // read inst result
   val inst         = Input(Vec(cpuConfig.instFetchNum, UInt(XLEN.W)))
   val inst_valid   = Input(Vec(cpuConfig.instFetchNum, Bool()))
-  val acc_err      = Input(Bool())
+  val access_fault = Input(Bool())
+  val page_fault   = Input(Bool())
   val icache_stall = Input(Bool()) // icache_stall
 
   // tlb
@@ -137,7 +138,7 @@ class Cache_DCache extends Bundle {
   val wstrb                   = Output(UInt(AXI_STRB_WID.W))
 
   val rdata        = Input(UInt(XLEN.W))
-  val acc_err      = Input(Bool())
+  val access_fault = Input(Bool())
   val dcache_ready = Input(Bool())
 
   val tlb = new Tlb_DCache()

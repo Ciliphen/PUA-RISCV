@@ -199,6 +199,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   io.cpu.tlb.addr        := io.cpu.addr
   io.cpu.tlb.access_type := Mux(io.cpu.en && io.cpu.wen.orR, AccessType.store, AccessType.load)
+  io.cpu.tlb.en          := io.cpu.en
 
   val bank_raddr = Mux(state === s_fence, dirty_index, Mux(use_next_addr, exe_index, replace_index))
   val tag_raddr  = Mux(state === s_fence, dirty_index, tag_rindex)
@@ -259,12 +260,10 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   io.axi.b.ready := true.B
 
-  val acc_err  = RegInit(false.B)
-  val addr_err = io.cpu.addr(XLEN - 1, VADDR_WID).orR
-  when(acc_err) {
-    acc_err := false.B
-  }
-  io.cpu.acc_err := acc_err
+  val access_fault = RegInit(false.B)
+  val addr_err     = io.cpu.addr(XLEN - 1, VADDR_WID).orR
+
+  io.cpu.access_fault := access_fault
 
   // write buffer
   when(writeFifo_axi_busy) {
@@ -295,9 +294,10 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   switch(state) {
     is(s_idle) {
+      access_fault := false.B // 在idle时清除acc_err
       when(io.cpu.en) {
         when(addr_err) {
-          acc_err := true.B
+          access_fault := true.B
         }.elsewhen(!io.cpu.tlb.hit) {
           state := s_tlb_refill
         }.elsewhen(io.cpu.tlb.uncached) {
@@ -363,10 +363,10 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         arvalid := false.B
       }
       when(io.axi.r.fire) {
-        rready      := false.B
-        saved_rdata := io.axi.r.bits.data
-        acc_err     := io.axi.r.bits.resp =/= RESP_OKEY.U
-        state       := s_wait
+        rready       := false.B
+        saved_rdata  := io.axi.r.bits.data
+        access_fault := io.axi.r.bits.resp =/= RESP_OKEY.U
+        state        := s_wait
       }
     }
     is(s_fence) {
@@ -507,7 +507,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val sum         = mstatus.sum
   val mxr         = mstatus.mxr
   val vpn         = io.cpu.tlb.ptw.vpn.bits.asTypeOf(vpnBundle)
-  val access_type = io.cpu.tlb.access_type
+  val access_type = io.cpu.tlb.ptw.access_type
   val ppn         = RegInit(0.U(ppnLen.W))
   val vpn_index   = RegInit(0.U(log2Up(level).W)) // 页表访问的层级
   val pte         = RegInit(0.U.asTypeOf(pteBundle)) // 页表项
@@ -516,6 +516,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   io.cpu.tlb.ptw.pte.bits              := DontCare
   io.cpu.tlb.ptw.pte.bits.access_fault := false.B
   io.cpu.tlb.ptw.pte.bits.page_fault   := false.B
+  io.cpu.tlb.complete_single_request   := io.cpu.complete_single_request
   require(AXI_DATA_WID == XLEN) // 目前只考虑了AXI_DATA_WID == XLEN的情况
 
   def raisePageFault(): Unit = {
@@ -643,7 +644,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         io.cpu.tlb.ptw.pte.valid      := true.B
         io.cpu.tlb.ptw.pte.bits.addr  := ar.addr
         io.cpu.tlb.ptw.pte.bits.entry := pte
-        val ppn_set = WireInit(ppnBundle)
+        val ppn_set = Wire(ppnBundle)
         when(vpn_index === 2.U) {
           ppn_set.ppn2 := pte.ppn.asTypeOf(ppnBundle).ppn2
           ppn_set.ppn1 := vpn.vpn1

@@ -187,7 +187,10 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   }
 
   io.cpu.icache_stall := Mux(state === s_idle, (!cache_hit_available && io.cpu.req), state =/= s_wait)
-  io.cpu.tlb.addr     := io.cpu.addr(0)
+
+  io.cpu.tlb.addr                    := io.cpu.addr(0)
+  io.cpu.tlb.complete_single_request := io.cpu.complete_single_request
+  io.cpu.tlb.en                      := io.cpu.req
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
   val arvalid = RegInit(false.B)
@@ -199,19 +202,22 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   r <> io.axi.r.bits
   rready <> io.axi.r.ready
 
-  val acc_err  = RegInit(false.B)
-  val addr_err = io.cpu.addr(use_next_addr)(XLEN - 1, VADDR_WID).orR
+  val access_fault = RegInit(false.B)
+  val page_fault   = RegInit(false.B)
+  val addr_err     = io.cpu.addr(use_next_addr)(XLEN - 1, VADDR_WID).orR
 
-  when(acc_err) { acc_err := false.B }
-  io.cpu.acc_err := acc_err //TODO：实现cached段中的访存错误
+  io.cpu.access_fault := access_fault //TODO：实现cached段中的访存response错误
+  io.cpu.page_fault   := page_fault
 
   switch(state) {
     is(s_idle) {
+      access_fault := false.B // 在idle时清除acc_err
+      page_fault   := false.B // 在idle时清除page_fault
       when(io.cpu.req) {
         when(addr_err) {
-          acc_err                := true.B
+          access_fault           := true.B
           state                  := s_wait
-          rdata_in_wait(0).inst  := 0.U
+          rdata_in_wait(0).inst  := Instructions.NOP
           rdata_in_wait(0).valid := true.B
         }.elsewhen(!io.cpu.tlb.hit) {
           state := s_tlb_refill
@@ -252,11 +258,11 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         }
       }.elsewhen(io.axi.r.fire) {
         // * uncached not support burst transport * //
-        state                  := s_wait
         rdata_in_wait(0).inst  := Mux(ar.addr(2), io.axi.r.bits.data(63, 32), io.axi.r.bits.data(31, 0))
         rdata_in_wait(0).valid := true.B
         rready                 := false.B
-        acc_err                := io.axi.r.bits.resp =/= RESP_OKEY.U
+        access_fault           := io.axi.r.bits.resp =/= RESP_OKEY.U
+        state                  := s_wait
       }
     }
     is(s_replace) {
@@ -294,7 +300,21 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       }
     }
     is(s_tlb_refill) {
-      // TODO:
+      when(io.cpu.tlb.access_fault) {
+        access_fault           := true.B
+        state                  := s_wait
+        rdata_in_wait(0).inst  := Instructions.NOP
+        rdata_in_wait(0).valid := true.B
+      }.elsewhen(io.cpu.tlb.page_fault) {
+        page_fault             := true.B
+        state                  := s_wait
+        rdata_in_wait(0).inst  := Instructions.NOP
+        rdata_in_wait(0).valid := true.B
+      }.otherwise {
+        when(io.cpu.tlb.hit) {
+          state := s_idle
+        }
+      }
     }
   }
 
