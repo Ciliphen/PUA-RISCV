@@ -145,6 +145,48 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   io.dcache.ptw.pte.ready   := true.B // 恒为true
   io.dcache.csr <> io.csr
 
+  def imodeCheck(): Unit = {
+    switch(mode) {
+      is(ModeS) {
+        when(itlb.flag.u && sum === 0.U) {
+          ipage_fault := true.B
+          immu_state  := search_fault
+        }.otherwise {
+          io.icache.hit := true.B
+        }
+      }
+      is(ModeU) {
+        when(!itlb.flag.u) {
+          ipage_fault := true.B
+          immu_state  := search_fault
+        }.otherwise {
+          io.icache.hit := true.B
+        }
+      }
+    }
+  }
+
+  def dmodeCheck(): Unit = {
+    switch(mode) {
+      is(ModeS) {
+        when(dtlb.flag.u && sum === 0.U) {
+          dpage_fault := true.B
+          dmmu_state  := search_fault
+        }.otherwise {
+          io.dcache.hit := true.B
+        }
+      }
+      is(ModeU) {
+        when(!dtlb.flag.u) {
+          dpage_fault := true.B
+          dmmu_state  := search_fault
+        }.otherwise {
+          io.dcache.hit := true.B
+        }
+      }
+    }
+  }
+
   // ---------------------------------------------------
   // ----------------- 指令虚实地址转换 -----------------
   // ---------------------------------------------------
@@ -166,20 +208,8 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
           when(!itlb.flag.x) {
             ipage_fault := true.B
             immu_state  := search_fault
-          }.elsewhen(mode === ModeS) {
-            when(itlb.flag.u && sum === 0.U) {
-              ipage_fault := true.B
-              immu_state  := search_fault
-            }.otherwise {
-              io.icache.hit := true.B
-            }
-          }.elsewhen(mode === ModeU) {
-            when(!itlb.flag.u) {
-              ipage_fault := true.B
-              immu_state  := search_fault
-            }.otherwise {
-              io.icache.hit := true.B
-            }
+          }.otherwise {
+            imodeCheck()
           }
         }.otherwise {
           immu_state := search_l2
@@ -243,13 +273,39 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
           io.dcache.hit := true.B
         }.elsewhen(dtlbl1_hit) {
           // 在这里进行取指需要的所有的权限检查
-          // 0. X位检查，只有可执行的页面才能取指
+          // 如果是load
+          // 0. MXR位检查，分类0和1的情况
           // 1. M模式，不可能到这里，因为vm_enabled为false
           // 2. S模式，如果U位为1，需要检查SUM
           // 3. U模式，必须保证U位为1
           io.dcache.hit := false.B // 只有权限检查通过后可以置为true
-          // TODO:增加权限检查
-
+          switch(io.dcache.access_type) {
+            is(AccessType.load) {
+              when(mxr) {
+                when(!dtlb.flag.r && !dtlb.flag.x) {
+                  dpage_fault := true.B
+                  dmmu_state  := search_fault
+                }.otherwise {
+                  dmodeCheck()
+                }
+              }.otherwise {
+                when(!dtlb.flag.r) {
+                  dpage_fault := true.B
+                  dmmu_state  := search_fault
+                }.otherwise {
+                  dmodeCheck()
+                }
+              }
+            }
+            is(AccessType.store) {
+              when(!dtlb.flag.w) {
+                dpage_fault := true.B
+                dmmu_state  := search_fault
+              }.otherwise {
+                dmodeCheck()
+              }
+            }
+          }
         }.otherwise {
           dmmu_state := search_l2
         }
