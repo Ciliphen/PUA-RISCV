@@ -262,7 +262,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   }
 
   // ---------------------------------------------------
-  // ----------------- 指令虚实地址转换 -----------------
+  // ----------------- 数据虚实地址转换 -----------------
   // ---------------------------------------------------
   switch(dmmu_state) {
     is(search_l1) {
@@ -299,11 +299,16 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
               }
             }
             is(AccessType.store) {
-              when(!dtlb.flag.w) {
+              when(!dtlb.flag.d) {
                 dpage_fault := true.B
                 dmmu_state  := search_fault
               }.otherwise {
-                dmodeCheck()
+                when(!dtlb.flag.w) {
+                  dpage_fault := true.B
+                  dmmu_state  := search_fault
+                }.otherwise {
+                  dmodeCheck()
+                }
               }
             }
           }
@@ -313,9 +318,9 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
       }
     }
     is(search_l2) {
-      when(il2_hit_vec.asUInt.orR) {
+      when(dl2_hit_vec.asUInt.orR) {
         dmmu_state := search_l1
-        dtlb       := tlbl2(PriorityEncoder(il2_hit_vec))
+        dtlb       := tlbl2(PriorityEncoder(dl2_hit_vec))
       }.otherwise {
         req_ptw(1) := true.B
         when(!ar_sel && io.dcache.ptw.vpn.ready) {
@@ -336,7 +341,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         }.otherwise {
           // 在内存中找寻到了页表，将其写入TLB
           val replace_entry = Wire(tlbBundle)
-          replace_entry.vpn          := ivpn
+          replace_entry.vpn          := dvpn
           replace_entry.asid         := satp.asid
           replace_entry.flag         := io.dcache.ptw.pte.bits.entry.flag
           replace_entry.ppn          := io.dcache.ptw.pte.bits.entry.ppn
