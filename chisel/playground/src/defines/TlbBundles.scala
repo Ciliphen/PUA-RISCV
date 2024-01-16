@@ -28,7 +28,7 @@ trait Sv39Const extends CoreParameter {
   val satpResLen = XLEN - ppnLen - satpModeLen - asidLen
   val pteResLen  = XLEN - ppnLen - 2 - flagLen
 
-  val cacheTagLen = PADDR_WID - pageOffsetLen
+  val cacheTagLen = PADDR_WID - pageOffsetLen // 32 - 12 = 20
   require(ppnLen == cacheTagLen)
 
   def vaBundle = new Bundle {

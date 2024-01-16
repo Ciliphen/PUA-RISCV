@@ -79,15 +79,29 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val state                                                                         = RegInit(s_idle)
 
   // ptw的状态机
-  val s_handshake :: s_send :: s_receive :: s_check :: s_set :: Nil = Enum(5)
-  val ptw_state                                                     = RegInit(s_handshake)
+  val pte_handshake :: pte_send :: ptw_uncached :: ptw_cached :: pte_check :: pte_set :: Nil = Enum(6)
+  val ptw_state                                                                              = RegInit(pte_handshake)
 
+  // 临时寄存器
+  val ptw_scratch = RegInit(0.U.asTypeOf(new Bundle {
+    val paddr   = cacheAddr
+    val replace = Bool()
+    val working = Bool()
+  }))
   io.cpu.tlb.ptw.vpn.ready := false.B
 
   // ==========================================================
+  // |        ppn         |         page offset               |
+  // ----------------------------------------------------------
   // |        tag         |  index |         offset           |
   // |                    |        | bank index | bank offset |
   // ==========================================================
+
+  def cacheAddr = new Bundle {
+    val tag    = UInt(tagWidth.W)
+    val index  = UInt(indexWidth.W)
+    val offset = UInt(offsetWidth.W)
+  }
 
   // exe级的index，用于访问第i行的数据
   val exe_index = io.cpu.exe_addr(indexWidth + offsetWidth - 1, offsetWidth)
@@ -201,8 +215,9 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   io.cpu.tlb.access_type := Mux(io.cpu.en && io.cpu.wen.orR, AccessType.store, AccessType.load)
   io.cpu.tlb.en          := io.cpu.en
 
-  val bank_raddr = Mux(state === s_fence, dirty_index, Mux(use_next_addr, exe_index, replace_index))
-  val tag_raddr  = Mux(state === s_fence, dirty_index, tag_rindex)
+  val bank_raddr = Wire(UInt(indexWidth.W))
+  bank_raddr := Mux(state === s_fence, dirty_index, Mux(use_next_addr, exe_index, replace_index))
+  val tag_raddr = Mux(state === s_fence, dirty_index, tag_rindex)
 
   val wstrb = Wire(Vec(nindex, (Vec(nway, UInt(AXI_STRB_WID.W)))))
   wstrb                         := 0.U.asTypeOf(wstrb)
@@ -346,7 +361,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           }
         }
       }.otherwise {
-        io.cpu.tlb.ptw.vpn.ready := ptw_state === s_handshake
+        io.cpu.tlb.ptw.vpn.ready := ptw_state === pte_handshake
         when(io.cpu.fence_i) {
           // fence.i 需要将所有脏位为true的行写回
           when(dirty.asUInt.orR) {
@@ -462,21 +477,33 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           ) {
             valid(replace_index)(replace_way) := true.B
             do_replace                        := false.B
-            state                             := s_idle
+            when(ptw_scratch.working) {
+              state               := s_tlb_refill
+              ptw_scratch.replace := false.B
+            }.otherwise {
+              state := s_idle
+            }
           }
         }.otherwise {
           // 这里相当于增加了一拍，用于发射读写控制信号
           do_replace := true.B
 
-          // for ar axi
-          ar.addr                  := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
           ar.len                   := cached_len.U
           ar.size                  := cached_size.U // 8 字节
           arvalid                  := true.B
           rready                   := true.B
           burst.wstrb(replace_way) := 1.U // 先写入第一块bank
           tag_wstrb(replace_way)   := true.B
-          tag_wdata                := io.cpu.tlb.ptag
+          when(!ptw_scratch.working) {
+            // dcache的普通模式
+            // for ar axi
+            ar.addr   := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
+            tag_wdata := io.cpu.tlb.ptag
+          }.otherwise {
+            // ptw复用的模式
+            ar.addr   := Cat(ptw_scratch.paddr.tag, ptw_scratch.paddr.index, 0.U(offsetWidth.W))
+            tag_wdata := ptw_scratch.paddr.tag
+          }
           when(replace_dirty) {
             aw.addr     := Cat(tag(replace_way), replace_index, 0.U(offsetWidth.W))
             aw.len      := cached_len.U
@@ -498,7 +525,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       }
     }
     is(s_tlb_refill) {
-      io.cpu.tlb.ptw.vpn.ready := ptw_state === s_handshake
+      io.cpu.tlb.ptw.vpn.ready := ptw_state === pte_handshake
       when(io.cpu.tlb.access_fault) {
         access_fault := true.B
         state        := s_wait
@@ -536,7 +563,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   def raisePageFault(): Unit = {
     io.cpu.tlb.ptw.pte.valid           := true.B
     io.cpu.tlb.ptw.pte.bits.page_fault := true.B
-    ptw_state                          := s_handshake
+    ptw_state                          := pte_handshake
   }
 
   def modeCheck(): Unit = {
@@ -545,30 +572,30 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         when(pte.flag.u && !sum) {
           raisePageFault()
         }.otherwise {
-          ptw_state := s_set
+          ptw_state := pte_set
         }
       }
       is(ModeU) {
         when(!pte.flag.u) {
           raisePageFault()
         }.otherwise {
-          ptw_state := s_set
+          ptw_state := pte_set
         }
       }
     }
   }
 
   switch(ptw_state) {
-    is(s_handshake) {
+    is(pte_handshake) {
       // 页表访问虚地址握手
       when(io.cpu.tlb.ptw.vpn.valid) {
-        vpn_index := (level - 1).U
-        ppn       := satp.ppn
-        ptw_state := s_send
+        vpn_index           := (level - 1).U
+        ppn                 := satp.ppn
+        ptw_state           := pte_send
+        ptw_scratch.working := true.B
       }
     }
-    is(s_send) {
-      arvalid := true.B
+    is(pte_send) {
       val vpnn = Mux1H(
         Seq(
           (vpn_index === 0.U) -> vpn.vpn0,
@@ -576,13 +603,64 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           (vpn_index === 2.U) -> vpn.vpn2
         )
       )
-      ar.addr   := paddrApply(ppn, vpnn)
-      ar.size   := log2Ceil(AXI_DATA_WID / 8).U // 一个pte的大小是8字节
-      ar.len    := 0.U // 读一拍即可
-      ptw_state := s_receive
-      rready    := true.B
+      val ptw_addr = paddrApply(ppn, vpnn).asTypeOf(cacheAddr)
+      val uncached = AddressSpace.isMMIO(ptw_addr.asUInt)
+      when(uncached) {
+        arvalid   := true.B
+        ar.addr   := ptw_addr.asUInt
+        ar.size   := log2Ceil(AXI_DATA_WID / 8).U // 一个pte的大小是8字节
+        ar.len    := 0.U // 读一拍即可
+        rready    := true.B
+        ptw_state := ptw_uncached
+      }.otherwise {
+        bank_raddr            := ptw_addr.index
+        tagRam.map(_.io.raddr := ptw_addr.index)
+        ptw_state             := ptw_cached
+        ptw_scratch.paddr     := ptw_addr
+        ptw_scratch.replace   := false.B
+      }
     }
-    is(s_receive) {
+    is(ptw_cached) {
+      for { i <- 0 until nway } {
+        tag_compare_valid(i) :=
+          tag(i) === ptw_scratch.paddr.tag && // tag相同
+          valid(ptw_scratch.paddr.index)(i) // cache行有效位为真
+      }
+      when(cache_hit) {
+        val pte_temp = data(ptw_scratch.paddr.index)(select_way).asTypeOf(pteBundle)
+        when(!pte_temp.flag.v || !pte_temp.flag.r && pte_temp.flag.w) {
+          raisePageFault()
+        }.otherwise {
+          when(pte_temp.flag.r || pte_temp.flag.x) {
+            // 找到了叶子页
+            pte       := pte_temp
+            ptw_state := pte_check
+          }.otherwise {
+            // 该pte指向下一个页表
+            vpn_index := vpn_index - 1.U
+            when(vpn_index - 1.U < 0.U) {
+              raisePageFault()
+            }.otherwise {
+              ppn       := pte_temp.ppn
+              ptw_state := pte_send
+            }
+          }
+        }
+      }.otherwise {
+        when(!ptw_scratch.replace) {
+          ptw_scratch.replace      := true.B
+          state                    := s_replace // 直接复用dcache的replace状态机，帮我们进行replace操作
+          bank_windex              := 0.U
+          burst.wstrb(replace_way) := 1.U // 先写入第一块bank
+          when(replace_dirty) {
+            // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
+            (0 until nbank).map(i => bank_replication(i) := data(i)(select_way))
+          }
+        }
+        // 进入replace状态机后，会在此处等待，直到cache hit
+      }
+    }
+    is(ptw_uncached) {
       when(io.axi.ar.fire) {
         arvalid := false.B
       }
@@ -595,7 +673,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           when(pte_temp.flag.r || pte_temp.flag.x) {
             // 找到了叶子页
             pte       := pte_temp
-            ptw_state := s_check
+            ptw_state := pte_check
           }.otherwise {
             // 该pte指向下一个页表
             vpn_index := vpn_index - 1.U
@@ -603,13 +681,13 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
               raisePageFault()
             }.otherwise {
               ppn       := pte_temp.ppn
-              ptw_state := s_send
+              ptw_state := pte_send
             }
           }
         }
       }
     }
-    is(s_check) {
+    is(pte_check) {
       // 检查权限
       switch(access_type) {
         is(AccessType.load) {
@@ -643,7 +721,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         }
       }
     }
-    is(s_set) {
+    is(pte_set) {
       when(
         vpn_index > 0.U && (
           vpn_index === 1.U && pte.ppn(0) ||
@@ -672,7 +750,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         }
         io.cpu.tlb.ptw.pte.bits.entry.ppn := ppn_set.asUInt
 
-        ptw_state := s_handshake
+        ptw_state := pte_handshake
       }
     }
   }
