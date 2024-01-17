@@ -377,12 +377,12 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     mstatus := mstatusNew.asUInt
   }
 
-  val ret_target = Wire(UInt(VADDR_WID.W))
+  val ret_target = Wire(UInt(XLEN.W))
   ret_target := DontCare
 
-  val trap_target = Wire(UInt(VADDR_WID.W))
+  val trap_target = Wire(UInt(XLEN.W))
   val tvec        = Mux(delegS, stvec, mtvec)
-  trap_target := (tvec(VADDR_WID - 1, 2) << 2) + Mux(
+  trap_target := (tvec(XLEN - 1, 2) << 2) + Mux(
     tvec(0) && raise_interrupt,
     (causeNO << 2),
     0.U

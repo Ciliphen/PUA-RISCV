@@ -204,7 +204,13 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   val access_fault = RegInit(false.B)
   val page_fault   = RegInit(false.B)
-  val addr_err     = io.cpu.addr(use_next_addr)(XLEN - 1, VADDR_WID).orR
+  // sv39的63-39位需要与第38位相同
+  val addr_err =
+    io.cpu
+      .addr(use_next_addr)(XLEN - 1, VADDR_WID)
+      .asBools
+      .map(_ =/= io.cpu.addr(use_next_addr)(VADDR_WID - 1))
+      .reduce(_ || _)
 
   io.cpu.access_fault := access_fault //TODO：实现cached段中的访存response错误
   io.cpu.page_fault   := page_fault
