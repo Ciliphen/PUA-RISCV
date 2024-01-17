@@ -120,14 +120,14 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   val ar_sel_lock = RegInit(false.B)
   val ar_sel_val  = RegInit(false.B)
   // 我们默认优先发送数据tlb的请求
-  val ar_sel = Mux(ar_sel_lock, ar_sel_val, req_ptw(0) && !req_ptw(1))
+  val choose_icache = Mux(ar_sel_lock, ar_sel_val, req_ptw(0) && !req_ptw(1))
 
-  when(io.dcache.ptw.vpn.valid) {
-    when(io.dcache.ptw.vpn.ready) {
-      ar_sel_lock := false.B
-    }.otherwise {
+  when(io.dcache.ptw.vpn.ready) {
+    when(io.dcache.ptw.vpn.valid) {
       ar_sel_lock := true.B
-      ar_sel_val  := ar_sel
+      ar_sel_val  := choose_icache
+    }.otherwise {
+      ar_sel_lock := false.B
     }
   }
 
@@ -139,9 +139,9 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   io.dcache.page_fault   := dpage_fault
 
   // 将ptw模块集成到dcache中，ptw通过dcache的axi进行内存访问
-  io.dcache.ptw.vpn.valid   := false.B
-  io.dcache.ptw.access_type := Mux(ar_sel, AccessType.fetch, io.dcache.access_type)
-  io.dcache.ptw.vpn.bits    := Mux(ar_sel, ivpn, dvpn)
+  io.dcache.ptw.vpn.valid   := Mux(choose_icache, req_ptw(0), req_ptw(1))
+  io.dcache.ptw.access_type := Mux(choose_icache, AccessType.fetch, io.dcache.access_type)
+  io.dcache.ptw.vpn.bits    := Mux(choose_icache, ivpn, dvpn)
   io.dcache.ptw.pte.ready   := true.B // 恒为true
   io.dcache.csr <> io.csr
 
@@ -222,15 +222,13 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         itlb       := tlbl2(PriorityEncoder(il2_hit_vec))
       }.otherwise {
         req_ptw(0) := true.B
-        when(ar_sel && io.dcache.ptw.vpn.ready) {
-          io.dcache.ptw.vpn.valid := true.B
-          immu_state              := search_pte
+        when(choose_icache && io.dcache.ptw.vpn.ready) {
+          immu_state := search_pte
         }
       }
     }
     is(search_pte) {
-      req_ptw(0)              := true.B
-      io.dcache.ptw.vpn.valid := true.B
+      req_ptw(0) := true.B
       when(io.dcache.ptw.pte.valid) {
         when(io.dcache.ptw.pte.bits.access_fault) {
           iaccess_fault := true.B
@@ -324,15 +322,13 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
         dtlb       := tlbl2(PriorityEncoder(dl2_hit_vec))
       }.otherwise {
         req_ptw(1) := true.B
-        when(!ar_sel && io.dcache.ptw.vpn.ready) {
-          io.dcache.ptw.vpn.valid := true.B
-          dmmu_state              := search_pte
+        when(!choose_icache && io.dcache.ptw.vpn.ready) {
+          dmmu_state := search_pte
         }
       }
     }
     is(search_pte) {
-      req_ptw(1)              := true.B
-      io.dcache.ptw.vpn.valid := true.B
+      req_ptw(1) := true.B
       when(io.dcache.ptw.pte.valid) {
         when(io.dcache.ptw.pte.bits.access_fault) {
           daccess_fault := true.B
