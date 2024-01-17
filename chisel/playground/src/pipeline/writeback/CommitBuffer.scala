@@ -5,7 +5,7 @@ import chisel3.util._
 import cpu.defines.DEBUG
 
 class CommitBuffer(
-  depth: Int = 32)
+  depth: Int = 128)
     extends Module {
   val io = IO(new Bundle {
     val flush = Input(Bool())
