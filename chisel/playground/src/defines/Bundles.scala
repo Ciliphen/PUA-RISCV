@@ -42,6 +42,7 @@ class InstInfo extends Bundle {
   val reg_waddr  = UInt(REG_ADDR_WID.W)
   val imm        = UInt(XLEN.W)
   val inst       = UInt(XLEN.W)
+  val ret        = Vec(RetType.num, Bool())
 }
 
 class MemRead extends Bundle {

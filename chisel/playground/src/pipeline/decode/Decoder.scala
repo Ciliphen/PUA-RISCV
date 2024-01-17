@@ -5,7 +5,7 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 
-class Decoder extends Module with HasInstrType {
+class Decoder extends Module with HasInstrType with HasCSRConst {
   val io = IO(new Bundle {
     // inputs
     val in = Input(new Bundle {
@@ -37,6 +37,7 @@ class Decoder extends Module with HasInstrType {
   val (rs, rt, rd) = (inst(19, 15), inst(24, 20), inst(11, 7))
 
   io.out.info.valid      := false.B
+  io.out.info.inst       := inst
   io.out.info.inst_legal := instrType =/= InstrN
   io.out.info.src1_ren   := src1Type === SrcType.reg
   io.out.info.src1_raddr := Mux(io.out.info.src1_ren, rs, 0.U)
@@ -57,5 +58,7 @@ class Decoder extends Module with HasInstrType {
       InstrJ  -> SignedExtend(Cat(inst(31), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W)), XLEN)
     )
   )
-  io.out.info.inst := inst
+  io.out.info.ret(RetType.uret) := inst(31, 20) === privUret && fuOpType === CSROpType.jmp && fuType === FuType.csr
+  io.out.info.ret(RetType.sret) := inst(31, 20) === privSret && fuOpType === CSROpType.jmp && fuType === FuType.csr
+  io.out.info.ret(RetType.mret) := inst(31, 20) === privMret && fuOpType === CSROpType.jmp && fuType === FuType.csr
 }

@@ -68,8 +68,14 @@ class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
       inst1.fusel === FuType.csr && inst1.op =/= CSROpType.jmp && inst1.inst(31, 20) === Satp.U
     ).asUInt.orR
 
+    // uret、sret、mret指令会导致流水线清空
+    val ret = inst0.ret.asUInt.orR || inst1.ret.asUInt.orR
+
+    // 这些csr相关指令会导致流水线清空
+    val is_some_csr_inst = write_satp || ret
+
     // 下面的情况只进行单发射
-    val single_issue = is_mou || is_bru || write_satp
+    val single_issue = is_mou || is_bru || is_some_csr_inst
 
     // 指令1是否允许执行
     io.inst1.allow_to_go :=

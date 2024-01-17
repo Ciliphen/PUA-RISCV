@@ -170,6 +170,13 @@ object CSROpType {
   def clri = "b111".U
 }
 
+object RetType {
+  def uret = 0.U
+  def sret = 1.U
+  def mret = 2.U
+  def num  = 3
+}
+
 trait HasCSRConst {
   // User Trap Setup
   val Ustatus = 0x000

@@ -309,13 +309,10 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   MaskedRegMap.generate(ipMapping, addr, rdataDummy, wen, wdata)
 
   // CSR inst decode
-  val ret = Wire(Bool())
-  val isMret =
-    mem_addr === privMret && mem_inst_info.op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
-  val isSret =
-    mem_addr === privSret && mem_inst_info.op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
-  val isUret =
-    mem_addr === privUret && mem_inst_info.op === CSROpType.jmp && mem_inst_info.fusel === FuType.csr && mem_valid
+  val ret    = Wire(Bool())
+  val isMret = mem_inst_info.ret(RetType.mret) && mem_valid
+  val isSret = mem_inst_info.ret(RetType.sret) && mem_valid
+  val isUret = mem_inst_info.ret(RetType.uret) && mem_valid
   ret := isMret || isSret || isUret
 
   val exceptionNO = ExcPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.exception(i), i.U, sum))
