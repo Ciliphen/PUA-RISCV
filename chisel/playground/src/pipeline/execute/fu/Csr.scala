@@ -398,7 +398,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     mstatusNew.mpp   := ModeU
     mstatus          := mstatusNew.asUInt
     lr               := false.B
-    ret_target       := mepc(VADDR_WID - 1, 0)
+    ret_target       := mepc
   }
 
   when(isSret) {
@@ -411,7 +411,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     mstatusNew.spp   := ModeU
     mstatus          := mstatusNew.asUInt
     lr               := false.B
-    ret_target       := sepc(VADDR_WID - 1, 0)
+    ret_target       := sepc
   }
 
   io.tlb.imode          := mode
