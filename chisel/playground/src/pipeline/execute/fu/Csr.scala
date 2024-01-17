@@ -126,7 +126,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   // Supervisor Trap Setup
   // sstatus 状态寄存器，源自mstatus
   val sstatusWmask = "h00000000000c0122".U(XLEN.W)
-  val sstatusRmask = "h80000000000de762".U(XLEN.W)
+  val sstatusRmask = "h80000003000de762".U(XLEN.W)
   // sedeleg 异常代理寄存器，未实现
   // sideleg 中断代理寄存器，未实现
   // sie 中断使能寄存器，源自mie

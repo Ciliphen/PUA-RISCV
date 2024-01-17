@@ -229,6 +229,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
       }
     }
     is(search_pte) {
+      req_ptw(0)              := true.B
       io.dcache.ptw.vpn.valid := true.B
       when(io.dcache.ptw.pte.valid) {
         when(io.dcache.ptw.pte.bits.access_fault) {
@@ -330,6 +331,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
       }
     }
     is(search_pte) {
+      req_ptw(1)              := true.B
       io.dcache.ptw.vpn.valid := true.B
       when(io.dcache.ptw.pte.valid) {
         when(io.dcache.ptw.pte.bits.access_fault) {
