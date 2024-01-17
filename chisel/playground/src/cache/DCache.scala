@@ -83,10 +83,10 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val ptw_state                                                                              = RegInit(ptw_handshake)
 
   // 临时寄存器
+  val ptw_working = ptw_state =/= ptw_handshake
   val ptw_scratch = RegInit(0.U.asTypeOf(new Bundle {
     val paddr   = cacheAddr
     val replace = Bool()
-    val working = Bool()
   }))
   io.cpu.tlb.ptw.vpn.ready := false.B
 
@@ -371,7 +371,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           }
         }
       }.otherwise {
-        io.cpu.tlb.ptw.vpn.ready := ptw_state === ptw_handshake
+        io.cpu.tlb.ptw.vpn.ready := !ptw_working
         when(io.cpu.fence_i) {
           // fence.i 需要将所有脏位为true的行写回
           when(dirty.asUInt.orR) {
@@ -488,7 +488,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
             valid(replace_index)(replace_way) := true.B
             do_replace                        := false.B
             ptw_scratch.replace               := false.B
-            when(ptw_scratch.working && io.cpu.tlb.ptw.access_type =/= AccessType.fetch) {
+            when(ptw_working && io.cpu.tlb.ptw.access_type =/= AccessType.fetch) {
               // ptw复用的模式
               state := s_tlb_refill
             }.otherwise {
@@ -505,7 +505,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           rready                   := true.B
           burst.wstrb(replace_way) := 1.U // 先写入第一块bank
           tag_wstrb(replace_way)   := true.B
-          when(!ptw_scratch.working) {
+          when(!ptw_working) {
             // dcache的普通模式
             // for ar axi
             ar.addr   := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
@@ -536,7 +536,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       }
     }
     is(s_tlb_refill) {
-      io.cpu.tlb.ptw.vpn.ready := ptw_state === ptw_handshake
+      io.cpu.tlb.ptw.vpn.ready := !ptw_working
       when(io.cpu.tlb.access_fault) {
         access_fault := true.B
         state        := s_wait
@@ -600,10 +600,9 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     is(ptw_handshake) {
       // 页表访问虚地址握手
       when(io.cpu.tlb.ptw.vpn.valid) {
-        vpn_index           := (level - 1).U
-        ppn                 := satp.ppn
-        ptw_state           := ptw_send
-        ptw_scratch.working := true.B
+        vpn_index := (level - 1).U
+        ppn       := satp.ppn
+        ptw_state := ptw_send
       }
     }
     is(ptw_send) {
