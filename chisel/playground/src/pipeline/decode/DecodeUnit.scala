@@ -134,11 +134,14 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
     info(0).op === CSROpType.jmp && mode === ModeS && info(0).fusel === FuType.csr
   io.executeStage.inst0.ex.exception(ecallU) := info(0).inst(31, 20) === privEcall &&
     info(0).op === CSROpType.jmp && mode === ModeU && info(0).fusel === FuType.csr
+  // tval注意先后顺序
   io.executeStage.inst0.ex.tval := MuxCase(
     0.U,
     Seq(
-      pc(0)(log2Ceil(INST_WID / 8) - 1, 0).orR                                        -> pc(0),
+      io.executeStage.inst0.ex.exception(instrPageFault)                              -> pc(0),
+      io.executeStage.inst0.ex.exception(instrAccessFault)                            -> pc(0),
       !info(0).inst_legal                                                             -> info(0).inst,
+      pc(0)(log2Ceil(INST_WID / 8) - 1, 0).orR                                        -> pc(0),
       (io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch) -> io.fetchUnit.target
     )
   )
@@ -182,8 +185,10 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   io.executeStage.inst1.ex.tval := MuxCase(
     0.U,
     Seq(
-      pc(1)(log2Ceil(INST_WID / 8) - 1, 0).orR                                        -> pc(1),
+      io.executeStage.inst1.ex.exception(instrPageFault)                              -> pc(1),
+      io.executeStage.inst1.ex.exception(instrAccessFault)                            -> pc(1),
       !info(1).inst_legal                                                             -> info(1).inst,
+      pc(1)(log2Ceil(INST_WID / 8) - 1, 0).orR                                        -> pc(1),
       (io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch) -> io.fetchUnit.target
     )
   )
