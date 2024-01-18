@@ -2,7 +2,7 @@ package cpu
 
 import chisel3.util._
 import cpu.defines.Const._
-import cpu.defines.Sv39Const
+import cpu.defines.HasTlbConst
 
 case class CpuConfig(
   val build: Boolean = false, // 是否为build模式
@@ -32,7 +32,7 @@ case class BranchPredictorConfig(
 
 case class CacheConfig(
   cacheType: String = "icache" // icache, dcache
-) extends Sv39Const {
+) extends HasTlbConst {
 // ==========================================================
 // |        tag         |  index |         offset           |
 // |                    |        | bank index | bank offset |

@@ -42,30 +42,30 @@ class CacheAXIInterface extends Module {
 
   // mux ar {
   // we need to lock ar to avoid signals change during handshake
-  val ar_sel_lock = RegInit(false.B)
-  val ar_sel_val  = RegInit(false.B)
-  val ar_sel      = Mux(ar_sel_lock, ar_sel_val, !io.icache.ar.valid && io.dcache.ar.valid)
+  val ar_sel_lock   = RegInit(false.B)
+  val ar_sel_val    = RegInit(false.B)
+  val choose_dcache = Mux(ar_sel_lock, ar_sel_val, !io.icache.ar.valid && io.dcache.ar.valid)
 
   when(io.axi.ar.valid) {
     when(io.axi.ar.ready) {
       ar_sel_lock := false.B
     }.otherwise {
       ar_sel_lock := true.B
-      ar_sel_val  := ar_sel
+      ar_sel_val  := choose_dcache
     }
   }
 
-  io.axi.ar.bits.id    := Cat(0.U(3.W), ar_sel)
-  io.axi.ar.bits.addr  := Mux(ar_sel, io.dcache.ar.bits.addr, io.icache.ar.bits.addr)
-  io.axi.ar.bits.len   := Mux(ar_sel, io.dcache.ar.bits.len, io.icache.ar.bits.len)
-  io.axi.ar.bits.size  := Mux(ar_sel, io.dcache.ar.bits.size, io.icache.ar.bits.size)
-  io.axi.ar.valid      := Mux(ar_sel, io.dcache.ar.valid, io.icache.ar.valid)
+  io.axi.ar.bits.id    := Cat(0.U(3.W), choose_dcache)
+  io.axi.ar.bits.addr  := Mux(choose_dcache, io.dcache.ar.bits.addr, io.icache.ar.bits.addr)
+  io.axi.ar.bits.len   := Mux(choose_dcache, io.dcache.ar.bits.len, io.icache.ar.bits.len)
+  io.axi.ar.bits.size  := Mux(choose_dcache, io.dcache.ar.bits.size, io.icache.ar.bits.size)
+  io.axi.ar.valid      := Mux(choose_dcache, io.dcache.ar.valid, io.icache.ar.valid)
   io.axi.ar.bits.burst := 1.U
   io.axi.ar.bits.prot  := 0.U
   io.axi.ar.bits.cache := 0.U
   io.axi.ar.bits.lock  := 0.U
-  io.icache.ar.ready   := !ar_sel && io.axi.ar.ready
-  io.dcache.ar.ready   := ar_sel && io.axi.ar.ready
+  io.icache.ar.ready   := !choose_dcache && io.axi.ar.ready
+  io.dcache.ar.ready   := choose_dcache && io.axi.ar.ready
   // mux ar }
 
   // mux r based on rid {

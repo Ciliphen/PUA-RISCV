@@ -15,20 +15,20 @@ object AccessType {
   def store   = "b10".U
 }
 
-class Tlb_Ptw extends Bundle with Sv39Const {
+class Tlb_Ptw extends Bundle with HasTlbConst {
   val vpn         = Decoupled(UInt(vpnLen.W))
   val access_type = Output(AccessType())
   val pte = Flipped(Decoupled(new Bundle {
     val access_fault = Bool()
     val page_fault   = Bool()
     val entry        = pteBundle
-    val addr         = UInt(PADDR_WID.W)
+    val rmask        = UInt(maskLen.W)
   }))
 }
 
-class Tlb_ICache extends Bundle with Sv39Const {
+class Tlb_ICache extends Bundle with HasTlbConst {
   val en                      = Input(Bool())
-  val addr                    = Input(UInt(XLEN.W))
+  val vaddr                   = Input(UInt(XLEN.W))
   val complete_single_request = Input(Bool())
 
   val uncached     = Output(Bool())
@@ -76,27 +76,27 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   val dtlb  = RegInit(0.U.asTypeOf(tlbBundle))
   val tlbl2 = RegInit(VecInit(Seq.fill(cpuConfig.tlbEntries)(0.U.asTypeOf(tlbBundle))))
 
-  val ivpn = io.icache.addr(VADDR_WID - 1, pageOffsetLen)
-  val dvpn = io.dcache.addr(VADDR_WID - 1, pageOffsetLen)
+  val ivpn = io.icache.vaddr(VADDR_WID - 1, pageOffsetLen)
+  val dvpn = io.dcache.vaddr(VADDR_WID - 1, pageOffsetLen)
 
   // 当(VPN一致)且(ASID一致或PTE.G为1时)且(PTE.V为1)时，TLB命中
-  val itlbl1_hit = itlb.vpn === ivpn &&
+  val itlbl1_hit = vpnEq(itlb.rmask, ivpn, itlb.vpn) &&
     (itlb.asid === satp.asid || itlb.flag.g) &&
     itlb.flag.v
-  val dtlbl1_hit = dtlb.vpn === dvpn &&
+  val dtlbl1_hit = vpnEq(dtlb.rmask, dvpn, dtlb.vpn) &&
     (dtlb.asid === satp.asid || dtlb.flag.g) &&
     dtlb.flag.v
 
   val il2_hit_vec = VecInit(
     tlbl2.map(tlb =>
-      tlb.vpn === ivpn &&
+      vpnEq(tlb.rmask, ivpn, tlb.vpn) &&
         (tlb.asid === satp.asid || tlb.flag.g) &&
         tlb.flag.v
     )
   )
   val dl2_hit_vec = VecInit(
     tlbl2.map(tlb =>
-      tlb.vpn === dvpn &&
+      vpnEq(tlb.rmask, dvpn, tlb.vpn) &&
         (tlb.asid === satp.asid || tlb.flag.g) &&
         tlb.flag.v
     )
@@ -243,7 +243,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
           replace_entry.asid         := satp.asid
           replace_entry.flag         := io.dcache.ptw.pte.bits.entry.flag
           replace_entry.ppn          := io.dcache.ptw.pte.bits.entry.ppn
-          replace_entry.pteaddr      := io.dcache.ptw.pte.bits.addr
+          replace_entry.rmask        := io.dcache.ptw.pte.bits.rmask
           tlbl2(replace_index.value) := replace_entry
           itlb                       := replace_entry
           replace_index.inc()
@@ -343,7 +343,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
           replace_entry.asid         := satp.asid
           replace_entry.flag         := io.dcache.ptw.pte.bits.entry.flag
           replace_entry.ppn          := io.dcache.ptw.pte.bits.entry.ppn
-          replace_entry.pteaddr      := io.dcache.ptw.pte.bits.addr
+          replace_entry.rmask        := io.dcache.ptw.pte.bits.rmask
           tlbl2(replace_index.value) := replace_entry
           dtlb                       := replace_entry
           replace_index.inc()
@@ -360,8 +360,8 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
     }
   }
 
-  val src1 = io.sfence_vma.src_info.src1_data
-  val src2 = io.sfence_vma.src_info.src2_data
+  val src1 = io.sfence_vma.src_info.src1_data(vpnLen - 1, 0)
+  val src2 = io.sfence_vma.src_info.src2_data(asidLen - 1, 0)
   when(io.sfence_vma.valid) {
     when(!src1.orR && !src2.orR) {
       // 将所有tlb的有效位置为0
@@ -385,39 +385,42 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
       }
     }.elsewhen(src1.orR && !src2.orR) {
       // 将vpn一致的tlb的有效位置为0
-      when(itlb.vpn === src1) {
+      when(vpnEq(itlb.rmask, src1, itlb.vpn)) {
         itlb.flag.v := false.B
       }
-      when(dtlb.vpn === src1) {
+      when(vpnEq(dtlb.rmask, src1, dtlb.vpn)) {
         dtlb.flag.v := false.B
       }
       for (i <- 0 until cpuConfig.tlbEntries) {
-        when(tlbl2(i).vpn === src1) {
+        when(vpnEq(tlbl2(i).rmask, src1, tlbl2(i).vpn)) {
           tlbl2(i).flag.v := false.B
         }
       }
     }.elsewhen(src1.orR && src2.orR) {
       // 将asid一致的且vpn一致的tlb的有效位置为0，g为1的除外
-      when(itlb.asid === src2 && itlb.vpn === src1 && !itlb.flag.g) {
+      when(itlb.asid === src2 && vpnEq(itlb.rmask, src1, itlb.vpn) && !itlb.flag.g) {
         itlb.flag.v := false.B
       }
-      when(dtlb.asid === src2 && dtlb.vpn === src1 && !dtlb.flag.g) {
+      when(dtlb.asid === src2 && vpnEq(dtlb.rmask, src1, dtlb.vpn) && !dtlb.flag.g) {
         dtlb.flag.v := false.B
       }
       for (i <- 0 until cpuConfig.tlbEntries) {
-        when(tlbl2(i).asid === src2 && tlbl2(i).vpn === src1 && !tlbl2(i).flag.g) {
+        when(tlbl2(i).asid === src2 && vpnEq(tlbl2(i).rmask, src1, tlbl2(i).vpn) && !tlbl2(i).flag.g) {
           tlbl2(i).flag.v := false.B
         }
       }
     }
   }
 
-  io.icache.uncached := AddressSpace.isMMIO(io.icache.addr)
-  io.icache.ptag     := Mux(ivm_enabled, itlb.ppn, io.icache.addr(PADDR_WID - 1, pageOffsetLen))
-  io.icache.paddr    := Cat(io.icache.ptag, io.icache.addr(pageOffsetLen - 1, 0))
+  val imasktag = maskTag(itlb.rmask, itlb.ppn, ivpn)
+  val dmasktag = maskTag(dtlb.rmask, dtlb.ppn, dvpn)
 
-  io.dcache.uncached := AddressSpace.isMMIO(io.dcache.addr)
-  io.dcache.ptag     := Mux(dvm_enabled, dtlb.ppn, io.dcache.addr(PADDR_WID - 1, pageOffsetLen))
-  io.dcache.paddr    := Cat(io.dcache.ptag, io.dcache.addr(pageOffsetLen - 1, 0))
+  io.icache.uncached := AddressSpace.isMMIO(io.icache.vaddr)
+  io.icache.ptag     := Mux(ivm_enabled, imasktag, ivpn)
+  io.icache.paddr    := Cat(io.icache.ptag, io.icache.vaddr(pageOffsetLen - 1, 0))
+
+  io.dcache.uncached := AddressSpace.isMMIO(io.dcache.vaddr)
+  io.dcache.ptag     := Mux(dvm_enabled, dmasktag, dvpn)
+  io.dcache.paddr    := Cat(io.dcache.ptag, io.dcache.vaddr(pageOffsetLen - 1, 0))
 
 }

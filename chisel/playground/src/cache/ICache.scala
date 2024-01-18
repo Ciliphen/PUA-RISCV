@@ -45,7 +45,7 @@ import cpu.defines.Const._
   =====================================
  */
 
-class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Module {
+class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Module with HasTlbConst {
   val nway            = cacheConfig.nway
   val nindex          = cacheConfig.nindex
   val nbank           = cacheConfig.nbank
@@ -57,6 +57,18 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val indexWidth      = cacheConfig.indexWidth
   val offsetWidth     = cacheConfig.offsetWidth
   val bitsPerBank     = cacheConfig.bitsPerBank
+
+  def pAddr = new Bundle {
+    val tag    = UInt(ppnLen.W)
+    val index  = UInt(indexWidth.W)
+    val offset = UInt(offsetWidth.W)
+  }
+
+  def bankAddr = new Bundle {
+    val index  = UInt(bankIndexWidth.W)
+    val offset = UInt(bankOffsetWidth.W)
+  }
+
   val io = IO(new Bundle {
     val cpu = Flipped(new Cache_ICache())
     val axi = new ICache_AXIInterface()
@@ -188,7 +200,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   io.cpu.icache_stall := Mux(state === s_idle, (!cache_hit_available && io.cpu.req), state =/= s_wait)
 
-  io.cpu.tlb.addr                    := io.cpu.addr(0)
+  io.cpu.tlb.vaddr                   := io.cpu.addr(0)
   io.cpu.tlb.complete_single_request := io.cpu.complete_single_request
   io.cpu.tlb.en                      := io.cpu.req && (state === s_idle || state === s_tlb_refill)
 

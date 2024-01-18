@@ -51,7 +51,7 @@ class WriteBufferUnit extends Bundle {
   val size = UInt(AXI_SIZE_WID.W)
 }
 
-class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Module with Sv39Const with HasCSRConst {
+class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Module with HasTlbConst with HasCSRConst {
   val nway            = cacheConfig.nway
   val nindex          = cacheConfig.nindex
   val nbank           = cacheConfig.nbank
@@ -69,6 +69,17 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   // TODO:目前的实现只保证了AXI_DATA_WID为XLEN的情况下的正确性
   require(AXI_DATA_WID == XLEN, "AXI_DATA_WID should be greater than XLEN")
 
+  def pAddr = new Bundle {
+    val tag    = UInt(ppnLen.W)
+    val index  = UInt(indexWidth.W)
+    val offset = UInt(offsetWidth.W)
+  }
+
+  def bankAddr = new Bundle {
+    val index  = UInt(bankIndexWidth.W)
+    val offset = UInt(bankOffsetWidth.W)
+  }
+
   val io = IO(new Bundle {
     val cpu = Flipped(new Cache_DCache())
     val axi = new DCache_AXIInterface()
@@ -85,7 +96,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   // 临时寄存器
   val ptw_working = ptw_state =/= ptw_handshake && ptw_state =/= ptw_set
   val ptw_scratch = RegInit(0.U.asTypeOf(new Bundle {
-    val paddr       = cacheAddr
+    val paddr       = pAddr
     val replace     = Bool()
     val dcache_wait = Bool()
   }))
@@ -98,17 +109,6 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   // |        tag         |  index |         offset           |
   // |                    |        | bank index | bank offset |
   // ==========================================================
-
-  def cacheAddr = new Bundle {
-    val tag    = UInt(tagWidth.W)
-    val index  = UInt(indexWidth.W)
-    val offset = UInt(offsetWidth.W)
-  }
-
-  def bankAddr = new Bundle {
-    val index  = UInt(bankIndexWidth.W)
-    val offset = UInt(bankOffsetWidth.W)
-  }
 
   // exe级的index，用于访问第i行的数据
   val exe_index = io.cpu.exe_addr(indexWidth + offsetWidth - 1, offsetWidth)
@@ -219,7 +219,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   io.cpu.rdata := Mux(state === s_wait, saved_rdata, data(bank_index)(select_way))
 
-  io.cpu.tlb.addr        := io.cpu.addr
+  io.cpu.tlb.vaddr       := io.cpu.addr
   io.cpu.tlb.access_type := Mux(io.cpu.en && io.cpu.wen.orR, AccessType.store, AccessType.load)
   io.cpu.tlb.en          := io.cpu.en
 
@@ -357,7 +357,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
             burst.wstrb(replace_way) := 1.U // 先写入第一块bank
             when(replace_dirty) {
               // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
-              (0 until nbank).map(i => bank_replication(i) := data(i)(select_way))
+              (0 until nbank).map(i => bank_replication(i) := data(i)(replace_way))
             }
           }.otherwise {
             when(io.cpu.dcache_ready) {
@@ -624,7 +624,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           (vpn_index === 2.U) -> vpn.vpn2
         )
       )
-      val ptw_addr = paddrApply(ppn, vpnn).asTypeOf(cacheAddr)
+      val ptw_addr = paddrApply(ppn, vpnn).asTypeOf(pAddr)
       val uncached = AddressSpace.isMMIO(ptw_addr.asUInt)
       when(uncached) {
         arvalid   := true.B
@@ -679,12 +679,12 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           burst.wstrb(replace_way) := 1.U // 先写入第一块bank
           when(replace_dirty) {
             // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
-            (0 until nbank).map(i => bank_replication(i) := data(i)(select_way))
+            (0 until nbank).map(i => bank_replication(i) := data(i)(replace_way))
           }
         }
       }
     }
-    is(ptw_uncached) {
+    is(ptw_uncached) { // 3
       when(io.axi.ar.fire) {
         arvalid := false.B
       }
@@ -711,7 +711,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         }
       }
     }
-    is(ptw_check) {
+    is(ptw_check) { // 4
       // 检查权限
       switch(access_type) {
         is(AccessType.load) {
@@ -745,30 +745,33 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         }
       }
     }
-    is(ptw_set) {
+    is(ptw_set) { // 5
       when(
         vpn_index > 0.U && (
-          vpn_index === 1.U && pte.ppn(0) ||
-            vpn_index === 2.U && pte.ppn(1, 0).orR
+          vpn_index === 1.U && pte.ppn.asTypeOf(ppnBundle).ppn0.orR ||
+            vpn_index === 2.U && (pte.ppn.asTypeOf(ppnBundle).ppn1.orR || pte.ppn.asTypeOf(ppnBundle).ppn0.orR)
         )
       ) {
         raisePageFault()
       }.elsewhen(!pte.flag.a || access_type === AccessType.store && !pte.flag.d) {
         raisePageFault() // 使用软件的方式设置脏位以及访问位
-      }.otherwise {
+      }.otherwise {  
         // 翻译成功
+        val rmask = WireInit(~0.U(maskLen.W))
         io.cpu.tlb.ptw.pte.valid      := true.B
-        io.cpu.tlb.ptw.pte.bits.addr  := ar.addr
+        io.cpu.tlb.ptw.pte.bits.rmask := rmask
         io.cpu.tlb.ptw.pte.bits.entry := pte
         val ppn_set = Wire(ppnBundle)
         when(vpn_index === 2.U) {
           ppn_set.ppn2 := pte.ppn.asTypeOf(ppnBundle).ppn2
           ppn_set.ppn1 := vpn.vpn1
           ppn_set.ppn0 := vpn.vpn0
+          rmask        := 0.U
         }.elsewhen(vpn_index === 1.U) {
           ppn_set.ppn2 := pte.ppn.asTypeOf(ppnBundle).ppn2
           ppn_set.ppn1 := pte.ppn.asTypeOf(ppnBundle).ppn1
           ppn_set.ppn0 := vpn.vpn0
+          rmask        := Cat(Fill(ppn1Len, true.B), 0.U(ppn0Len.W))
         }.otherwise {
           ppn_set := pte.ppn.asTypeOf(ppnBundle)
         }
