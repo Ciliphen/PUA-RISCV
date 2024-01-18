@@ -83,11 +83,13 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val ptw_state                                                                              = RegInit(ptw_handshake)
 
   // 临时寄存器
-  val ptw_working = ptw_state =/= ptw_handshake
+  val ptw_working = ptw_state =/= ptw_handshake && ptw_state =/= ptw_set
   val ptw_scratch = RegInit(0.U.asTypeOf(new Bundle {
-    val paddr   = cacheAddr
-    val replace = Bool()
+    val paddr       = cacheAddr
+    val replace     = Bool()
+    val dcache_wait = Bool()
   }))
+
   io.cpu.tlb.ptw.vpn.ready := false.B
 
   // ==========================================================
@@ -176,7 +178,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val use_next_addr = (state === s_idle) || (state === s_wait)
   val do_replace    = RegInit(false.B)
   // replace index 表示行的索引
-  val replace_index = io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
+  val replace_index = Wire(UInt(indexWidth.W))
+  replace_index := io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
   val replace_wstrb = Wire(Vec(nbank, Vec(nway, UInt(AXI_STRB_WID.W))))
   val replace_wdata = Mux(state === s_replace, io.axi.r.bits.data, io.cpu.wdata)
 
@@ -492,7 +495,12 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
               // ptw复用的模式
               state := s_tlb_refill
             }.otherwise {
-              state := s_idle
+              when(ptw_scratch.dcache_wait && !io.cpu.complete_single_request) {
+                state := s_wait
+              }.otherwise {
+                ptw_scratch.dcache_wait := false.B
+                state                   := s_idle
+              }
             }
           }
         }.otherwise {
@@ -531,8 +539,11 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     }
     is(s_wait) {
       // 等待流水线的allow_to_go信号，防止多次发出读、写请求
+      io.cpu.tlb.ptw.vpn.ready := !ptw_working
+      ptw_scratch.dcache_wait  := true.B
       when(io.cpu.complete_single_request) {
-        state := s_idle
+        ptw_scratch.dcache_wait := false.B
+        state                   := s_idle
       }
     }
     is(s_tlb_refill) {
@@ -597,15 +608,15 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   }
 
   switch(ptw_state) {
-    is(ptw_handshake) {
+    is(ptw_handshake) { // 0
       // 页表访问虚地址握手
-      when(io.cpu.tlb.ptw.vpn.valid) {
+      when(io.cpu.tlb.ptw.vpn.fire) {
         vpn_index := (level - 1).U
         ppn       := satp.ppn
         ptw_state := ptw_send
       }
     }
-    is(ptw_send) {
+    is(ptw_send) { // 1
       val vpnn = Mux1H(
         Seq(
           (vpn_index === 0.U) -> vpn.vpn0,
@@ -625,14 +636,16 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       }.otherwise {
         bank_raddr            := ptw_addr.index
         tagRam.map(_.io.raddr := ptw_addr.index)
+        replace_index         := ptw_addr.index
         ptw_state             := ptw_cached
         ptw_scratch.paddr     := ptw_addr
         ptw_scratch.replace   := false.B
       }
     }
-    is(ptw_cached) {
+    is(ptw_cached) { // 2
       bank_raddr            := ptw_scratch.paddr.index
       tagRam.map(_.io.raddr := ptw_scratch.paddr.index)
+      replace_index         := ptw_scratch.paddr.index
       for { i <- 0 until nway } {
         tag_compare_valid(i) :=
           tag(i) === ptw_scratch.paddr.tag && // tag相同

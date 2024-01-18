@@ -122,12 +122,12 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   // 我们默认优先发送数据tlb的请求
   val choose_icache = Mux(ar_sel_lock, ar_sel_val, req_ptw(0) && !req_ptw(1))
 
-  when(io.dcache.ptw.vpn.ready) {
-    when(io.dcache.ptw.vpn.valid) {
+  when(io.dcache.ptw.vpn.valid) {
+    when(io.dcache.ptw.vpn.ready) {
+      ar_sel_lock := false.B
+    }.otherwise {
       ar_sel_lock := true.B
       ar_sel_val  := choose_icache
-    }.otherwise {
-      ar_sel_lock := false.B
     }
   }
 

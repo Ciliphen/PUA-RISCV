@@ -190,7 +190,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   io.cpu.tlb.addr                    := io.cpu.addr(0)
   io.cpu.tlb.complete_single_request := io.cpu.complete_single_request
-  io.cpu.tlb.en                      := io.cpu.req
+  io.cpu.tlb.en                      := io.cpu.req && (state === s_idle || state === s_tlb_refill)
 
   val ar      = RegInit(0.U.asTypeOf(new AR()))
   val arvalid = RegInit(false.B)
