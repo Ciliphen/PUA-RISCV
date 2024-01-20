@@ -132,29 +132,17 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val dirty = RegInit(VecInit(Seq.fill(nindex)(VecInit(Seq.fill(nway)(false.B)))))
   val lru   = RegInit(VecInit(Seq.fill(nindex)(false.B))) // TODO:支持更多路数，目前只支持2路
 
-  // 对于2路组相连的cache: 0:第0路脏位为真，1:第1路脏位为真，2:两路都为假
-  val dirty_table = Wire(Vec(nindex, UInt(log2Ceil(nway + 1).W)))
   // 用于指示哪个行的脏位为真
   val dirty_index = Wire(UInt(indexWidth.W))
+  dirty_index := PriorityEncoder(dirty.map(_.asUInt.orR))
   // 用于指示哪个路的脏位为真
-  val dirty_way = dirty_table(dirty_index)
-
-  for (i <- 0 until nindex) {
-    val dirtyMappings = (0 until nway).map { way =>
-      dirty(i)(way) -> way.U
-    }
-    dirty_table(i) := MuxCase(
-      nway.U,
-      dirtyMappings
-    )
-  }
-
-  dirty_index := PriorityEncoder(dirty_table.map(w => w =/= nway.U))
+  val dirty_way = dirty(dirty_index)(1)
 
   // 表示进入fence的写回状态
   val fence = RegInit(false.B)
-  // 表示准备好了fence的写回数据，因为bank读数据要两拍
-  val fence_data_ready = RegInit(false.B)
+
+  // 读取bank这类sram的数据需要两拍
+  val readsram = RegInit(false.B)
 
   // 对于uncached段使用writeFifo进行写回
   val writeFifo          = Module(new Queue(new WriteBufferUnit(), writeFifoDepth))
@@ -177,7 +165,6 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   // 是否使用exe的地址进行提前访存
   val use_next_addr = (state === s_idle) || (state === s_wait)
   val do_replace    = RegInit(false.B)
-  val readbank      = RegInit(false.B)
   // replace index 表示行的索引
   val replace_index = Wire(UInt(indexWidth.W))
   replace_index := io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
@@ -380,8 +367,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           // fence.i 需要将所有脏位为true的行写回
           when(dirty.asUInt.orR) {
             when(!writeFifo_busy) {
-              state            := s_fence
-              fence_data_ready := false.B // bank读数据要两拍
+              state    := s_fence
+              readsram := false.B // bank读数据要两拍
             }
           }.otherwise {
             // 当所有脏位为fault时，fence.i可以直接完成
@@ -421,12 +408,13 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           // TODO: 增加此处的acc_err错误处理
           // acc_err := io.axi.b.bits.resp =/= RESP_OKEY.U
           dirty(dirty_index)(dirty_way) := false.B // 写回完成，清除脏位
-          fence_data_ready              := false.B
           fence                         := false.B
         }
       }.elsewhen(dirty.asUInt.orR) {
-        when(fence_data_ready) {
+        readsram := true.B
+        when(readsram) {
           // for axi write
+          readsram := false.B
           aw.addr := Cat(
             Mux(dirty_way === 0.U, tagRam(0).io.rdata, tagRam(1).io.rdata),
             dirty_index,
@@ -441,8 +429,6 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           wvalid      := true.B
           bank_windex := 0.U
           fence       := true.B
-        }.otherwise {
-          fence_data_ready := true.B
         }
       }.otherwise {
         state := s_wait
@@ -506,9 +492,9 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           }
         }.otherwise {
           // 增加了一拍，用于sram读取数据
-          readbank := true.B
-          when(readbank) {
-            readbank                 := false.B
+          readsram := true.B
+          when(readsram) {
+            readsram                 := false.B
             do_replace               := true.B
             ar.len                   := cached_len.U
             ar.size                  := cached_size.U // 8 字节
