@@ -307,7 +307,9 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     is(s_wait) {
       // 等待流水线的allow_to_go信号，防止多次发出读请求
       when(io.cpu.complete_single_request) {
-        state := s_idle
+        access_fault := false.B // 清除access_fault
+        page_fault   := false.B // 清除page_fault
+        state        := s_idle
         (0 until instFetchNum).foreach(i => rdata_in_wait(i).valid := false.B)
       }
     }

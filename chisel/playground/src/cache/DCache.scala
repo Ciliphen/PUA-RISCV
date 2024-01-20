@@ -533,6 +533,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       ptw_scratch.dcache_wait  := true.B
       when(io.cpu.complete_single_request) {
         ptw_scratch.dcache_wait := false.B
+        access_fault            := false.B // 清除access_fault
+        page_fault              := false.B // 清除page_fault
         state                   := s_idle
       }
     }
