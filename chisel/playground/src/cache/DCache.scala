@@ -177,6 +177,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   // 是否使用exe的地址进行提前访存
   val use_next_addr = (state === s_idle) || (state === s_wait)
   val do_replace    = RegInit(false.B)
+  val readbank      = RegInit(false.B)
   // replace index 表示行的索引
   val replace_index = Wire(UInt(indexWidth.W))
   replace_index := io.cpu.addr(indexWidth + offsetWidth - 1, offsetWidth)
@@ -504,35 +505,38 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
             }
           }
         }.otherwise {
-          // 这里相当于增加了一拍，用于发射读写控制信号
-          do_replace := true.B
-
-          ar.len                   := cached_len.U
-          ar.size                  := cached_size.U // 8 字节
-          arvalid                  := true.B
-          rready                   := true.B
-          burst.wstrb(replace_way) := 1.U // 先写入第一块bank
-          tag_wstrb(replace_way)   := true.B
-          when(!ptw_working) {
-            // dcache的普通模式
-            // for ar axi
-            ar.addr   := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
-            tag_wdata := io.cpu.tlb.ptag
-          }.otherwise {
-            // ptw复用的模式
-            ar.addr   := Cat(ptw_scratch.paddr.tag, ptw_scratch.paddr.index, 0.U(offsetWidth.W))
-            tag_wdata := ptw_scratch.paddr.tag
-          }
-          when(replace_dirty) {
-            aw.addr     := Cat(tag(replace_way), replace_index, 0.U(offsetWidth.W))
-            aw.len      := cached_len.U
-            aw.size     := cached_size.U
-            awvalid     := true.B
-            w.data      := data(0)(replace_way)
-            w.strb      := ~0.U(AXI_STRB_WID.W)
-            w.last      := false.B
-            wvalid      := true.B
-            bank_windex := 0.U
+          // 增加了一拍，用于sram读取数据
+          readbank := true.B
+          when(readbank) {
+            readbank                 := false.B
+            do_replace               := true.B
+            ar.len                   := cached_len.U
+            ar.size                  := cached_size.U // 8 字节
+            arvalid                  := true.B
+            rready                   := true.B
+            burst.wstrb(replace_way) := 1.U // 先写入第一块bank
+            tag_wstrb(replace_way)   := true.B
+            when(!ptw_working) {
+              // dcache的普通模式
+              // for ar axi
+              ar.addr   := Cat(io.cpu.tlb.paddr(PADDR_WID - 1, offsetWidth), 0.U(offsetWidth.W))
+              tag_wdata := io.cpu.tlb.ptag
+            }.otherwise {
+              // ptw复用的模式
+              ar.addr   := Cat(ptw_scratch.paddr.tag, ptw_scratch.paddr.index, 0.U(offsetWidth.W))
+              tag_wdata := ptw_scratch.paddr.tag
+            }
+            when(replace_dirty) {
+              aw.addr     := Cat(tag(replace_way), replace_index, 0.U(offsetWidth.W))
+              aw.len      := cached_len.U
+              aw.size     := cached_size.U
+              awvalid     := true.B
+              w.data      := bank_replication(0)
+              w.strb      := ~0.U(AXI_STRB_WID.W)
+              w.last      := false.B
+              wvalid      := true.B
+              bank_windex := 0.U
+            }
           }
         }
       }
@@ -755,7 +759,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         raisePageFault()
       }.elsewhen(!pte.flag.a || access_type === AccessType.store && !pte.flag.d) {
         raisePageFault() // 使用软件的方式设置脏位以及访问位
-      }.otherwise {  
+      }.otherwise {
         // 翻译成功
         val rmask = WireInit(~0.U(maskLen.W))
         io.cpu.tlb.ptw.pte.valid      := true.B
