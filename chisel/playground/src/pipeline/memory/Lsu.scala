@@ -91,7 +91,7 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   lr                            := io.memoryUnit.in.lr
   lrAddr                        := io.memoryUnit.in.lr_addr
 
-  val s_idle :: s_sc :: s_amo_l :: s_amo_a :: s_amo_s :: Nil = Enum(5)
+  val s_idle :: s_sc :: s_amo_a :: s_amo_s :: Nil = Enum(4)
 
   val state      = RegInit(s_idle)
   val atomMemReg = Reg(UInt(XLEN.W))
@@ -116,13 +116,26 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   io.memoryUnit.out.complete_single_request := complete_single_request
 
   switch(state) {
-    is(s_idle) { // calculate address
+    is(s_idle) { // 0
       lsExe.in.mem_en         := io.memoryUnit.in.mem_en && !atomReq
       lsExe.in.mem_addr       := src1 + imm
       lsExe.in.info.op        := func
       lsExe.in.wdata          := src2
       io.memoryUnit.out.ready := lsExe.out.ready || scInvalid
-      when(amoReq) { state := s_amo_l }
+      when(amoReq) {
+        lsExe.in.mem_en         := true.B
+        lsExe.in.mem_addr       := src1
+        lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
+        lsExe.in.wdata          := DontCare
+        io.memoryUnit.out.ready := false.B
+        when(lsExe.out.ready) {
+          state := s_amo_a;
+          // 告诉dcache已经完成一次访存操作，可以进入下一次访存
+          complete_single_request := true.B
+        }
+        atomMemReg := lsExe.out.rdata
+        atomRegReg := lsExe.out.rdata
+      }
       when(lrReq) {
         lsExe.in.mem_en         := true.B
         lsExe.in.mem_addr       := src1
@@ -133,43 +146,7 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
       when(scReq) { state := Mux(scInvalid, s_idle, s_sc) }
     }
 
-    is(s_amo_l) {
-      lsExe.in.mem_en         := true.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.ld, LSUOpType.lw)
-      lsExe.in.wdata          := DontCare
-      io.memoryUnit.out.ready := false.B
-      when(lsExe.out.ready) {
-        state := s_amo_a;
-        // 告诉dcache已经完成一次访存操作，可以进入下一次访存
-        complete_single_request := true.B
-      }
-      atomMemReg := lsExe.out.rdata
-      atomRegReg := lsExe.out.rdata
-    }
-
-    is(s_amo_a) {
-      lsExe.in.mem_en         := false.B
-      lsExe.in.mem_addr       := DontCare
-      lsExe.in.info.op        := DontCare
-      lsExe.in.wdata          := DontCare
-      io.memoryUnit.out.ready := false.B
-      state                   := s_amo_s
-      atomMemReg              := atomAlu.out.result
-    }
-
-    is(s_amo_s) {
-      lsExe.in.mem_en         := true.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
-      lsExe.in.wdata          := atomMemReg
-      io.memoryUnit.out.ready := lsExe.out.ready
-      when(allow_to_go) {
-        state := s_idle
-      }
-    }
-
-    is(s_sc) {
+    is(s_sc) { // 1
       lsExe.in.mem_en         := true.B
       lsExe.in.mem_addr       := src1
       lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
@@ -179,7 +156,29 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
         state := s_idle
       }
     }
+
+    is(s_amo_a) { // 2
+      lsExe.in.mem_en         := false.B
+      lsExe.in.mem_addr       := DontCare
+      lsExe.in.info.op        := DontCare
+      lsExe.in.wdata          := DontCare
+      io.memoryUnit.out.ready := false.B
+      state                   := s_amo_s
+      atomMemReg              := atomAlu.out.result
+    }
+
+    is(s_amo_s) { // 3
+      lsExe.in.mem_en         := true.B
+      lsExe.in.mem_addr       := src1
+      lsExe.in.info.op        := Mux(atomWidthD, LSUOpType.sd, LSUOpType.sw)
+      lsExe.in.wdata          := atomMemReg
+      io.memoryUnit.out.ready := lsExe.out.ready
+      when(allow_to_go) {
+        state := s_idle
+      }
+    }
   }
+
   when(
     lsExe.out.addr_misaligned ||
       lsExe.out.access_fault ||
