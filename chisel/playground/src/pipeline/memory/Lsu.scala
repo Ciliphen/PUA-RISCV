@@ -181,12 +181,9 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
     }
   }
   when(
-    lsExe.out.loadAddrMisaligned ||
-      lsExe.out.storeAddrMisaligned ||
-      lsExe.out.loadAccessFault ||
-      lsExe.out.storeAccessFault ||
-      lsExe.out.loadPageFault ||
-      lsExe.out.storePageFault
+    lsExe.out.addr_misaligned ||
+      lsExe.out.access_fault ||
+      lsExe.out.page_fault
   ) {
     state                   := s_idle
     io.memoryUnit.out.ready := true.B
@@ -200,12 +197,12 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   io.dataMemory <> lsExe.dataMemory
 
   io.memoryUnit.out.ex                                := io.memoryUnit.in.ex
-  io.memoryUnit.out.ex.exception(loadAddrMisaligned)  := lsExe.out.loadAddrMisaligned
-  io.memoryUnit.out.ex.exception(storeAddrMisaligned) := lsExe.out.storeAddrMisaligned
-  io.memoryUnit.out.ex.exception(loadAccessFault)     := lsExe.out.loadAccessFault
-  io.memoryUnit.out.ex.exception(storeAccessFault)    := lsExe.out.storeAccessFault
-  io.memoryUnit.out.ex.exception(loadPageFault)       := lsExe.out.loadPageFault
-  io.memoryUnit.out.ex.exception(storePageFault)      := lsExe.out.storePageFault
+  io.memoryUnit.out.ex.exception(loadAddrMisaligned)  := (loadReq || lrReq) && lsExe.out.addr_misaligned
+  io.memoryUnit.out.ex.exception(loadAccessFault)     := (loadReq || lrReq) && lsExe.out.access_fault
+  io.memoryUnit.out.ex.exception(loadPageFault)       := (loadReq || lrReq) && lsExe.out.page_fault
+  io.memoryUnit.out.ex.exception(storeAddrMisaligned) := (storeReq || scReq || amoReq) && lsExe.out.addr_misaligned
+  io.memoryUnit.out.ex.exception(storeAccessFault)    := (storeReq || scReq || amoReq) && lsExe.out.addr_misaligned
+  io.memoryUnit.out.ex.exception(storePageFault)      := (storeReq || scReq || amoReq) && lsExe.out.page_fault
 
   io.memoryUnit.out.ex.tval := io.dataMemory.out.addr
   io.memoryUnit.out.rdata := MuxCase(

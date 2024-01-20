@@ -16,14 +16,11 @@ class LsExecute extends Module {
       val info     = new InstInfo()
     })
     val out = Output(new Bundle {
-      val loadAddrMisaligned  = Bool()
-      val storeAddrMisaligned = Bool()
-      val loadAccessFault     = Bool()
-      val storeAccessFault    = Bool()
-      val loadPageFault       = Bool()
-      val storePageFault      = Bool()
-      val rdata               = UInt(XLEN.W)
-      val ready               = Bool()
+      val addr_misaligned = Bool()
+      val access_fault    = Bool()
+      val page_fault      = Bool()
+      val rdata           = UInt(XLEN.W)
+      val ready           = Bool()
     })
   })
 
@@ -131,20 +128,16 @@ class LsExecute extends Module {
     )
   )
 
-  io.dataMemory.out.en    := valid && !io.out.storeAddrMisaligned && !io.out.loadAddrMisaligned
+  io.dataMemory.out.en    := valid && !io.out.addr_misaligned
   io.dataMemory.out.rlen  := size
   io.dataMemory.out.wen   := isStore
   io.dataMemory.out.wstrb := reqWmask
   io.dataMemory.out.addr  := reqAddr
   io.dataMemory.out.wdata := reqWdata
 
-  val is_amo = valid && LSUOpType.isAMO(op)
-  io.out.ready               := io.dataMemory.in.ready && io.dataMemory.out.en
-  io.out.rdata               := Mux(partialLoad, rdataPartialLoad, rdataSel)
-  io.out.loadAddrMisaligned  := valid && !isStore && !is_amo && !addrAligned
-  io.out.loadAccessFault     := valid && !isStore && !is_amo && access_fault
-  io.out.loadPageFault       := valid && !isStore && !is_amo && page_fault
-  io.out.storeAddrMisaligned := valid && (isStore || is_amo) && !addrAligned
-  io.out.storeAccessFault    := valid && (isStore || is_amo) && access_fault
-  io.out.storePageFault      := valid && (isStore || is_amo) && page_fault
+  io.out.ready           := io.dataMemory.in.ready && io.dataMemory.out.en
+  io.out.rdata           := Mux(partialLoad, rdataPartialLoad, rdataSel)
+  io.out.addr_misaligned := valid && !addrAligned
+  io.out.access_fault    := valid && access_fault
+  io.out.page_fault      := valid && page_fault
 }
