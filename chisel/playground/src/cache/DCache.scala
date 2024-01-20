@@ -331,7 +331,9 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
               writeFifo.io.enq.bits.strb := io.cpu.wstrb
               writeFifo.io.enq.bits.data := io.cpu.wdata
 
-              state := s_wait
+              when(!io.cpu.complete_single_request) {
+                state := s_wait
+              }
             }
           }.elsewhen(!writeFifo_busy) {
             ar.addr := io.cpu.tlb.paddr
@@ -351,7 +353,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
               (0 until nbank).map(i => bank_replication(i) := data(i)(replace_way))
             }
           }.otherwise {
-            when(io.cpu.dcache_ready) {
+            when(!dcache_stall) {
               // update lru and mark dirty
               replace_way := ~select_way
               when(io.cpu.wen.orR) {
@@ -619,9 +621,9 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           (vpn_index === 2.U) -> vpn.vpn2
         )
       )
-      val ptw_addr = paddrApply(ppn, vpnn).asTypeOf(pAddr)
-      val uncached = AddressSpace.isMMIO(ptw_addr.asUInt)
-      when(uncached) {
+      val ptw_addr     = paddrApply(ppn, vpnn).asTypeOf(pAddr)
+      val pte_uncached = AddressSpace.isMMIO(ptw_addr.asUInt)
+      when(pte_uncached) {
         arvalid   := true.B
         ar.addr   := ptw_addr.asUInt
         ar.size   := log2Ceil(AXI_DATA_WID / 8).U // 一个pte的大小是8字节
