@@ -94,7 +94,10 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val ptw_state                                                                              = RegInit(ptw_handshake)
 
   // 临时寄存器
-  val ptw_working = ptw_state =/= ptw_handshake && ptw_state =/= ptw_set
+  val ptw_working =
+    ptw_state =/= ptw_handshake &&
+      ptw_state =/= ptw_set &&
+      !(io.cpu.tlb.ptw.pte.bits.access_fault || io.cpu.tlb.ptw.pte.bits.page_fault)
   val ptw_scratch = RegInit(0.U.asTypeOf(new Bundle {
     val paddr       = pAddr
     val replace     = Bool()
