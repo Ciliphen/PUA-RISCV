@@ -14,7 +14,7 @@ case class CpuConfig(
   val hasSMode: Boolean = true, // 是否有S模式
   val hasUMode: Boolean = true, // 是否有U模式
   // 模块配置
-  val hasCommitBuffer: Boolean = true, // 是否有提交缓存
+  val hasCommitBuffer: Boolean = false, // 是否有提交缓存
   val decoderNum:      Int     = 2, // 译码级最大解码的指令数，也是同时访问寄存器的指令数
   val commitNum:       Int     = 2, // 同时提交的指令数, 也是最大发射的指令数
   val instFetchNum:    Int     = 2, // iCache取到的指令数量，最大取值为4

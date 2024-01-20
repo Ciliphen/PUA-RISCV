@@ -53,15 +53,15 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
       clock.asBool,
       io.writeBackStage.inst0.pc,
       Mux(
-        HasExcInt(io.writeBackStage.inst0.ex),
+        !(io.writeBackStage.inst1.info.valid && io.ctrl.allow_to_go),
         0.U,
         io.writeBackStage.inst1.pc
       )
     )
     io.debug.wb_rf_wen := Mux(
       clock.asBool,
-      Fill(4, io.regfile(0).wen),
-      Fill(4, io.regfile(1).wen)
+      io.writeBackStage.inst0.info.valid && io.ctrl.allow_to_go,
+      io.writeBackStage.inst1.info.valid && io.ctrl.allow_to_go
     )
     io.debug.wb_rf_wnum := Mux(
       clock.asBool,
