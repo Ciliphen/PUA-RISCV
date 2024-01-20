@@ -319,33 +319,14 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val interruptNO = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
   val causeNO     = (raise_interrupt << (XLEN - 1)) | Mux(raise_interrupt, interruptNO, exceptionNO)
 
-  val raise_instrPageFault      = mem_ex.exception(instrPageFault)
-  val raise_loadPageFault       = mem_ex.exception(loadPageFault)
-  val raise_storePageFault      = mem_ex.exception(storePageFault)
-  val raise_loadAddrMisaligned  = mem_ex.exception(loadAddrMisaligned)
-  val raise_storeAddrMisaligned = mem_ex.exception(storeAddrMisaligned)
-  val raise_instrAddrMisaligned = mem_ex.exception(instrAddrMisaligned)
-
   val deleg  = Mux(raise_interrupt, mideleg, medeleg)
   val delegS = (deleg(causeNO(log2Ceil(EXC_WID) - 1, 0))) && (mode < ModeM)
 
   val tval_wen = raise_interrupt ||
-    !(raise_instrPageFault ||
-      raise_loadPageFault ||
-      raise_storePageFault ||
-      raise_instrAddrMisaligned ||
-      raise_loadAddrMisaligned ||
-      raise_storeAddrMisaligned)
+    !raise_exception
 
-  when(
-    raise_instrPageFault ||
-      raise_loadPageFault ||
-      raise_storePageFault ||
-      raise_instrAddrMisaligned ||
-      raise_loadAddrMisaligned ||
-      raise_storeAddrMisaligned
-  ) {
-    val tval = SignedExtend(mem_ex.tval, XLEN)
+  when(raise_exception) {
+    val tval = mem_ex.tval(exceptionNO)
     when(mode === ModeM) {
       mtval := tval
     }.otherwise {
@@ -422,9 +403,10 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   io.executeUnit.out.ex := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInstr) :=
     (illegal_addr || illegal_access) && write | io.executeUnit.in.ex.exception(illegalInstr)
-  io.executeUnit.out.rdata  := rdata
-  io.executeUnit.out.flush  := write_satp
-  io.executeUnit.out.target := io.executeUnit.in.pc + 4.U
-  io.memoryUnit.out.flush   := raise_exc_int || ret
-  io.memoryUnit.out.target  := Mux(raise_exc_int, trap_target, ret_target)
+  io.executeUnit.out.ex.tval(illegalInstr) := io.executeUnit.in.info.inst
+  io.executeUnit.out.rdata                 := rdata
+  io.executeUnit.out.flush                 := write_satp
+  io.executeUnit.out.target                := io.executeUnit.in.pc + 4.U
+  io.memoryUnit.out.flush                  := raise_exc_int || ret
+  io.memoryUnit.out.target                 := Mux(raise_exc_int, trap_target, ret_target)
 }

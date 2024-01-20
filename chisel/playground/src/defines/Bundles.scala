@@ -11,7 +11,7 @@ import cpu.pipeline.memory.Mou
 class ExceptionInfo extends Bundle {
   val exception = Vec(EXC_WID, Bool())
   val interrupt = Vec(INT_WID, Bool())
-  val tval      = UInt(XLEN.W)
+  val tval      = Vec(EXC_WID, UInt(XLEN.W))
 }
 
 class ExtInterrupt extends Bundle {

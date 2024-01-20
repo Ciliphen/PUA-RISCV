@@ -149,9 +149,11 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
   )
   io.memoryStage.inst0.ex.exception(instrAddrMisaligned) := io.executeStage.inst0.ex.exception(instrAddrMisaligned) ||
     io.fetchUnit.flush && io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR
-  when(io.fetchUnit.flush && io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR) {
-    io.memoryStage.inst0.ex.tval := io.fetchUnit.target
-  }
+  io.memoryStage.inst0.ex.tval(instrAddrMisaligned) := Mux(
+    io.executeStage.inst0.ex.exception(instrAddrMisaligned),
+    io.executeStage.inst0.ex.tval(instrAddrMisaligned),
+    io.fetchUnit.target
+  )
 
   io.memoryStage.inst1.pc                        := io.executeStage.inst1.pc
   io.memoryStage.inst1.info                      := io.executeStage.inst1.info
@@ -173,9 +175,11 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
   )
   io.memoryStage.inst1.ex.exception(instrAddrMisaligned) := io.executeStage.inst1.ex.exception(instrAddrMisaligned) ||
     io.fetchUnit.flush && io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR
-  when(io.fetchUnit.flush && io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR) {
-    io.memoryStage.inst1.ex.tval := io.fetchUnit.target
-  }
+  io.memoryStage.inst1.ex.tval(instrAddrMisaligned) := Mux(
+    io.executeStage.inst1.ex.exception(instrAddrMisaligned),
+    io.executeStage.inst1.ex.tval(instrAddrMisaligned),
+    io.fetchUnit.target
+  )
 
   io.decodeUnit.forward(0).exe.wen      := io.memoryStage.inst0.info.reg_wen
   io.decodeUnit.forward(0).exe.waddr    := io.memoryStage.inst0.info.reg_waddr

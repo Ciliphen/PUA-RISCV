@@ -203,7 +203,13 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   io.memoryUnit.out.ex.exception(storeAccessFault)    := (storeReq || scReq || amoReq) && lsExe.out.addr_misaligned
   io.memoryUnit.out.ex.exception(storePageFault)      := (storeReq || scReq || amoReq) && lsExe.out.page_fault
 
-  io.memoryUnit.out.ex.tval := io.dataMemory.out.addr
+  io.memoryUnit.out.ex.tval(loadAddrMisaligned)  := io.dataMemory.out.addr
+  io.memoryUnit.out.ex.tval(loadAccessFault)     := io.dataMemory.out.addr
+  io.memoryUnit.out.ex.tval(loadPageFault)       := io.dataMemory.out.addr
+  io.memoryUnit.out.ex.tval(storeAddrMisaligned) := io.dataMemory.out.addr
+  io.memoryUnit.out.ex.tval(storeAccessFault)    := io.dataMemory.out.addr
+  io.memoryUnit.out.ex.tval(storePageFault)      := io.dataMemory.out.addr
+
   io.memoryUnit.out.rdata := MuxCase(
     lsExe.out.rdata,
     Seq(
