@@ -360,7 +360,9 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
     }
   }
 
-  val src1 = io.sfence_vma.src_info.src1_data(vpnLen - 1, 0)
+  // vpn
+  val src1 = io.sfence_vma.src_info.src1_data(vpnLen - 1, pageOffsetLen)
+  // asid
   val src2 = io.sfence_vma.src_info.src2_data(asidLen - 1, 0)
   when(io.sfence_vma.valid) {
     when(!src1.orR && !src2.orR) {
