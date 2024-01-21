@@ -86,5 +86,11 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
       io.inst(i).src_info.src1_data + io.inst(i).info.imm
     )
   )
-  io.dataMemory.addr := Mux(io.inst(0).info.fusel === FuType.lsu, mem_addr(0), mem_addr(1))
+  // 当mem级访存发生stall时，mem_addr_last不变
+  val mem_addr_last = RegEnable(io.dataMemory.addr, io.ctrl.allow_to_go)
+  io.dataMemory.addr := Mux(
+    !io.ctrl.allow_to_go,
+    mem_addr_last,
+    Mux(io.inst(0).info.fusel === FuType.lsu, mem_addr(0), mem_addr(1))
+  )
 }
