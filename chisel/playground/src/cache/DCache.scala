@@ -161,9 +161,9 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     val wstrb = Vec(nway, UInt(nbank.W)) // 用于控制写回哪个bank
   }))
 
-  // 用于解决在replace时读写时序不一致的问题
-  val bank_windex      = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
-  val bank_replication = RegInit(VecInit(Seq.fill(nbank)(0.U(XLEN.W))))
+  // 用于解决在replace时发生写回时读写时序不一致的问题
+  val bank_wbindex = RegInit(0.U((offsetWidth - log2Ceil(XLEN / 8)).W))
+  val bank_wbdata  = RegInit(VecInit(Seq.fill(nbank)(0.U(XLEN.W))))
 
   // 是否使用exe的地址进行提前访存
   val use_next_addr = (state === s_idle) || (state === s_wait)
@@ -345,13 +345,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           } // when store buffer busy, read will stop at s_idle but stall pipeline.
         }.otherwise {
           when(!cache_hit) {
-            state                    := s_replace
-            bank_windex              := 0.U
-            burst.wstrb(replace_way) := 1.U // 先写入第一块bank
-            when(replace_dirty) {
-              // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
-              (0 until nbank).map(i => bank_replication(i) := data(i)(replace_way))
-            }
+            state := s_replace
           }.otherwise {
             when(!dcache_stall) {
               // update lru and mark dirty
@@ -402,9 +396,9 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
           when(w.last) {
             wvalid := false.B
           }.otherwise {
-            bank_windex := bank_windex + 1.U
-            w.data      := data(bank_windex + 1.U)(dirty_way)
-            when(bank_windex + 1.U === (cached_len).U) {
+            bank_wbindex := bank_wbindex + 1.U
+            w.data       := data(bank_wbindex + 1.U)(dirty_way)
+            when(bank_wbindex + 1.U === (cached_len).U) {
               w.last := true.B
             }
           }
@@ -425,15 +419,15 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
             dirty_index,
             0.U(offsetWidth.W)
           )
-          aw.len      := cached_len.U
-          aw.size     := cached_size.U
-          awvalid     := true.B
-          w.data      := data(0)(dirty_way) // 从第零块bank开始写回
-          w.strb      := ~0.U(AXI_STRB_WID.W)
-          w.last      := false.B
-          wvalid      := true.B
-          bank_windex := 0.U
-          fence       := true.B
+          aw.len       := cached_len.U
+          aw.size      := cached_size.U
+          awvalid      := true.B
+          w.data       := data(0)(dirty_way) // 从第零块bank开始写回
+          w.strb       := ~0.U(AXI_STRB_WID.W)
+          w.last       := false.B
+          wvalid       := true.B
+          bank_wbindex := 0.U
+          fence        := true.B
         }
       }.otherwise {
         state := s_wait
@@ -451,9 +445,9 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
               when(w.last) {
                 wvalid := false.B
               }.otherwise {
-                bank_windex := bank_windex + 1.U
-                w.data      := bank_replication(bank_windex + 1.U)
-                when(bank_windex + 1.U === (cached_len).U) {
+                bank_wbindex := bank_wbindex + 1.U
+                w.data       := bank_wbdata(bank_wbindex + 1.U)
+                when(bank_wbindex + 1.U === (cached_len).U) {
                   w.last := true.B
                 }
               }
@@ -518,15 +512,17 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
               tag_wdata := ptw_scratch.paddr.tag
             }
             when(replace_dirty) {
-              aw.addr     := Cat(tag(replace_way), replace_index, 0.U(offsetWidth.W))
-              aw.len      := cached_len.U
-              aw.size     := cached_size.U
-              awvalid     := true.B
-              w.data      := bank_replication(0)
-              w.strb      := ~0.U(AXI_STRB_WID.W)
-              w.last      := false.B
-              wvalid      := true.B
-              bank_windex := 0.U
+              // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
+              (0 until nbank).map(i => bank_wbdata(i) := data(i)(replace_way))
+              aw.addr      := Cat(tag(replace_way), replace_index, 0.U(offsetWidth.W))
+              aw.len       := cached_len.U
+              aw.size      := cached_size.U
+              awvalid      := true.B
+              w.data       := data(0)(replace_way)
+              w.strb       := ~0.U(AXI_STRB_WID.W)
+              w.last       := false.B
+              wvalid       := true.B
+              bank_wbindex := 0.U
             }
           }
         }
@@ -670,14 +666,8 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
             }
           }
         }.otherwise {
-          ptw_scratch.replace      := true.B
-          state                    := s_replace // 直接复用dcache的replace状态机，帮我们进行replace操作
-          bank_windex              := 0.U
-          burst.wstrb(replace_way) := 1.U // 先写入第一块bank
-          when(replace_dirty) {
-            // cache行的脏位为真时需要写回，备份一下cache行，便于处理读写时序问题
-            (0 until nbank).map(i => bank_replication(i) := data(i)(replace_way))
-          }
+          ptw_scratch.replace := true.B
+          state               := s_replace // 直接复用dcache的replace状态机，帮我们进行replace操作
         }
       }
     }
