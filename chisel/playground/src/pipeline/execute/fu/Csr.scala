@@ -327,10 +327,10 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   when(raise_exception) {
     val tval = mem_ex.tval(exceptionNO)
-    when(mode === ModeM) {
-      mtval := tval
-    }.otherwise {
+    when(delegS) {
       stval := tval
+    }.otherwise {
+      mtval := tval
     }
   }
 
