@@ -38,10 +38,10 @@ class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
     // 写后读冲突
     val load_stall =
-      io.execute(0).mem_wreg && io.execute(0).reg_waddr.orR &&
+      io.execute(0).is_load && io.execute(0).reg_waddr.orR &&
         (inst1.src1_ren && inst1.src1_raddr === io.execute(0).reg_waddr ||
           inst1.src2_ren && inst1.src2_raddr === io.execute(0).reg_waddr) ||
-        io.execute(1).mem_wreg && io.execute(1).reg_waddr.orR &&
+        io.execute(1).is_load && io.execute(1).reg_waddr.orR &&
           (inst1.src1_ren && inst1.src1_raddr === io.execute(1).reg_waddr ||
             inst1.src2_ren && inst1.src2_raddr === io.execute(1).reg_waddr)
     val raw_reg = // inst1的源操作数是inst0的目的操作数

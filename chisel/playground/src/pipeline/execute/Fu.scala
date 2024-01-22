@@ -21,7 +21,6 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
         })
       }
     )
-    val stall_req = Output(Bool())
     val dataMemory = new Bundle {
       val addr = Output(UInt(XLEN.W))
     }
@@ -71,7 +70,7 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
   )
   mdu.allow_to_go := io.ctrl.allow_to_go
 
-  io.stall_req := io.inst.map(_.info.fusel === FuType.mdu).reduce(_ || _) && !mdu.ready
+  io.ctrl.stall := io.inst.map(_.info.fusel === FuType.mdu).reduce(_ || _) && !mdu.ready
 
   io.inst(0).result.alu := alu(0).io.result
   io.inst(0).result.mdu := mdu.result

@@ -21,7 +21,7 @@ class DecodeUnitInstFifo(implicit val cpuConfig: CpuConfig) extends Bundle {
 
 class DataForwardToDecodeUnit extends Bundle {
   val exe      = new RegWrite()
-  val mem_wreg = Bool()
+  val is_load = Bool()
   val mem      = new RegWrite()
 }
 
@@ -74,7 +74,7 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   for (i <- 0 until (cpuConfig.decoderNum)) {
     decoder(i).io.in.inst      := inst(i)
     issue.decodeInst(i)        := info(i)
-    issue.execute(i).mem_wreg  := io.forward(i).mem_wreg
+    issue.execute(i).is_load  := io.forward(i).is_load
     issue.execute(i).reg_waddr := io.forward(i).exe.waddr
     io.regfile(i).src1.raddr   := info(i).src1_raddr
     io.regfile(i).src2.raddr   := info(i).src2_raddr

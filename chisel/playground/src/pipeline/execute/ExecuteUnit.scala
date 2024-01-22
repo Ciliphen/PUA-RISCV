@@ -24,8 +24,8 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
         Vec(
           cpuConfig.commitNum,
           new Bundle {
-            val exe          = new RegWrite()
-            val exe_mem_wreg = Bool()
+            val exe     = new RegWrite()
+            val is_load = Bool()
           }
         )
       )
@@ -36,74 +36,35 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
     }
   })
 
-  val fu = Module(new Fu()).io
+  val valid = io.executeStage.inst.map(_.info.valid && io.ctrl.allow_to_go)
+  val fusel = io.executeStage.inst.map(_.info.fusel)
 
-  val valid = VecInit(
-    io.executeStage.inst(0).info.valid && io.ctrl.allow_to_go,
-    io.executeStage.inst(1).info.valid && io.ctrl.allow_to_go
-  )
-
-  val fusel = VecInit(
-    io.executeStage.inst(0).info.fusel,
-    io.executeStage.inst(1).info.fusel
-  )
+  io.ctrl.flush := io.fetchUnit.flush
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    io.ctrl.inst(i).is_load :=
+      io.executeStage.inst(i).info.fusel === FuType.lsu && io.executeStage.inst(i).info.reg_wen
+    io.ctrl.inst(i).reg_waddr := io.executeStage.inst(i).info.reg_waddr
+  }
 
   val is_csr = VecInit(
-    fusel(0) === FuType.csr && valid(0) &&
-      !(HasExcInt(io.executeStage.inst(0).ex)),
-    fusel(1) === FuType.csr && valid(1) &&
-      !(HasExcInt(io.executeStage.inst(1).ex))
+    Seq.tabulate(cpuConfig.commitNum)(i =>
+      fusel(i) === FuType.csr && valid(i) && !(HasExcInt(io.executeStage.inst(i).ex))
+    )
   )
-
-  val mem_wreg = VecInit(
-    io.executeStage.inst(0).info.fusel === FuType.lsu && io.executeStage.inst(0).info.reg_wen,
-    io.executeStage.inst(1).info.fusel === FuType.lsu && io.executeStage.inst(1).info.reg_wen
-  )
-
-  io.ctrl.inst(0).mem_wreg  := mem_wreg(0)
-  io.ctrl.inst(0).reg_waddr := io.executeStage.inst(0).info.reg_waddr
-  io.ctrl.inst(1).mem_wreg  := mem_wreg(1)
-  io.ctrl.inst(1).reg_waddr := io.executeStage.inst(1).info.reg_waddr
-  io.ctrl.flush             := io.fetchUnit.flush
 
   io.csr.in.valid := is_csr.asUInt.orR
-  io.csr.in.pc := MuxCase(
-    0.U,
-    Seq(
-      is_csr(0) -> io.executeStage.inst(0).pc,
-      is_csr(1) -> io.executeStage.inst(1).pc
-    )
-  )
-  io.csr.in.info := MuxCase(
-    0.U.asTypeOf(new InstInfo()),
-    Seq(
-      is_csr(0) -> io.executeStage.inst(0).info,
-      is_csr(1) -> io.executeStage.inst(1).info
-    )
-  )
-  io.csr.in.src_info := MuxCase(
-    0.U.asTypeOf(new SrcInfo()),
-    Seq(
-      is_csr(0) -> io.executeStage.inst(0).src_info,
-      is_csr(1) -> io.executeStage.inst(1).src_info
-    )
-  )
-  io.csr.in.ex := MuxCase(
-    0.U.asTypeOf(new ExceptionInfo()),
-    Seq(
-      is_csr(0) -> io.executeStage.inst(0).ex,
-      is_csr(1) -> io.executeStage.inst(1).ex
-    )
-  )
 
-  val is_lsu = VecInit(
-    fusel(0) === FuType.lsu && valid(0) &&
-      !(HasExcInt(io.executeStage.inst(0).ex)),
-    fusel(1) === FuType.lsu && valid(1) &&
-      !(HasExcInt(io.executeStage.inst(1).ex))
-  )
+  def selectInstField[T <: Data](select: Vec[Bool], fields: Seq[T]): T = {
+    require(select.length == fields.length)
+    Mux1H(select.zip(fields))
+  }
 
-  // input fu
+  io.csr.in.pc       := selectInstField(is_csr, io.executeStage.inst.map(_.pc))
+  io.csr.in.info     := selectInstField(is_csr, io.executeStage.inst.map(_.info))
+  io.csr.in.src_info := selectInstField(is_csr, io.executeStage.inst.map(_.src_info))
+  io.csr.in.ex       := selectInstField(is_csr, io.executeStage.inst.map(_.ex))
+
+  val fu = Module(new Fu()).io
   fu.ctrl <> io.ctrl.fu
   for (i <- 0 until (cpuConfig.commitNum)) {
     fu.inst(i).pc       := io.executeStage.inst(i).pc
@@ -121,11 +82,8 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
   io.bpu.branch           := fu.branch.branch
   io.bpu.branch_inst      := io.executeStage.jump_branch_info.branch_inst
 
-  io.fetchUnit.flush := valid(0) && io.ctrl.allow_to_go &&
-    (fu.branch.flush || io.csr.out.flush)
+  io.fetchUnit.flush  := valid(0) && io.ctrl.allow_to_go && (fu.branch.flush || io.csr.out.flush)
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.target, fu.branch.target)
-
-  io.ctrl.fu_stall := fu.stall_req
 
   for (i <- 0 until (cpuConfig.commitNum)) {
     io.memoryStage.inst(i).pc                        := io.executeStage.inst(i).pc
@@ -154,9 +112,9 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
       io.fetchUnit.target
     )
 
-    io.decodeUnit.forward(i).exe.wen      := io.memoryStage.inst(i).info.reg_wen
-    io.decodeUnit.forward(i).exe.waddr    := io.memoryStage.inst(i).info.reg_waddr
-    io.decodeUnit.forward(i).exe.wdata    := io.memoryStage.inst(i).rd_info.wdata(io.memoryStage.inst(i).info.fusel)
-    io.decodeUnit.forward(i).exe_mem_wreg := io.ctrl.inst(i).mem_wreg
+    io.decodeUnit.forward(i).exe.wen   := io.memoryStage.inst(i).info.reg_wen
+    io.decodeUnit.forward(i).exe.waddr := io.memoryStage.inst(i).info.reg_waddr
+    io.decodeUnit.forward(i).exe.wdata := io.memoryStage.inst(i).rd_info.wdata(io.memoryStage.inst(i).info.fusel)
+    io.decodeUnit.forward(i).is_load   := io.ctrl.inst(i).is_load
   }
 }

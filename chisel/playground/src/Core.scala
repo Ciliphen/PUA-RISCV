@@ -80,9 +80,9 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   decodeUnit.instFifo.info.almost_empty := instFifo.almost_empty
   decodeUnit.regfile <> regfile.read
   for (i <- 0 until (cpuConfig.commitNum)) {
-    decodeUnit.forward(i).exe      := executeUnit.decodeUnit.forward(i).exe
-    decodeUnit.forward(i).mem_wreg := executeUnit.decodeUnit.forward(i).exe_mem_wreg
-    decodeUnit.forward(i).mem      := memoryUnit.decodeUnit(i)
+    decodeUnit.forward(i).exe     := executeUnit.decodeUnit.forward(i).exe
+    decodeUnit.forward(i).is_load := executeUnit.decodeUnit.forward(i).is_load // exe级是load指令
+    decodeUnit.forward(i).mem     := memoryUnit.decodeUnit(i)
   }
   decodeUnit.csr <> csr.decodeUnit
   decodeUnit.executeStage <> executeStage.decodeUnit
