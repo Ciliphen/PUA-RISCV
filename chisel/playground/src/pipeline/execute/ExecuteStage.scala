@@ -5,34 +5,26 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
+import cpu.CpuConfig
 
-class IdExeInst0 extends Bundle {
-  val cpuConfig = new BranchPredictorConfig()
-  val pc        = UInt(XLEN.W)
-  val info      = new InstInfo()
-  val src_info  = new SrcInfo()
-  val ex        = new ExceptionInfo()
-  val jb_info = new Bundle {
-    // jump ctrl
-    val jump_regiser = Bool()
-    // bpu
-    val branch_inst      = Bool()
-    val pred_branch      = Bool()
-    val branch_target    = UInt(XLEN.W)
-    val update_pht_index = UInt(cpuConfig.phtDepth.W)
-  }
-}
-
-class IdExeInst1 extends Bundle {
+class IdExeInstInfo extends Bundle {
   val pc       = UInt(XLEN.W)
   val info     = new InstInfo()
   val src_info = new SrcInfo()
   val ex       = new ExceptionInfo()
 }
 
-class DecodeUnitExecuteUnit extends Bundle {
-  val inst0 = new IdExeInst0()
-  val inst1 = new IdExeInst1()
+class JumpBranchInfo extends Bundle {
+  val jump_regiser     = Bool()
+  val branch_inst      = Bool()
+  val pred_branch      = Bool()
+  val branch_target    = UInt(XLEN.W)
+  val update_pht_index = UInt(XLEN.W)
+}
+
+class DecodeUnitExecuteUnit(implicit cpuConfig: CpuConfig) extends Bundle {
+  val inst             = Vec(cpuConfig.commitNum, new IdExeInstInfo())
+  val jump_branch_info = new JumpBranchInfo()
 }
 
 class ExecuteStage(implicit val cpuConfig: CpuConfig) extends Module {
@@ -45,21 +37,24 @@ class ExecuteStage(implicit val cpuConfig: CpuConfig) extends Module {
     val executeUnit = Output(new DecodeUnitExecuteUnit())
   })
 
-  val inst0 = RegInit(0.U.asTypeOf(new IdExeInst0()))
-  val inst1 = RegInit(0.U.asTypeOf(new IdExeInst1()))
+  val inst             = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new IdExeInstInfo())))
+  val jump_branch_info = RegInit(0.U.asTypeOf(new JumpBranchInfo()))
 
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    when(io.ctrl.clear(i)) {
+      inst(i) := 0.U.asTypeOf(new IdExeInstInfo())
+    }.elsewhen(io.ctrl.allow_to_go(i)) {
+      inst(i) := io.decodeUnit.inst(i)
+    }
+  }
+
+  // inst0携带分支预测相关信息
   when(io.ctrl.clear(0)) {
-    inst0 := 0.U.asTypeOf(new IdExeInst0())
+    jump_branch_info := 0.U.asTypeOf(new JumpBranchInfo())
   }.elsewhen(io.ctrl.allow_to_go(0)) {
-    inst0 := io.decodeUnit.inst0
+    jump_branch_info := io.decodeUnit.jump_branch_info
   }
 
-  when(io.ctrl.clear(1)) {
-    inst1 := 0.U.asTypeOf(new IdExeInst1())
-  }.elsewhen(io.ctrl.allow_to_go(1)) {
-    inst1 := io.decodeUnit.inst1
-  }
-
-  io.executeUnit.inst0 := inst0
-  io.executeUnit.inst1 := inst1
+  io.executeUnit.inst             := inst
+  io.executeUnit.jump_branch_info := jump_branch_info
 }

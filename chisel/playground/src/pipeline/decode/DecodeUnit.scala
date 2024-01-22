@@ -10,7 +10,7 @@ import cpu.pipeline.execute.DecodeUnitExecuteUnit
 import cpu.pipeline.fetch.BufferUnit
 import cpu.pipeline.execute
 
-class InstFifoDecodeUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
+class DecodeUnitInstFifo(implicit val cpuConfig: CpuConfig) extends Bundle {
   val allow_to_go = Output(Vec(cpuConfig.decoderNum, Bool()))
   val inst        = Input(Vec(cpuConfig.decoderNum, new BufferUnit()))
   val info = Input(new Bundle {
@@ -40,7 +40,7 @@ class DecoderBranchPredictorUnit extends Bundle {
 class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExceptionNO with HasCSRConst {
   val io = IO(new Bundle {
     // 输入
-    val instFifo = new InstFifoDecodeUnit()
+    val instFifo = new DecodeUnitInstFifo()
     val regfile  = Vec(cpuConfig.decoderNum, new Src12Read())
     val forward  = Input(Vec(cpuConfig.commitNum, new DataForwardToDecodeUnit()))
     val csr      = Input(new execute.CsrDecodeUnit())
@@ -76,18 +76,16 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
     issue.decodeInst(i)        := info(i)
     issue.execute(i).mem_wreg  := io.forward(i).mem_wreg
     issue.execute(i).reg_waddr := io.forward(i).exe.waddr
+    io.regfile(i).src1.raddr   := info(i).src1_raddr
+    io.regfile(i).src2.raddr   := info(i).src2_raddr
   }
 
-  io.regfile(0).src1.raddr := info(0).src1_raddr
-  io.regfile(0).src2.raddr := info(0).src2_raddr
-  io.regfile(1).src1.raddr := info(1).src1_raddr
-  io.regfile(1).src2.raddr := info(1).src2_raddr
-  forwardCtrl.in.forward   := io.forward
-  forwardCtrl.in.regfile   := io.regfile
-  jumpCtrl.in.info         := info(0)
-  jumpCtrl.in.forward      := io.forward
-  jumpCtrl.in.pc           := pc(0)
-  jumpCtrl.in.src_info     := io.executeStage.inst0.src_info
+  forwardCtrl.in.forward := io.forward
+  forwardCtrl.in.regfile := io.regfile
+  jumpCtrl.in.info       := info(0)
+  jumpCtrl.in.forward    := io.forward
+  jumpCtrl.in.pc         := pc(0)
+  jumpCtrl.in.src_info   := io.executeStage.inst(0).src_info
 
   val inst0_branch = jumpCtrl.out.jump || io.bpu.branch
 
@@ -105,88 +103,50 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   io.ctrl.inst0.src2.raddr := info(0).src2_raddr
   io.ctrl.branch           := io.fetchUnit.branch
 
-  io.executeStage.inst0.pc   := pc(0)
-  io.executeStage.inst0.info := info(0)
-  io.executeStage.inst0.src_info.src1_data := MuxCase(
-    SignedExtend(pc(0), XLEN),
-    Seq(
-      info(0).src1_ren                      -> forwardCtrl.out.inst(0).src1.rdata,
-      (info(0).inst(6, 0) === "b0110111".U) -> 0.U
+  io.executeStage.jump_branch_info.jump_regiser     := jumpCtrl.out.jump_register
+  io.executeStage.jump_branch_info.branch_inst      := io.bpu.branch_inst
+  io.executeStage.jump_branch_info.pred_branch      := io.bpu.branch
+  io.executeStage.jump_branch_info.branch_target    := io.bpu.target
+  io.executeStage.jump_branch_info.update_pht_index := io.bpu.update_pht_index
+
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    io.executeStage.inst(i).pc   := pc(i)
+    io.executeStage.inst(i).info := info(i)
+    io.executeStage.inst(i).src_info.src1_data := MuxCase(
+      SignedExtend(pc(i), XLEN),
+      Seq(
+        info(i).src1_ren                      -> forwardCtrl.out.inst(i).src1.rdata,
+        (info(i).inst(6, 0) === "b0110111".U) -> 0.U
+      )
     )
-  )
-  io.executeStage.inst0.src_info.src2_data := Mux(
-    info(0).src2_ren,
-    forwardCtrl.out.inst(0).src2.rdata,
-    info(0).imm
-  )
-  (0 until (INT_WID)).foreach(i => io.executeStage.inst0.ex.interrupt(i) := io.csr.interrupt(i))
-  io.executeStage.inst0.ex.exception.map(_             := false.B)
-  io.executeStage.inst0.ex.exception(illegalInstr)     := !info(0).inst_legal
-  io.executeStage.inst0.ex.exception(instrAccessFault) := io.instFifo.inst(0).access_fault
-  io.executeStage.inst0.ex.exception(instrPageFault)   := io.instFifo.inst(0).page_fault
-  io.executeStage.inst0.ex.exception(instrAddrMisaligned) := pc(0)(log2Ceil(INST_WID / 8) - 1, 0).orR ||
-    io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
-  io.executeStage.inst0.ex.exception(breakPoint) := info(0).inst(31, 20) === privEbreak &&
-    info(0).op === CSROpType.jmp && info(0).fusel === FuType.csr
-  io.executeStage.inst0.ex.exception(ecallM) := info(0).inst(31, 20) === privEcall &&
-    info(0).op === CSROpType.jmp && mode === ModeM && info(0).fusel === FuType.csr
-  io.executeStage.inst0.ex.exception(ecallS) := info(0).inst(31, 20) === privEcall &&
-    info(0).op === CSROpType.jmp && mode === ModeS && info(0).fusel === FuType.csr
-  io.executeStage.inst0.ex.exception(ecallU) := info(0).inst(31, 20) === privEcall &&
-    info(0).op === CSROpType.jmp && mode === ModeU && info(0).fusel === FuType.csr
-  io.executeStage.inst0.ex.tval.map(_             := DontCare)
-  io.executeStage.inst0.ex.tval(instrPageFault)   := pc(0)
-  io.executeStage.inst0.ex.tval(instrAccessFault) := pc(0)
-  io.executeStage.inst0.ex.tval(illegalInstr)     := info(0).inst
-  io.executeStage.inst0.ex.tval(instrAddrMisaligned) := Mux(
-    io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch,
-    io.fetchUnit.target,
-    pc(0)
-  )
-
-  io.executeStage.inst0.jb_info.jump_regiser     := jumpCtrl.out.jump_register
-  io.executeStage.inst0.jb_info.branch_inst      := io.bpu.branch_inst
-  io.executeStage.inst0.jb_info.pred_branch      := io.bpu.branch
-  io.executeStage.inst0.jb_info.branch_target    := io.bpu.target
-  io.executeStage.inst0.jb_info.update_pht_index := io.bpu.update_pht_index
-
-  io.executeStage.inst1.pc   := pc(1)
-  io.executeStage.inst1.info := info(1)
-  io.executeStage.inst1.src_info.src1_data := MuxCase(
-    SignedExtend(pc(1), XLEN),
-    Seq(
-      info(1).src1_ren                      -> forwardCtrl.out.inst(1).src1.rdata,
-      (info(1).inst(6, 0) === "b0110111".U) -> 0.U
+    io.executeStage.inst(i).src_info.src2_data := Mux(
+      info(i).src2_ren,
+      forwardCtrl.out.inst(i).src2.rdata,
+      info(i).imm
     )
-  )
-  io.executeStage.inst1.src_info.src2_data := Mux(
-    info(1).src2_ren,
-    forwardCtrl.out.inst(1).src2.rdata,
-    info(1).imm
-  )
-  (0 until (INT_WID)).foreach(i => io.executeStage.inst1.ex.interrupt(i) := io.csr.interrupt(i))
-  io.executeStage.inst1.ex.exception.map(_             := false.B)
-  io.executeStage.inst1.ex.exception(illegalInstr)     := !info(1).inst_legal
-  io.executeStage.inst1.ex.exception(instrAccessFault) := io.instFifo.inst(1).access_fault
-  io.executeStage.inst1.ex.exception(instrPageFault)   := io.instFifo.inst(1).page_fault
-  io.executeStage.inst1.ex.exception(instrAddrMisaligned) := pc(1)(log2Ceil(INST_WID / 8) - 1, 0).orR ||
+    (0 until (INT_WID)).foreach(j => io.executeStage.inst(i).ex.interrupt(j) := io.csr.interrupt(j))
+    io.executeStage.inst(i).ex.exception.map(_             := false.B)
+    io.executeStage.inst(i).ex.exception(illegalInstr)     := !info(i).inst_legal
+    io.executeStage.inst(i).ex.exception(instrAccessFault) := io.instFifo.inst(i).access_fault
+    io.executeStage.inst(i).ex.exception(instrPageFault)   := io.instFifo.inst(i).page_fault
+    io.executeStage.inst(i).ex.exception(instrAddrMisaligned) := pc(i)(log2Ceil(INST_WID / 8) - 1, 0).orR ||
     io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
-  io.executeStage.inst1.ex.exception(breakPoint) := info(1).inst(31, 20) === privEbreak &&
-    info(1).op === CSROpType.jmp && info(1).fusel === FuType.csr
-  io.executeStage.inst1.ex.exception(ecallM) := info(1).inst(31, 20) === privEcall &&
-    info(1).op === CSROpType.jmp && mode === ModeM && info(1).fusel === FuType.csr
-  io.executeStage.inst1.ex.exception(ecallS) := info(1).inst(31, 20) === privEcall &&
-    info(1).op === CSROpType.jmp && mode === ModeS && info(1).fusel === FuType.csr
-  io.executeStage.inst1.ex.exception(ecallU) := info(1).inst(31, 20) === privEcall &&
-    info(1).op === CSROpType.jmp && mode === ModeU && info(1).fusel === FuType.csr
-  io.executeStage.inst1.ex.tval.map(_             := DontCare)
-  io.executeStage.inst1.ex.tval(instrPageFault)   := pc(1)
-  io.executeStage.inst1.ex.tval(instrAccessFault) := pc(1)
-  io.executeStage.inst1.ex.tval(illegalInstr)     := info(1).inst
-  io.executeStage.inst1.ex.tval(instrAddrMisaligned) := Mux(
-    io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch,
-    io.fetchUnit.target,
-    pc(1)
-  )
-
+    io.executeStage.inst(i).ex.exception(breakPoint) := info(i).inst(31, 20) === privEbreak &&
+    info(i).op === CSROpType.jmp && info(i).fusel === FuType.csr
+    io.executeStage.inst(i).ex.exception(ecallM) := info(i).inst(31, 20) === privEcall &&
+    info(i).op === CSROpType.jmp && mode === ModeM && info(i).fusel === FuType.csr
+    io.executeStage.inst(i).ex.exception(ecallS) := info(i).inst(31, 20) === privEcall &&
+    info(i).op === CSROpType.jmp && mode === ModeS && info(i).fusel === FuType.csr
+    io.executeStage.inst(i).ex.exception(ecallU) := info(i).inst(31, 20) === privEcall &&
+    info(i).op === CSROpType.jmp && mode === ModeU && info(i).fusel === FuType.csr
+    io.executeStage.inst(i).ex.tval.map(_             := DontCare)
+    io.executeStage.inst(i).ex.tval(instrPageFault)   := pc(i)
+    io.executeStage.inst(i).ex.tval(instrAccessFault) := pc(i)
+    io.executeStage.inst(i).ex.tval(illegalInstr)     := info(i).inst
+    io.executeStage.inst(i).ex.tval(instrAddrMisaligned) := Mux(
+      io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch,
+      io.fetchUnit.target,
+      pc(i)
+    )
+  }
 }
