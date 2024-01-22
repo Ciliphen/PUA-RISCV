@@ -7,7 +7,7 @@ import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
 import cpu.CpuConfig
 
-class IdExeInstInfo extends Bundle {
+class IdExeInfo extends Bundle {
   val pc       = UInt(XLEN.W)
   val info     = new InstInfo()
   val src_info = new SrcInfo()
@@ -23,7 +23,7 @@ class JumpBranchInfo extends Bundle {
 }
 
 class DecodeUnitExecuteUnit(implicit cpuConfig: CpuConfig) extends Bundle {
-  val inst             = Vec(cpuConfig.commitNum, new IdExeInstInfo())
+  val inst             = Vec(cpuConfig.commitNum, new IdExeInfo())
   val jump_branch_info = new JumpBranchInfo()
 }
 
@@ -37,12 +37,12 @@ class ExecuteStage(implicit val cpuConfig: CpuConfig) extends Module {
     val executeUnit = Output(new DecodeUnitExecuteUnit())
   })
 
-  val inst             = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new IdExeInstInfo())))
+  val inst             = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new IdExeInfo())))
   val jump_branch_info = RegInit(0.U.asTypeOf(new JumpBranchInfo()))
 
   for (i <- 0 until (cpuConfig.commitNum)) {
     when(io.ctrl.clear(i)) {
-      inst(i) := 0.U.asTypeOf(new IdExeInstInfo())
+      inst(i) := 0.U.asTypeOf(new IdExeInfo())
     }.elsewhen(io.ctrl.allow_to_go(i)) {
       inst(i) := io.decodeUnit.inst(i)
     }

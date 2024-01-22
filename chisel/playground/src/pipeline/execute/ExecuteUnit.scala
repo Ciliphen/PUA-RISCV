@@ -127,66 +127,40 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
 
   io.ctrl.fu_stall := fu.stall_req
 
-  io.memoryStage.inst0.pc                        := io.executeStage.inst(0).pc
-  io.memoryStage.inst0.info                      := io.executeStage.inst(0).info
-  io.memoryStage.inst0.src_info                  := io.executeStage.inst(0).src_info
-  io.memoryStage.inst0.rd_info.wdata             := DontCare
-  io.memoryStage.inst0.rd_info.wdata(FuType.alu) := fu.inst(0).result.alu
-  io.memoryStage.inst0.rd_info.wdata(FuType.bru) := io.executeStage.inst(0).pc + 4.U
-  io.memoryStage.inst0.rd_info.wdata(FuType.mdu) := fu.inst(0).result.mdu
-  io.memoryStage.inst0.rd_info.wdata(FuType.csr) := io.csr.out.rdata
-  val has_ex0 =
-    (HasExcInt(io.executeStage.inst(0).ex)) && io.executeStage.inst(0).info.valid
-  io.memoryStage.inst0.ex := Mux(
-    has_ex0,
-    io.executeStage.inst(0).ex,
-    MuxLookup(io.executeStage.inst(0).info.fusel, io.executeStage.inst(0).ex)(
-      Seq(
-        FuType.csr -> io.csr.out.ex
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    io.memoryStage.inst(i).pc                        := io.executeStage.inst(i).pc
+    io.memoryStage.inst(i).info                      := io.executeStage.inst(i).info
+    io.memoryStage.inst(i).src_info                  := io.executeStage.inst(i).src_info
+    io.memoryStage.inst(i).rd_info.wdata             := DontCare
+    io.memoryStage.inst(i).rd_info.wdata(FuType.alu) := fu.inst(i).result.alu
+    io.memoryStage.inst(i).rd_info.wdata(FuType.bru) := io.executeStage.inst(i).pc + 4.U
+    io.memoryStage.inst(i).rd_info.wdata(FuType.mdu) := fu.inst(i).result.mdu
+    io.memoryStage.inst(i).rd_info.wdata(FuType.csr) := io.csr.out.rdata
+    val has_ex0 =
+      (HasExcInt(io.executeStage.inst(i).ex)) && io.executeStage.inst(i).info.valid
+    io.memoryStage.inst(i).ex := Mux(
+      has_ex0,
+      io.executeStage.inst(i).ex,
+      MuxLookup(io.executeStage.inst(i).info.fusel, io.executeStage.inst(i).ex)(
+        Seq(
+          FuType.csr -> io.csr.out.ex
+        )
       )
     )
-  )
-  io.memoryStage.inst0.ex.exception(instrAddrMisaligned) := io.executeStage.inst(0).ex.exception(instrAddrMisaligned) ||
+    io.memoryStage
+      .inst(i)
+      .ex
+      .exception(instrAddrMisaligned) := io.executeStage.inst(i).ex.exception(instrAddrMisaligned) ||
     io.fetchUnit.flush && io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR
-  io.memoryStage.inst0.ex.tval(instrAddrMisaligned) := Mux(
-    io.executeStage.inst(0).ex.exception(instrAddrMisaligned),
-    io.executeStage.inst(0).ex.tval(instrAddrMisaligned),
-    io.fetchUnit.target
-  )
-
-  io.memoryStage.inst1.pc                        := io.executeStage.inst(1).pc
-  io.memoryStage.inst1.info                      := io.executeStage.inst(1).info
-  io.memoryStage.inst1.src_info                  := io.executeStage.inst(1).src_info
-  io.memoryStage.inst1.rd_info.wdata             := DontCare
-  io.memoryStage.inst1.rd_info.wdata(FuType.alu) := fu.inst(1).result.alu
-  io.memoryStage.inst1.rd_info.wdata(FuType.mdu) := fu.inst(1).result.mdu
-  io.memoryStage.inst1.rd_info.wdata(FuType.csr) := io.csr.out.rdata
-  val has_ex1 =
-    (HasExcInt(io.executeStage.inst(1).ex)) && io.executeStage.inst(1).info.valid
-  io.memoryStage.inst1.ex := Mux(
-    has_ex1,
-    io.executeStage.inst(1).ex,
-    MuxLookup(io.executeStage.inst(1).info.fusel, io.executeStage.inst(1).ex)(
-      Seq(
-        FuType.csr -> io.csr.out.ex
-      )
+    io.memoryStage.inst(i).ex.tval(instrAddrMisaligned) := Mux(
+      io.executeStage.inst(i).ex.exception(instrAddrMisaligned),
+      io.executeStage.inst(i).ex.tval(instrAddrMisaligned),
+      io.fetchUnit.target
     )
-  )
-  io.memoryStage.inst1.ex.exception(instrAddrMisaligned) := io.executeStage.inst(1).ex.exception(instrAddrMisaligned) ||
-    io.fetchUnit.flush && io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR
-  io.memoryStage.inst1.ex.tval(instrAddrMisaligned) := Mux(
-    io.executeStage.inst(1).ex.exception(instrAddrMisaligned),
-    io.executeStage.inst(1).ex.tval(instrAddrMisaligned),
-    io.fetchUnit.target
-  )
 
-  io.decodeUnit.forward(0).exe.wen      := io.memoryStage.inst0.info.reg_wen
-  io.decodeUnit.forward(0).exe.waddr    := io.memoryStage.inst0.info.reg_waddr
-  io.decodeUnit.forward(0).exe.wdata    := io.memoryStage.inst0.rd_info.wdata(io.memoryStage.inst0.info.fusel)
-  io.decodeUnit.forward(0).exe_mem_wreg := io.ctrl.inst(0).mem_wreg
-
-  io.decodeUnit.forward(1).exe.wen      := io.memoryStage.inst1.info.reg_wen
-  io.decodeUnit.forward(1).exe.waddr    := io.memoryStage.inst1.info.reg_waddr
-  io.decodeUnit.forward(1).exe.wdata    := io.memoryStage.inst1.rd_info.wdata(io.memoryStage.inst1.info.fusel)
-  io.decodeUnit.forward(1).exe_mem_wreg := io.ctrl.inst(1).mem_wreg
+    io.decodeUnit.forward(i).exe.wen      := io.memoryStage.inst(i).info.reg_wen
+    io.decodeUnit.forward(i).exe.waddr    := io.memoryStage.inst(i).info.reg_waddr
+    io.decodeUnit.forward(i).exe.wdata    := io.memoryStage.inst(i).rd_info.wdata(io.memoryStage.inst(i).info.fusel)
+    io.decodeUnit.forward(i).exe_mem_wreg := io.ctrl.inst(i).mem_wreg
+  }
 }
