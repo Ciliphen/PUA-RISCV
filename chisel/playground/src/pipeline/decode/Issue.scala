@@ -24,52 +24,46 @@ class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   })
 
   if (cpuConfig.decoderNum == 2) {
-    val inst0 = io.decodeInst(0)
-    val inst1 = io.decodeInst(1)
+    val inst = io.decodeInst
 
     // inst buffer是否存有至少2条指令
     val instFifo_invalid = io.instFifo.empty || io.instFifo.almost_empty
 
     // 结构冲突
-    val lsu_conflict    = inst0.fusel === FuType.lsu && inst1.fusel === FuType.lsu // 访存单元最大支持1条指令的load和store
-    val mdu_conflict    = inst0.fusel === FuType.mdu && inst1.fusel === FuType.mdu // 乘除单元最大支持1条指令的乘除法
-    val csr_conflict    = inst0.fusel === FuType.csr && inst1.fusel === FuType.csr // csr单元最大支持1条指令的读写
+    val lsu_conflict    = inst.map(_.fusel === FuType.lsu).reduce(_ && _) // 访存单元最大支持1条指令的load和store
+    val mdu_conflict    = inst.map(_.fusel === FuType.mdu).reduce(_ && _) // 乘除单元最大支持1条指令的乘除法
+    val csr_conflict    = inst.map(_.fusel === FuType.csr).reduce(_ && _) // csr单元最大支持1条指令的读写
     val struct_conflict = lsu_conflict || mdu_conflict || csr_conflict
 
     // 写后读冲突
-    val load_stall =
+    val load_stall = // inst1的源操作数需要经过load得到，但load指令还在exe级未访存
       io.execute(0).is_load && io.execute(0).reg_waddr.orR &&
-        (inst1.src1_ren && inst1.src1_raddr === io.execute(0).reg_waddr ||
-          inst1.src2_ren && inst1.src2_raddr === io.execute(0).reg_waddr) ||
+        (inst(1).src1_ren && inst(1).src1_raddr === io.execute(0).reg_waddr ||
+          inst(1).src2_ren && inst(1).src2_raddr === io.execute(0).reg_waddr) ||
         io.execute(1).is_load && io.execute(1).reg_waddr.orR &&
-          (inst1.src1_ren && inst1.src1_raddr === io.execute(1).reg_waddr ||
-            inst1.src2_ren && inst1.src2_raddr === io.execute(1).reg_waddr)
+          (inst(1).src1_ren && inst(1).src1_raddr === io.execute(1).reg_waddr ||
+            inst(1).src2_ren && inst(1).src2_raddr === io.execute(1).reg_waddr)
     val raw_reg = // inst1的源操作数是inst0的目的操作数
-      inst0.reg_wen && inst0.reg_waddr.orR &&
-        (inst0.reg_waddr === inst1.src1_raddr && inst1.src1_ren ||
-          inst0.reg_waddr === inst1.src2_raddr && inst1.src2_ren)
+      inst(0).reg_wen && inst(0).reg_waddr.orR &&
+        (inst(0).reg_waddr === inst(1).src1_raddr && inst(1).src1_ren ||
+          inst(0).reg_waddr === inst(1).src2_raddr && inst(1).src2_ren)
     val data_conflict = raw_reg || load_stall
 
     // bru指令只能在inst0执行
-    val is_bru = VecInit(
-      inst0.fusel === FuType.bru,
-      inst1.fusel === FuType.bru
-    ).asUInt.orR
+    val is_bru = inst.map(_.fusel === FuType.bru).reduce(_ || _)
 
     // mou指令会导致流水线清空
-    val is_mou = VecInit(
-      inst0.fusel === FuType.mou,
-      inst1.fusel === FuType.mou
-    ).asUInt.orR
+    val is_mou = inst.map(_.fusel === FuType.mou).reduce(_ || _)
 
     // 写satp指令会导致流水线清空
     val write_satp = VecInit(
-      inst0.fusel === FuType.csr && inst0.op =/= CSROpType.jmp && inst0.inst(31, 20) === Satp.U,
-      inst1.fusel === FuType.csr && inst1.op =/= CSROpType.jmp && inst1.inst(31, 20) === Satp.U
+      Seq.tabulate(cpuConfig.commitNum)(i =>
+        inst(i).fusel === FuType.csr && inst(i).op =/= CSROpType.jmp && inst(i).inst(31, 20) === Satp.U
+      )
     ).asUInt.orR
 
     // uret、sret、mret指令会导致流水线清空
-    val ret = inst0.ret.asUInt.orR || inst1.ret.asUInt.orR
+    val ret = inst(0).ret.asUInt.orR || inst(1).ret.asUInt.orR
 
     // 这些csr相关指令会导致流水线清空
     val is_some_csr_inst = write_satp || ret
