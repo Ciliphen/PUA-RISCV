@@ -16,34 +16,32 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
   })
 
   io.regfile(0).wen :=
-    io.writeBackStage.inst0.info.valid &&
-      io.writeBackStage.inst0.info.reg_wen &&
+    io.writeBackStage.inst(0).info.valid &&
+      io.writeBackStage.inst(0).info.reg_wen &&
       io.ctrl.allow_to_go &&
-      !(HasExcInt(io.writeBackStage.inst0.ex))
-  io.regfile(0).waddr := io.writeBackStage.inst0.info.reg_waddr
-  io.regfile(0).wdata := io.writeBackStage.inst0.rd_info.wdata(io.writeBackStage.inst0.info.fusel)
+      !(HasExcInt(io.writeBackStage.inst(0).ex))
 
   io.regfile(1).wen :=
-    io.writeBackStage.inst1.info.valid &&
-      io.writeBackStage.inst1.info.reg_wen &&
+    io.writeBackStage.inst(1).info.valid &&
+      io.writeBackStage.inst(1).info.reg_wen &&
       io.ctrl.allow_to_go &&
-      !(HasExcInt(io.writeBackStage.inst0.ex)) &&
-      !(HasExcInt(io.writeBackStage.inst1.ex))
-  io.regfile(1).waddr := io.writeBackStage.inst1.info.reg_waddr
-  io.regfile(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.info.fusel)
+      !(HasExcInt(io.writeBackStage.inst(0).ex)) &&
+      !(HasExcInt(io.writeBackStage.inst(1).ex))
+
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    io.regfile(i).waddr := io.writeBackStage.inst(i).info.reg_waddr
+    io.regfile(i).wdata := io.writeBackStage.inst(i).rd_info.wdata(io.writeBackStage.inst(i).info.fusel)
+  }
 
   if (cpuConfig.hasCommitBuffer) {
     val buffer = Module(new CommitBuffer()).io
-    buffer.enq(0).wb_pc       := io.writeBackStage.inst0.pc
-    buffer.enq(0).wb_rf_wen   := io.writeBackStage.inst0.info.valid && io.ctrl.allow_to_go
-    buffer.enq(0).wb_rf_wnum  := io.regfile(0).waddr
-    buffer.enq(0).wb_rf_wdata := io.regfile(0).wdata
-    buffer.enq(1).wb_pc       := io.writeBackStage.inst1.pc
-    buffer.enq(1).wb_rf_wen   := io.writeBackStage.inst1.info.valid && io.ctrl.allow_to_go
-    buffer.enq(1).wb_rf_wnum  := io.regfile(1).waddr
-    buffer.enq(1).wb_rf_wdata := io.regfile(1).wdata
-    buffer.flush              := io.ctrl.do_flush
-
+    for (i <- 0 until (cpuConfig.commitNum)) {
+      buffer.enq(i).wb_pc       := io.writeBackStage.inst(i).pc
+      buffer.enq(i).wb_rf_wen   := io.writeBackStage.inst(i).info.valid && io.ctrl.allow_to_go
+      buffer.enq(i).wb_rf_wnum  := io.regfile(i).waddr
+      buffer.enq(i).wb_rf_wdata := io.regfile(i).wdata
+    }
+    buffer.flush         := io.ctrl.do_flush
     io.debug.wb_pc       := buffer.deq.wb_pc
     io.debug.wb_rf_wen   := buffer.deq.wb_rf_wen
     io.debug.wb_rf_wnum  := buffer.deq.wb_rf_wnum
@@ -51,17 +49,17 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
   } else {
     io.debug.wb_pc := Mux(
       clock.asBool,
-      io.writeBackStage.inst0.pc,
+      io.writeBackStage.inst(0).pc,
       Mux(
-        !(io.writeBackStage.inst1.info.valid && io.ctrl.allow_to_go),
+        !(io.writeBackStage.inst(1).info.valid && io.ctrl.allow_to_go),
         0.U,
-        io.writeBackStage.inst1.pc
+        io.writeBackStage.inst(1).pc
       )
     )
     io.debug.wb_rf_wen := Mux(
       clock.asBool,
-      io.writeBackStage.inst0.info.valid && io.ctrl.allow_to_go,
-      io.writeBackStage.inst1.info.valid && io.ctrl.allow_to_go
+      io.writeBackStage.inst(0).info.valid && io.ctrl.allow_to_go,
+      io.writeBackStage.inst(1).info.valid && io.ctrl.allow_to_go
     )
     io.debug.wb_rf_wnum := Mux(
       clock.asBool,

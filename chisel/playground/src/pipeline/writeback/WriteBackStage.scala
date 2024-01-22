@@ -6,16 +6,15 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class MemWbInst extends Bundle {
+class MemWbInfo extends Bundle {
   val pc      = UInt(XLEN.W)
   val info    = new InstInfo()
   val rd_info = new RdInfo()
   val ex      = new ExceptionInfo()
 }
 
-class MemoryUnitWriteBackUnit extends Bundle {
-  val inst0 = new MemWbInst()
-  val inst1 = new MemWbInst()
+class MemoryUnitWriteBackUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
+  val inst = Vec(cpuConfig.commitNum, new MemWbInfo())
 }
 class WriteBackStage(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
@@ -26,17 +25,16 @@ class WriteBackStage(implicit val cpuConfig: CpuConfig) extends Module {
     val memoryUnit    = Input(new MemoryUnitWriteBackUnit())
     val writeBackUnit = Output(new MemoryUnitWriteBackUnit())
   })
-  val inst0 = RegInit(0.U.asTypeOf(new MemWbInst()))
-  val inst1 = RegInit(0.U.asTypeOf(new MemWbInst()))
 
-  when(io.ctrl.clear(0)) {
-    inst0 := 0.U.asTypeOf(new MemWbInst())
-    inst1 := 0.U.asTypeOf(new MemWbInst())
-  }.elsewhen(io.ctrl.allow_to_go) {
-    inst0 := io.memoryUnit.inst0
-    inst1 := io.memoryUnit.inst1
+  val inst = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new MemWbInfo())))
+
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    when(io.ctrl.clear) {
+      inst(i) := 0.U.asTypeOf(new MemWbInfo())
+    }.elsewhen(io.ctrl.allow_to_go) {
+      inst(i) := io.memoryUnit.inst(i)
+    }
   }
 
-  io.writeBackUnit.inst0 := inst0
-  io.writeBackUnit.inst1 := inst1
+  io.writeBackUnit.inst := inst
 }

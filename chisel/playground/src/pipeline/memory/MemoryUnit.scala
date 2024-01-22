@@ -63,7 +63,7 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   lsu.memoryUnit.in.allow_to_go := io.ctrl.allow_to_go
 
   val csr_sel =
-    HasExcInt(io.writeBackStage.inst0.ex) || !HasExcInt(io.writeBackStage.inst1.ex)
+    HasExcInt(io.writeBackStage.inst(0).ex) || !HasExcInt(io.writeBackStage.inst(1).ex)
 
   io.csr.in.pc := MuxCase(
     0.U,
@@ -75,8 +75,8 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   io.csr.in.ex := MuxCase(
     0.U.asTypeOf(new ExceptionInfo()),
     Seq(
-      (io.ctrl.allow_to_go && csr_sel)  -> io.writeBackStage.inst0.ex,
-      (io.ctrl.allow_to_go && !csr_sel) -> io.writeBackStage.inst1.ex
+      (io.ctrl.allow_to_go && csr_sel)  -> io.writeBackStage.inst(0).ex,
+      (io.ctrl.allow_to_go && !csr_sel) -> io.writeBackStage.inst(1).ex
     )
   )
   io.csr.in.info := MuxCase(
@@ -93,30 +93,30 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   lsu.memoryUnit.in.lr      := io.csr.out.lr
   lsu.memoryUnit.in.lr_addr := io.csr.out.lr_addr
 
-  io.decodeUnit(0).wen   := io.writeBackStage.inst0.info.reg_wen
-  io.decodeUnit(0).waddr := io.writeBackStage.inst0.info.reg_waddr
-  io.decodeUnit(0).wdata := io.writeBackStage.inst0.rd_info.wdata(io.writeBackStage.inst0.info.fusel)
-  io.decodeUnit(1).wen   := io.writeBackStage.inst1.info.reg_wen
-  io.decodeUnit(1).waddr := io.writeBackStage.inst1.info.reg_waddr
-  io.decodeUnit(1).wdata := io.writeBackStage.inst1.rd_info.wdata(io.writeBackStage.inst1.info.fusel)
+  io.decodeUnit(0).wen   := io.writeBackStage.inst(0).info.reg_wen
+  io.decodeUnit(0).waddr := io.writeBackStage.inst(0).info.reg_waddr
+  io.decodeUnit(0).wdata := io.writeBackStage.inst(0).rd_info.wdata(io.writeBackStage.inst(0).info.fusel)
+  io.decodeUnit(1).wen   := io.writeBackStage.inst(1).info.reg_wen
+  io.decodeUnit(1).waddr := io.writeBackStage.inst(1).info.reg_waddr
+  io.decodeUnit(1).wdata := io.writeBackStage.inst(1).rd_info.wdata(io.writeBackStage.inst(1).info.fusel)
 
-  io.writeBackStage.inst0.pc                        := io.memoryStage.inst(0).pc
-  io.writeBackStage.inst0.info                      := io.memoryStage.inst(0).info
-  io.writeBackStage.inst0.rd_info.wdata             := io.memoryStage.inst(0).rd_info.wdata
-  io.writeBackStage.inst0.rd_info.wdata(FuType.lsu) := lsu.memoryUnit.out.rdata
-  io.writeBackStage.inst0.ex := Mux(
+  io.writeBackStage.inst(0).pc                        := io.memoryStage.inst(0).pc
+  io.writeBackStage.inst(0).info                      := io.memoryStage.inst(0).info
+  io.writeBackStage.inst(0).rd_info.wdata             := io.memoryStage.inst(0).rd_info.wdata
+  io.writeBackStage.inst(0).rd_info.wdata(FuType.lsu) := lsu.memoryUnit.out.rdata
+  io.writeBackStage.inst(0).ex := Mux(
     mem_sel(0),
     lsu.memoryUnit.out.ex,
     io.memoryStage.inst(0).ex
   )
 
-  io.writeBackStage.inst1.pc   := io.memoryStage.inst(1).pc
-  io.writeBackStage.inst1.info := io.memoryStage.inst(1).info
-  io.writeBackStage.inst1.info.valid := io.memoryStage.inst(1).info.valid &&
+  io.writeBackStage.inst(1).pc   := io.memoryStage.inst(1).pc
+  io.writeBackStage.inst(1).info := io.memoryStage.inst(1).info
+  io.writeBackStage.inst(1).info.valid := io.memoryStage.inst(1).info.valid &&
     !(io.fetchUnit.flush && csr_sel) // 指令0导致flush时，不应该提交指令1
-  io.writeBackStage.inst1.rd_info.wdata             := io.memoryStage.inst(1).rd_info.wdata
-  io.writeBackStage.inst1.rd_info.wdata(FuType.lsu) := lsu.memoryUnit.out.rdata
-  io.writeBackStage.inst1.ex := Mux(
+  io.writeBackStage.inst(1).rd_info.wdata             := io.memoryStage.inst(1).rd_info.wdata
+  io.writeBackStage.inst(1).rd_info.wdata(FuType.lsu) := lsu.memoryUnit.out.rdata
+  io.writeBackStage.inst(1).ex := Mux(
     mem_sel(1),
     lsu.memoryUnit.out.ex,
     io.memoryStage.inst(1).ex

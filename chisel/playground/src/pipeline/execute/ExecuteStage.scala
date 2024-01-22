@@ -22,7 +22,7 @@ class JumpBranchInfo extends Bundle {
   val update_pht_index = UInt(XLEN.W)
 }
 
-class DecodeUnitExecuteUnit(implicit cpuConfig: CpuConfig) extends Bundle {
+class DecodeUnitExecuteUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val inst             = Vec(cpuConfig.commitNum, new IdExeInfo())
   val jump_branch_info = new JumpBranchInfo()
 }
