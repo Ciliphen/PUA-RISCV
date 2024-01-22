@@ -72,19 +72,19 @@ class LsExecute extends Module {
   val addr  = io.in.mem_addr
   val op    = io.in.info.op
 
-  val isStore     = valid && LSUOpType.isStore(op)
-  val partialLoad = !isStore && (op =/= LSUOpType.ld)
+  val is_store     = valid && LSUOpType.isStore(op)
+  val partial_load = !is_store && (op =/= LSUOpType.ld)
 
-  val size     = op(1, 0)
-  val reqAddr  = if (XLEN == 32) SignedExtend(addr, XLEN) else addr
-  val reqWdata = if (XLEN == 32) genWdata32(io.in.wdata, size) else genWdata(io.in.wdata, size)
-  val reqWmask = if (XLEN == 32) genWmask32(addr, size) else genWmask(addr, size)
+  val size      = op(1, 0)
+  val req_addr  = if (XLEN == 32) SignedExtend(addr, XLEN) else addr
+  val req_wdata = if (XLEN == 32) genWdata32(io.in.wdata, size) else genWdata(io.in.wdata, size)
+  val req_wmask = if (XLEN == 32) genWmask32(addr, size) else genWmask(addr, size)
 
   val rdata        = io.dataMemory.in.rdata
   val access_fault = io.dataMemory.in.access_fault
   val page_fault   = io.dataMemory.in.page_fault
 
-  val rdataSel64 = LookupTree(
+  val rdata64 = LookupTree(
     addr(2, 0),
     List(
       "b000".U -> rdata(63, 0),
@@ -97,7 +97,7 @@ class LsExecute extends Module {
       "b111".U -> rdata(63, 56)
     )
   )
-  val rdataSel32 = LookupTree(
+  val rdata32 = LookupTree(
     addr(1, 0),
     List(
       "b00".U -> rdata(31, 0),
@@ -106,19 +106,19 @@ class LsExecute extends Module {
       "b11".U -> rdata(31, 24)
     )
   )
-  val rdataSel = if (XLEN == 32) rdataSel32 else rdataSel64
-  val rdataPartialLoad = LookupTree(
+  val rdata_result = if (XLEN == 32) rdata32 else rdata64
+  val rdata_partial_result = LookupTree(
     op,
     List(
-      LSUOpType.lb  -> SignedExtend(rdataSel(7, 0), XLEN),
-      LSUOpType.lh  -> SignedExtend(rdataSel(15, 0), XLEN),
-      LSUOpType.lw  -> SignedExtend(rdataSel(31, 0), XLEN),
-      LSUOpType.lbu -> ZeroExtend(rdataSel(7, 0), XLEN),
-      LSUOpType.lhu -> ZeroExtend(rdataSel(15, 0), XLEN),
-      LSUOpType.lwu -> ZeroExtend(rdataSel(31, 0), XLEN)
+      LSUOpType.lb  -> SignedExtend(rdata_result(7, 0), XLEN),
+      LSUOpType.lh  -> SignedExtend(rdata_result(15, 0), XLEN),
+      LSUOpType.lw  -> SignedExtend(rdata_result(31, 0), XLEN),
+      LSUOpType.lbu -> ZeroExtend(rdata_result(7, 0), XLEN),
+      LSUOpType.lhu -> ZeroExtend(rdata_result(15, 0), XLEN),
+      LSUOpType.lwu -> ZeroExtend(rdata_result(31, 0), XLEN)
     )
   )
-  val addrAligned = LookupTree(
+  val addr_aligned = LookupTree(
     op(1, 0),
     List(
       "b00".U -> true.B, //b
@@ -130,14 +130,14 @@ class LsExecute extends Module {
 
   io.dataMemory.out.en    := valid && !io.out.addr_misaligned
   io.dataMemory.out.rlen  := size
-  io.dataMemory.out.wen   := isStore
-  io.dataMemory.out.wstrb := reqWmask
-  io.dataMemory.out.addr  := reqAddr
-  io.dataMemory.out.wdata := reqWdata
+  io.dataMemory.out.wen   := is_store
+  io.dataMemory.out.wstrb := req_wmask
+  io.dataMemory.out.addr  := req_addr
+  io.dataMemory.out.wdata := req_wdata
 
   io.out.ready           := io.dataMemory.in.ready && io.dataMemory.out.en
-  io.out.rdata           := Mux(partialLoad, rdataPartialLoad, rdataSel)
-  io.out.addr_misaligned := valid && !addrAligned
+  io.out.rdata           := Mux(partial_load, rdata_partial_result, rdata_result)
+  io.out.addr_misaligned := valid && !addr_aligned
   io.out.access_fault    := valid && access_fault
   io.out.page_fault      := valid && page_fault
 }

@@ -55,8 +55,8 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
     val dataMemory = new Lsu_DataMemory()
   })
 
-  val atomAlu = Module(new AtomAlu()).io
-  val lsExe   = Module(new LsExecute()).io
+  val atomAlu   = Module(new AtomAlu()).io
+  val lsExecute = Module(new LsExecute()).io
 
   val valid = io.memoryUnit.in.mem_en
   val src1  = io.memoryUnit.in.src_info.src1_data
@@ -95,10 +95,10 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
 
   val sc_invalid = (src1 =/= lr_addr || !lr) && sc_req
 
-  lsExe.in.info           := DontCare
-  lsExe.in.mem_addr       := DontCare
-  lsExe.in.mem_en         := false.B
-  lsExe.in.wdata          := DontCare
+  lsExecute.in.info       := DontCare
+  lsExecute.in.mem_addr   := DontCare
+  lsExecute.in.mem_en     := false.B
+  lsExecute.in.wdata      := DontCare
   io.memoryUnit.out.ready := false.B
 
   val allow_to_go             = io.memoryUnit.in.allow_to_go
@@ -110,62 +110,62 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
 
   switch(state) {
     is(s_idle) { // 0
-      lsExe.in.mem_en         := io.memoryUnit.in.mem_en && !atom_req
-      lsExe.in.mem_addr       := src1 + imm
-      lsExe.in.info.op        := func
-      lsExe.in.wdata          := src2
-      io.memoryUnit.out.ready := lsExe.out.ready || sc_invalid
+      lsExecute.in.mem_en     := io.memoryUnit.in.mem_en && !atom_req
+      lsExecute.in.mem_addr   := src1 + imm
+      lsExecute.in.info.op    := func
+      lsExecute.in.wdata      := src2
+      io.memoryUnit.out.ready := lsExecute.out.ready || sc_invalid
       when(amo_req) {
-        lsExe.in.mem_en         := true.B
-        lsExe.in.mem_addr       := src1
-        lsExe.in.info.op        := Mux(atom_d, LSUOpType.ld, LSUOpType.lw)
-        lsExe.in.wdata          := DontCare
+        lsExecute.in.mem_en     := true.B
+        lsExecute.in.mem_addr   := src1
+        lsExecute.in.info.op    := Mux(atom_d, LSUOpType.ld, LSUOpType.lw)
+        lsExecute.in.wdata      := DontCare
         io.memoryUnit.out.ready := false.B
-        when(lsExe.out.ready) {
+        when(lsExecute.out.ready) {
           state := s_amo_a;
           // 告诉dcache已经完成一次访存操作，可以进入下一次访存
           complete_single_request := true.B
         }
-        atom_wdata := lsExe.out.rdata
-        atom_rdata := lsExe.out.rdata
+        atom_wdata := lsExecute.out.rdata
+        atom_rdata := lsExecute.out.rdata
       }
       when(lr_req) {
-        lsExe.in.mem_en         := true.B
-        lsExe.in.mem_addr       := src1
-        lsExe.in.info.op        := Mux(atom_d, LSUOpType.ld, LSUOpType.lw)
-        lsExe.in.wdata          := DontCare
-        io.memoryUnit.out.ready := lsExe.out.ready
+        lsExecute.in.mem_en     := true.B
+        lsExecute.in.mem_addr   := src1
+        lsExecute.in.info.op    := Mux(atom_d, LSUOpType.ld, LSUOpType.lw)
+        lsExecute.in.wdata      := DontCare
+        io.memoryUnit.out.ready := lsExecute.out.ready
       }
       when(sc_req) { state := Mux(sc_invalid, s_idle, s_sc) }
     }
 
     is(s_sc) { // 1
-      lsExe.in.mem_en         := true.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atom_d, LSUOpType.sd, LSUOpType.sw)
-      lsExe.in.wdata          := src2
-      io.memoryUnit.out.ready := lsExe.out.ready
+      lsExecute.in.mem_en     := true.B
+      lsExecute.in.mem_addr   := src1
+      lsExecute.in.info.op    := Mux(atom_d, LSUOpType.sd, LSUOpType.sw)
+      lsExecute.in.wdata      := src2
+      io.memoryUnit.out.ready := lsExecute.out.ready
       when(allow_to_go) {
         state := s_idle
       }
     }
 
     is(s_amo_a) { // 2
-      lsExe.in.mem_en         := false.B
-      lsExe.in.mem_addr       := DontCare
-      lsExe.in.info.op        := DontCare
-      lsExe.in.wdata          := DontCare
+      lsExecute.in.mem_en     := false.B
+      lsExecute.in.mem_addr   := DontCare
+      lsExecute.in.info.op    := DontCare
+      lsExecute.in.wdata      := DontCare
       io.memoryUnit.out.ready := false.B
       state                   := s_amo_s
       atom_wdata              := atomAlu.out.result
     }
 
     is(s_amo_s) { // 3
-      lsExe.in.mem_en         := true.B
-      lsExe.in.mem_addr       := src1
-      lsExe.in.info.op        := Mux(atom_d, LSUOpType.sd, LSUOpType.sw)
-      lsExe.in.wdata          := atom_wdata
-      io.memoryUnit.out.ready := lsExe.out.ready
+      lsExecute.in.mem_en     := true.B
+      lsExecute.in.mem_addr   := src1
+      lsExecute.in.info.op    := Mux(atom_d, LSUOpType.sd, LSUOpType.sw)
+      lsExecute.in.wdata      := atom_wdata
+      io.memoryUnit.out.ready := lsExecute.out.ready
       when(allow_to_go) {
         state := s_idle
       }
@@ -173,24 +173,25 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   }
 
   when(
-    lsExe.out.addr_misaligned ||
-      lsExe.out.access_fault ||
-      lsExe.out.page_fault
+    lsExecute.out.addr_misaligned ||
+      lsExecute.out.access_fault ||
+      lsExecute.out.page_fault
   ) {
     state                   := s_idle
     io.memoryUnit.out.ready := true.B
     complete_single_request := false.B // 发生例外时应该由ctrl的allow to go控制
   }
 
-  io.dataMemory <> lsExe.dataMemory
+  io.dataMemory <> lsExecute.dataMemory
 
-  io.memoryUnit.out.ex                                := io.memoryUnit.in.ex
-  io.memoryUnit.out.ex.exception(loadAddrMisaligned)  := (load_req || lr_req) && lsExe.out.addr_misaligned
-  io.memoryUnit.out.ex.exception(loadAccessFault)     := (load_req || lr_req) && lsExe.out.access_fault
-  io.memoryUnit.out.ex.exception(loadPageFault)       := (load_req || lr_req) && lsExe.out.page_fault
-  io.memoryUnit.out.ex.exception(storeAddrMisaligned) := (store_req || sc_req || amo_req) && lsExe.out.addr_misaligned
-  io.memoryUnit.out.ex.exception(storeAccessFault)    := (store_req || sc_req || amo_req) && lsExe.out.addr_misaligned
-  io.memoryUnit.out.ex.exception(storePageFault)      := (store_req || sc_req || amo_req) && lsExe.out.page_fault
+  io.memoryUnit.out.ex                               := io.memoryUnit.in.ex
+  io.memoryUnit.out.ex.exception(loadAddrMisaligned) := (load_req || lr_req) && lsExecute.out.addr_misaligned
+  io.memoryUnit.out.ex.exception(loadAccessFault)    := (load_req || lr_req) && lsExecute.out.access_fault
+  io.memoryUnit.out.ex.exception(loadPageFault)      := (load_req || lr_req) && lsExecute.out.page_fault
+  io.memoryUnit.out.ex
+    .exception(storeAddrMisaligned)                := (store_req || sc_req || amo_req) && lsExecute.out.addr_misaligned
+  io.memoryUnit.out.ex.exception(storeAccessFault) := (store_req || sc_req || amo_req) && lsExecute.out.addr_misaligned
+  io.memoryUnit.out.ex.exception(storePageFault)   := (store_req || sc_req || amo_req) && lsExecute.out.page_fault
 
   io.memoryUnit.out.ex.tval(loadAddrMisaligned)  := io.dataMemory.out.addr
   io.memoryUnit.out.ex.tval(loadAccessFault)     := io.dataMemory.out.addr
@@ -200,7 +201,7 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   io.memoryUnit.out.ex.tval(storePageFault)      := io.dataMemory.out.addr
 
   io.memoryUnit.out.rdata := MuxCase(
-    lsExe.out.rdata,
+    lsExecute.out.rdata,
     Seq(
       (sc_req)  -> sc_invalid,
       (amo_req) -> atom_rdata
