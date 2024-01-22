@@ -66,9 +66,9 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
     io.csr.in.info := selectInstField(csr_sel, io.memoryStage.inst.map(_.info))
   }
 
-  io.csr.in.set_lr          := lsu.memoryUnit.out.set_lr && io.ctrl.allow_to_go
-  io.csr.in.set_lr_val      := lsu.memoryUnit.out.set_lr_val
-  io.csr.in.set_lr_addr     := lsu.memoryUnit.out.set_lr_addr
+  io.csr.in.lr_wen          := lsu.memoryUnit.out.lr_wen && io.ctrl.allow_to_go
+  io.csr.in.lr_wbit         := lsu.memoryUnit.out.lr_wbit
+  io.csr.in.lr_waddr        := lsu.memoryUnit.out.lr_waddr
   lsu.memoryUnit.in.lr      := io.csr.out.lr
   lsu.memoryUnit.in.lr_addr := io.csr.out.lr_addr
 

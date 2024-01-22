@@ -91,8 +91,8 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
     ctrl.executeUnit.do_flush && ctrl.executeUnit.allow_to_go ||
     !ctrl.decodeUnit.allow_to_go && ctrl.executeUnit.allow_to_go
   executeStage.ctrl.clear(1) := ctrl.memoryUnit.flush ||
-    (ctrl.executeUnit.do_flush && decodeUnit.instFifo.allow_to_go(1)) ||
-    (ctrl.executeUnit.allow_to_go && !decodeUnit.instFifo.allow_to_go(1))
+    ctrl.executeUnit.do_flush && decodeUnit.instFifo.allow_to_go(1) ||
+    !decodeUnit.instFifo.allow_to_go(1) && ctrl.executeUnit.allow_to_go
   executeStage.ctrl.allow_to_go(0) := ctrl.executeUnit.allow_to_go
   executeStage.ctrl.allow_to_go(1) := decodeUnit.instFifo.allow_to_go(1)
 

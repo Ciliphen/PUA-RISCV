@@ -13,9 +13,9 @@ class CsrMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
     val ex   = new ExceptionInfo()
     val info = new InstInfo()
 
-    val set_lr      = Bool()
-    val set_lr_val  = Bool()
-    val set_lr_addr = UInt(XLEN.W)
+    val lr_wen   = Bool()
+    val lr_wbit  = Bool()
+    val lr_waddr = UInt(XLEN.W)
   })
   val out = Output(new Bundle {
     val flush  = Bool()
@@ -153,20 +153,18 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val wdata = Wire(UInt(XLEN.W))
 
   // Atom LR/SC Control Bits
-  val set_lr      = WireInit(Bool(), false.B)
-  val set_lr_val  = WireInit(Bool(), false.B)
-  val set_lr_addr = WireInit(UInt(XLEN.W), 0.U)
-  val lr          = RegInit(Bool(), false.B)
-  val lr_addr     = RegInit(UInt(XLEN.W), 0.U)
-  set_lr                    := io.memoryUnit.in.set_lr
-  set_lr_val                := io.memoryUnit.in.set_lr_val
-  set_lr_addr               := io.memoryUnit.in.set_lr_addr
+  val lr_wen   = io.memoryUnit.in.lr_wen
+  val lr_wbit  = io.memoryUnit.in.lr_wbit
+  val lr_waddr = io.memoryUnit.in.lr_waddr
+  val lr       = RegInit(Bool(), false.B)
+  val lr_addr  = RegInit(UInt(XLEN.W), 0.U)
+
   io.memoryUnit.out.lr      := lr
   io.memoryUnit.out.lr_addr := lr_addr
 
-  when(set_lr) {
-    lr      := set_lr_val
-    lr_addr := set_lr_addr
+  when(lr_wen) {
+    lr      := lr_wbit
+    lr_addr := lr_waddr
   }
 
   // Side Effect
