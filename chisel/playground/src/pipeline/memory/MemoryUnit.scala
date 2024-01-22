@@ -29,63 +29,42 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   mou.in.info := io.memoryStage.inst(0).info
   mou.in.pc   := io.memoryStage.inst(0).pc
 
-  val mem_sel = VecInit(
+  def selectInstField[T <: Data](select: Vec[Bool], fields: Seq[T]): T = {
+    require(select.length == fields.length)
+    Mux1H(select.zip(fields))
+  }
+
+  val lsu_sel = VecInit(
     io.memoryStage.inst(0).info.valid &&
       io.memoryStage.inst(0).info.fusel === FuType.lsu &&
       !HasExcInt(io.memoryStage.inst(0).ex),
     io.memoryStage.inst(1).info.valid &&
       io.memoryStage.inst(1).info.fusel === FuType.lsu &&
-      !HasExcInt(io.memoryStage.inst(1).ex) && !HasExcInt(io.memoryStage.inst(0).ex)
+      !HasExcInt(io.memoryStage.inst(1).ex) && !HasExcInt(io.memoryStage.inst(0).ex) // 要保证指令0无异常
   )
-  lsu.memoryUnit.in.mem_en := mem_sel.reduce(_ || _)
-  lsu.memoryUnit.in.info := MuxCase(
-    0.U.asTypeOf(new InstInfo()),
-    Seq(
-      mem_sel(0) -> io.memoryStage.inst(0).info,
-      mem_sel(1) -> io.memoryStage.inst(1).info
-    )
-  )
-  lsu.memoryUnit.in.src_info := MuxCase(
-    0.U.asTypeOf(new SrcInfo()),
-    Seq(
-      mem_sel(0) -> io.memoryStage.inst(0).src_info,
-      mem_sel(1) -> io.memoryStage.inst(1).src_info
-    )
-  )
-  lsu.memoryUnit.in.ex := MuxCase(
-    0.U.asTypeOf(new ExceptionInfo()),
-    Seq(
-      mem_sel(0) -> io.memoryStage.inst(0).ex,
-      mem_sel(1) -> io.memoryStage.inst(1).ex
-    )
-  )
+  lsu.memoryUnit.in.mem_en   := lsu_sel.reduce(_ || _)
+  lsu.memoryUnit.in.info     := selectInstField(lsu_sel, io.memoryStage.inst.map(_.info))
+  lsu.memoryUnit.in.src_info := selectInstField(lsu_sel, io.memoryStage.inst.map(_.src_info))
+  lsu.memoryUnit.in.ex       := selectInstField(lsu_sel, io.memoryStage.inst.map(_.ex))
   lsu.dataMemory <> io.dataMemory
   lsu.memoryUnit.in.allow_to_go := io.ctrl.allow_to_go
 
   val csr_sel =
     HasExcInt(io.writeBackStage.inst(0).ex) || !HasExcInt(io.writeBackStage.inst(1).ex)
 
-  io.csr.in.pc := MuxCase(
-    0.U,
-    Seq(
-      (io.ctrl.allow_to_go && csr_sel)  -> io.memoryStage.inst(0).pc,
-      (io.ctrl.allow_to_go && !csr_sel) -> io.memoryStage.inst(1).pc
-    )
-  )
-  io.csr.in.ex := MuxCase(
-    0.U.asTypeOf(new ExceptionInfo()),
-    Seq(
-      (io.ctrl.allow_to_go && csr_sel)  -> io.writeBackStage.inst(0).ex,
-      (io.ctrl.allow_to_go && !csr_sel) -> io.writeBackStage.inst(1).ex
-    )
-  )
-  io.csr.in.info := MuxCase(
-    0.U.asTypeOf(new InstInfo()),
-    Seq(
-      (io.ctrl.allow_to_go && csr_sel)  -> io.memoryStage.inst(0).info,
-      (io.ctrl.allow_to_go && !csr_sel) -> io.memoryStage.inst(1).info
-    )
-  )
+  io.csr.in.pc   := 0.U
+  io.csr.in.ex   := 0.U.asTypeOf(new ExceptionInfo())
+  io.csr.in.info := 0.U.asTypeOf(new InstInfo())
+
+  def selectInstField[T <: Data](select: Bool, fields: Seq[T]): T = {
+    Mux1H(Seq(select -> fields(0), !select -> fields(1)))
+  }
+
+  when(io.ctrl.allow_to_go) {
+    io.csr.in.pc   := selectInstField(csr_sel, io.memoryStage.inst.map(_.pc))
+    io.csr.in.ex   := selectInstField(csr_sel, io.writeBackStage.inst.map(_.ex))
+    io.csr.in.info := selectInstField(csr_sel, io.memoryStage.inst.map(_.info))
+  }
 
   io.csr.in.set_lr          := lsu.memoryUnit.out.set_lr && io.ctrl.allow_to_go
   io.csr.in.set_lr_val      := lsu.memoryUnit.out.set_lr_val
@@ -93,34 +72,24 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   lsu.memoryUnit.in.lr      := io.csr.out.lr
   lsu.memoryUnit.in.lr_addr := io.csr.out.lr_addr
 
-  io.decodeUnit(0).wen   := io.writeBackStage.inst(0).info.reg_wen
-  io.decodeUnit(0).waddr := io.writeBackStage.inst(0).info.reg_waddr
-  io.decodeUnit(0).wdata := io.writeBackStage.inst(0).rd_info.wdata(io.writeBackStage.inst(0).info.fusel)
-  io.decodeUnit(1).wen   := io.writeBackStage.inst(1).info.reg_wen
-  io.decodeUnit(1).waddr := io.writeBackStage.inst(1).info.reg_waddr
-  io.decodeUnit(1).wdata := io.writeBackStage.inst(1).rd_info.wdata(io.writeBackStage.inst(1).info.fusel)
+  for (i <- 0 until cpuConfig.commitNum) {
+    io.decodeUnit(i).wen   := io.writeBackStage.inst(i).info.reg_wen
+    io.decodeUnit(i).waddr := io.writeBackStage.inst(i).info.reg_waddr
+    io.decodeUnit(i).wdata := io.writeBackStage.inst(i).rd_info.wdata(io.writeBackStage.inst(i).info.fusel)
 
-  io.writeBackStage.inst(0).pc                        := io.memoryStage.inst(0).pc
-  io.writeBackStage.inst(0).info                      := io.memoryStage.inst(0).info
-  io.writeBackStage.inst(0).rd_info.wdata             := io.memoryStage.inst(0).rd_info.wdata
-  io.writeBackStage.inst(0).rd_info.wdata(FuType.lsu) := lsu.memoryUnit.out.rdata
-  io.writeBackStage.inst(0).ex := Mux(
-    mem_sel(0),
-    lsu.memoryUnit.out.ex,
-    io.memoryStage.inst(0).ex
-  )
+    io.writeBackStage.inst(i).pc                        := io.memoryStage.inst(i).pc
+    io.writeBackStage.inst(i).info                      := io.memoryStage.inst(i).info
+    io.writeBackStage.inst(i).rd_info.wdata             := io.memoryStage.inst(i).rd_info.wdata
+    io.writeBackStage.inst(i).rd_info.wdata(FuType.lsu) := lsu.memoryUnit.out.rdata
+    io.writeBackStage.inst(i).ex := Mux(
+      lsu_sel(i),
+      lsu.memoryUnit.out.ex,
+      io.memoryStage.inst(i).ex
+    )
+  }
 
-  io.writeBackStage.inst(1).pc   := io.memoryStage.inst(1).pc
-  io.writeBackStage.inst(1).info := io.memoryStage.inst(1).info
   io.writeBackStage.inst(1).info.valid := io.memoryStage.inst(1).info.valid &&
     !(io.fetchUnit.flush && csr_sel) // 指令0导致flush时，不应该提交指令1
-  io.writeBackStage.inst(1).rd_info.wdata             := io.memoryStage.inst(1).rd_info.wdata
-  io.writeBackStage.inst(1).rd_info.wdata(FuType.lsu) := lsu.memoryUnit.out.rdata
-  io.writeBackStage.inst(1).ex := Mux(
-    mem_sel(1),
-    lsu.memoryUnit.out.ex,
-    io.memoryStage.inst(1).ex
-  )
 
   io.ctrl.flush     := io.fetchUnit.flush
   io.ctrl.mem_stall := !lsu.memoryUnit.out.ready && lsu.memoryUnit.in.mem_en
