@@ -87,15 +87,13 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   decodeUnit.csr <> csr.decodeUnit
   decodeUnit.executeStage <> executeStage.decodeUnit
 
-  executeStage.ctrl.clear(0) := ctrl.memoryUnit.flush ||
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    executeStage.ctrl.clear(i) := ctrl.memoryUnit.flush ||
     ctrl.executeUnit.do_flush && ctrl.executeUnit.allow_to_go ||
-    !ctrl.decodeUnit.allow_to_go && ctrl.executeUnit.allow_to_go
-  executeStage.ctrl.clear(1) := ctrl.memoryUnit.flush ||
-    ctrl.executeUnit.do_flush && decodeUnit.instFifo.allow_to_go(1) ||
-    !decodeUnit.instFifo.allow_to_go(1) && ctrl.executeUnit.allow_to_go
-  executeStage.ctrl.allow_to_go(0) := ctrl.executeUnit.allow_to_go
-  executeStage.ctrl.allow_to_go(1) := decodeUnit.instFifo.allow_to_go(1)
+    !decodeUnit.instFifo.allow_to_go(i) && ctrl.executeUnit.allow_to_go
 
+    executeStage.ctrl.allow_to_go(i) := decodeUnit.instFifo.allow_to_go(i)
+  }
   executeUnit.executeStage <> executeStage.executeUnit
   executeUnit.csr <> csr.executeUnit
   executeUnit.memoryStage <> memoryStage.executeUnit
