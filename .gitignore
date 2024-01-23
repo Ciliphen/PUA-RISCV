@@ -4,3 +4,4 @@ user/sim/wave.vcd
 user/sim/testbench.v
 *.~vsdx
 *.pdf
+~*.xlsx
