@@ -1,4 +1,4 @@
-#import "template.typ": *
+#import "../template/template.typ": *
 #import "@preview/tablex:0.0.7": *
 
 // Take a look at the file `template.typ` in the file panel
@@ -47,19 +47,19 @@ RISC-V单周期CPU设计实现简单，控制器部分是纯组合逻辑电路�
 
 #fakepar
 #figure(
-  image("../image/image-20240107161239749.png"),
+  image("image/image-20240107161239749.png"),
   caption: "单周期CPU"
 )<单周期CPU>
 
 #figure(
-  image("../image/image-20240107150508299.png"),
+  image("image/image-20240107150508299.png"),
   caption: "单周期CPU逻辑划分"
 )<单周期CPU逻辑划分>
 #fakepar
 
 将电路流水线化的初衷是缩短时序器件之间组合逻辑关键路径的时延，在不降低电路处理吞吐率的情况下提升电路的时钟频率。从电路设计最终的实现形式来看，是将一段组合逻辑按照功能划分为若干阶段，在各功能阶段的组合逻辑之间插入时序器件（通常是触发器），前一阶段的组合逻辑输出接入时序器件的输入，后一阶段的组合逻辑输入来自这些时序器件的输出。
 
-而将电路流水化最困难的地方是决定将单周期CPU中的组合逻辑划分为多少个阶段以及各个阶段包含哪些功能。这个设计决策需要结合CPU产品的性能（含主频）、功耗、面积指标以及具体采用的工艺特性来完成。对于初学者而言，这部分设计涉及的内容过多、过细、过深，因此我们将直接采用经典的单发射五级流水线划分。所划分的五级流水从前往后依次为：取指阶段（Fetch）、译码阶段（Decode）、执行阶段（Execute）、访存阶段（Memory）和写回阶段（WriteBack）。
+而将电路流水化最困难的地方是决定将单周期CPU中的组合逻辑划分为多少个阶段以及各个阶段包含哪些功能。这个设计决策需要结合CPU产品的性能（含主频）、功耗、面积指标以及具体采用的工艺特性来完成。对于教学而言，这部分设计涉及的内容过多、过细、过深，因此本实验将直接采用经典的单发射五级流水线划分。所划分的五级流水从前往后依次为：取指阶段（Fetch）、译码阶段（Decode）、执行阶段（Execute）、访存阶段（Memory）和写回阶段（WriteBack）。
 
 + 取指阶段的主要功能是将指令取回。
 + 译码阶段的主要功能是解析指令生成控制信号并读取通用寄存器堆生成源操作数。
@@ -67,42 +67,42 @@ RISC-V单周期CPU设计实现简单，控制器部分是纯组合逻辑电路�
 + 访存阶段的主要功能是取回访存的结果。
 + 写回阶段的主要功能是将结果写入通用寄存器堆。
 
-#indent 结合这个流水线阶段的划分方案，我们将单周期CPU的数据通路拆分为五段（如@单周期CPU逻辑划分 所示），并在各段之间加入触发器作为流水线缓存，@五级流水线CPU逻辑结构 展示了RISC-V流水线的逻辑结构。
+#indent 结合以上流水线阶段的划分方案，将单周期CPU的数据通路拆分为五段（如@单周期CPU逻辑划分 所示），并在各段之间加入触发器作为流水线缓存，@五级流水线CPU逻辑结构 展示了RISC-V流水线的逻辑结构。
 
 #fakepar
 #figure(
-  image("../image/image-20240108174346298.png"),
+  image("image/image-20240108174346298.png"),
   caption: "五级流水线CPU逻辑结构"
 )<五级流水线CPU逻辑结构>
 #fakepar
 
-所有部件采用同一个系统时钟clock来同步，每到来一个时钟clock，各段逻辑功能部件处理完毕的数据会锁存到下一级的流水线缓存中，作为下一段的输入数据，指令执行进入下一阶段。clock频率的取决于流水线缓存两级间的最大逻辑延迟。
+所有部件采用同一个系统时钟clock来进行同步，每到来一个时钟clock，各段逻辑功能部件处理完毕的数据会被锁存到下一级的流水线缓存中，作为下一段的输入数据，指令执行进入下一阶段。clock的频率取决于流水线缓存两级间的最大逻辑延迟。
 
 === 性能差异
 
 #fakepar
 #figure(
-  image("../image/image-20240107201217987.png"),
+  image("image/image-20240107201217987.png"),
   caption: "单周期CPU时空图"
 )<单周期CPU时空图>
 
 #figure(
-  image("../image/image-20240107193813519.png"),
+  image("image/image-20240107193813519.png"),
   caption: "五级流水线CPU时空图"
 )<五级流水线CPU时空图>
 #fakepar
 
-@单周期CPU时空图 给出了RISC-V单周期CPU的时空图，可以看到，每条指令执行需要5个时钟周期，即$5 Delta t$。1个时钟周期是1个$Delta t$，也就是每5个$Delta t$可以提交1条指令，单周期CPU的IPC是0.2。算出运行n条指令花费的总时间为$n dot 5 Delta t$。@五级流水线CPU时空图 给出了RISC-V理想的五级流水线CPU时空图。在理想情况下，当流水线满载运行时，每个时钟周期流水线可以提交1条指令，也就是CPU的IPC为1。流水线完成n条指令的总时间为$(4+n)dot Delta t$。当n趋近于$infinity$时，相比单周期CPU执行n条指令花费的时间，五级流水线的加速比$lim_(n->oo)S_p=frac(5 n dot Delta t,(4+n) dot Delta t)=5$，即理想的五级流水线CPU的执行效率是单周期CPU的5倍。
+@单周期CPU时空图 给出了RISC-V单周期CPU的时空图，可以看到，每条指令执行需要5个时钟周期，即$5 Delta t$。1个时钟周期是1个$Delta t$，也就是每5个$Delta t$可以提交1条指令，单周期CPU的IPC是0.2。算出运行n条指令花费的总时间为$n dot 5 Delta t$。@五级流水线CPU时空图 给出了RISC-V理想的五级流水线CPU时空图。在理想情况下，当流水线满载运行时，每个时钟周期流水线可以提交1条指令，也就是CPU的IPC为1。流水线完成n条指令的总时间为$4 dot Delta t + n dot Delta t$。当n趋近于$infinity$时，相比单周期CPU执行n条指令花费的时间，五级流水线的加速比$lim_(n->oo)S_p=frac(5 n dot Delta t, 4 dot Delta t + n dot Delta t)=5$，即理想的五级流水线CPU的执行效率是单周期CPU的5倍。
 
 == 数据通路设计
 
 === 设计的基本方法
 
-经过之前的数字电路设计实验的学习，你应该掌握了数字逻辑电路设计的一般性方法。在计算机结构设计实验中，我们要设计的CPU也是一个数字逻辑电路，它的设计也应该遵循数字逻辑电路设计的一般性方法。CPU不但要完成运算，也要维持自身的状态，所以CPU这个数字逻辑电路一定是既有组合逻辑电路又有时序逻辑电路的。CPU输入的、运算的、存储的、输出的数据都在组合逻辑电路和时序逻辑电路上流转，我们常称这些逻辑电路为数据通路（Datapath）。因此，要设计CPU这个数字逻辑电路，首要的工作就是设计数据通路。同时，因为数据通路中会有多路选择器、时序逻辑器件，所以还要有相应的控制信号，产生这些控制信号的逻辑称为控制逻辑。所以，从宏观的视角来看，设计一个CPU就是设计它的“数据通路+控制逻辑”。
+在计算机结构设计实验中，需要设计实现的CPU也是一个数字逻辑电路，其设计应该遵循数字逻辑电路设计的一般性方法。CPU不但要完成运算，也要维持自身的状态，所以CPU这个数字逻辑电路一定是既有组合逻辑电路又有时序逻辑电路的。CPU输入的、运算的、存储的、输出的数据都在组合逻辑电路和时序逻辑电路上流转，这些逻辑电路被称为数据通路（Datapath）。因此，要设计CPU这个数字逻辑电路，首要的工作就是设计数据通路。同时，因为数据通路中会有多路选择器、时序逻辑器件，所以还要有相应的控制信号，产生这些控制信号的逻辑被称为控制逻辑。所以，从宏观的视角来看，设计一个CPU就是设计“数据通路+控制逻辑”。
 
 #fakepar
 #figure(
-  image("../image/image-20240107213744736.png"),
+  image("image/image-20240107213744736.png"),
   caption: "理想的五级流水线CPU数据与控制信号传递图"
 )<理想的五级流水线CPU数据与控制信号传递图>
 #fakepar
@@ -129,7 +129,7 @@ RISC-V单周期CPU设计实现简单，控制器部分是纯组合逻辑电路�
 
 #fakepar
 #figure(
-  image("../image/image-20240109155256358.png"),
+  image("image/image-20240109155256358.png"),
   caption: "取指单元及指令RAM"
 )<取指单元及指令RAM>
 #fakepar
@@ -156,7 +156,7 @@ pc的输出将送到指令SRAM中用于获取指令，由于我们的指令SRAM�
 
 #fakepar
 #figure(
-  image("../image/image-20240109153542526.png"),
+  image("image/image-20240109153542526.png"),
   caption: "指令队列"
 )<指令队列>
 #fakepar
@@ -177,7 +177,7 @@ pc的输出将送到指令SRAM中用于获取指令，由于我们的指令SRAM�
 
 #fakepar
 #figure(
-  image("../image/image-20240109144722861.png"),
+  image("image/image-20240109144722861.png"),
   caption: "R型指令格式"
 )<R型指令格式>
 #fakepar
@@ -186,7 +186,7 @@ pc的输出将送到指令SRAM中用于获取指令，由于我们的指令SRAM�
 
 #fakepar
 #figure(
-  image("../image/image-20240109161753616.png", width: 95%),
+  image("image/image-20240109161753616.png", width: 95%),
   caption: "R型运算指令"
 )<R型运算指令>
 #fakepar
@@ -205,7 +205,7 @@ R型运算指令都是三地址指令，每条指令都有两个源操作数以�
 
 #fakepar
 #figure(
-  image("../image/image-20240107213027949.png"),
+  image("image/image-20240107213027949.png"),
   caption: "ADD指令定义"
 )<ADD指令定义>
 #fakepar
@@ -230,7 +230,7 @@ ADD指令的源操作数都来自通用寄存器堆，因此src1_ren和src2_ren�
 
 #fakepar
 #figure(
-  image("../image/image-20240111133429499.png", width: 80%),
+  image("image/image-20240111133429499.png", width: 80%),
   caption: "译码单元"
 )<译码单元>
 #fakepar
@@ -241,7 +241,7 @@ ADD指令的源操作数都来自通用寄存器堆，因此src1_ren和src2_ren�
 
 #fakepar
 #figure(
-  image("../image/image-20240111132343570.png", width: 80%),
+  image("image/image-20240111132343570.png", width: 80%),
   caption: "执行级缓存"
 )<执行级缓存>
 #fakepar
@@ -254,7 +254,7 @@ ADD指令的源操作数都来自通用寄存器堆，因此src1_ren和src2_ren�
 
 #fakepar
 #figure(
-  image("../image/image-20240111135449651.png", width: 85%),
+  image("image/image-20240111135449651.png", width: 85%),
   caption: "执行单元"
 )<执行单元>
 #fakepar
@@ -265,7 +265,7 @@ ADD指令的源操作数都来自通用寄存器堆，因此src1_ren和src2_ren�
 
 #fakepar
 #figure(
-  image("../image/image-20240111135906222.png", width: 85%),
+  image("image/image-20240111135906222.png", width: 85%),
   caption: "访存级缓存"
 )<访存级缓存>
 #fakepar
@@ -276,7 +276,7 @@ ADD指令的源操作数都来自通用寄存器堆，因此src1_ren和src2_ren�
 
 #fakepar
 #figure(
-  image("../image/image-20240111150330436.png", width: 75%),
+  image("image/image-20240111150330436.png", width: 75%),
   caption: "访存单元"
 )<访存单元>
 #fakepar
@@ -287,7 +287,7 @@ ADD指令并不需要访问内存，因此在该流水级什么也不做，只�
 
 #fakepar
 #figure(
-  image("../image/image-20240111140744667.png", width: 80%),
+  image("image/image-20240111140744667.png", width: 80%),
   caption: "写回级缓存"
 )<写回级缓存>
 #fakepar
@@ -300,7 +300,7 @@ ADD指令需要写回通用寄存器堆，因此我们需要在写回级访问�
 
 #fakepar
 #figure(
-  image("../image/image-20240111143829812.png", width: 90%),
+  image("image/image-20240111143829812.png", width: 90%),
   caption: "写回单元"
 )<写回单元>
 #fakepar
@@ -324,7 +324,7 @@ TODO：增加目录结构图
 
 #fakepar
 #figure(
-  image("../image/image-20240111160016125.png", width: 80%),
+  image("image/image-20240111160016125.png", width: 80%),
   caption: "基于myCPU的简单Soc结构"
 )<基于myCPU的简单Soc结构>
 #fakepar
@@ -351,7 +351,7 @@ TODO：仿真结构
 
 #fakepar
 #figure(
-  image("../image/image-20240111165434087.png", width: 80%),
+  image("image/image-20240111165434087.png", width: 80%),
   caption: "差分测试框架接口"
 )<差分测试框架接口>
 #fakepar
@@ -410,7 +410,7 @@ TODO：仿真结构
 
 #fakepar
 #figure(
-  image("../image/image-20240111151739011.png", width: 70%),
+  image("image/image-20240111151739011.png", width: 70%),
   caption: "功能验证框架"
 )<功能验证框架>
 #fakepar
