@@ -63,8 +63,7 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   bpu.execute <> executeUnit.bpu
 
   instFifo.do_flush := ctrl.decodeUnit.do_flush
-  instFifo.ren <> decodeUnit.instFifo.allow_to_go
-  decodeUnit.instFifo.inst <> instFifo.read
+  instFifo.decoderUint <> decodeUnit.instFifo
 
   for (i <- 0 until cpuConfig.instFetchNum) {
     instFifo.write(i).pht_index    := bpu.instBuffer.pht_index(i)
@@ -76,8 +75,6 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
     instFifo.write(i).page_fault   := io.inst.page_fault
   }
 
-  decodeUnit.instFifo.info.empty        := instFifo.empty
-  decodeUnit.instFifo.info.almost_empty := instFifo.almost_empty
   decodeUnit.regfile <> regfile.read
   for (i <- 0 until (cpuConfig.commitNum)) {
     decodeUnit.forward(i).exe     := executeUnit.decodeUnit.forward(i).exe

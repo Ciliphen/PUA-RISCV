@@ -6,7 +6,7 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 
-class ExeMemInfo extends Bundle {
+class ExeMemData extends Bundle {
   val pc       = UInt(XLEN.W)
   val info     = new InstInfo()
   val rd_info  = new RdInfo()
@@ -15,7 +15,7 @@ class ExeMemInfo extends Bundle {
 }
 
 class ExecuteUnitMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
-  val inst = Vec(cpuConfig.commitNum, new ExeMemInfo())
+  val inst = Vec(cpuConfig.commitNum, new ExeMemData())
 }
 
 class MemoryStage(implicit val cpuConfig: CpuConfig) extends Module {
@@ -27,11 +27,11 @@ class MemoryStage(implicit val cpuConfig: CpuConfig) extends Module {
     val executeUnit = Input(new ExecuteUnitMemoryUnit())
     val memoryUnit  = Output(new ExecuteUnitMemoryUnit())
   })
-  val inst = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new ExeMemInfo())))
+  val inst = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new ExeMemData())))
 
   for (i <- 0 until (cpuConfig.commitNum)) {
     when(io.ctrl.clear) {
-      inst(i) := 0.U.asTypeOf(new ExeMemInfo())
+      inst(i) := 0.U.asTypeOf(new ExeMemData())
     }.elsewhen(io.ctrl.allow_to_go) {
       inst(i) := io.executeUnit.inst(i)
     }

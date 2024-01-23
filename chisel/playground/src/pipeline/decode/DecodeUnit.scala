@@ -7,12 +7,12 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
 import cpu.pipeline.execute.DecodeUnitExecuteUnit
-import cpu.pipeline.fetch.BufferUnit
+import cpu.pipeline.fetch.IfIdData
 import cpu.pipeline.execute
 
 class DecodeUnitInstFifo(implicit val cpuConfig: CpuConfig) extends Bundle {
   val allow_to_go = Output(Vec(cpuConfig.decoderNum, Bool()))
-  val inst        = Input(Vec(cpuConfig.decoderNum, new BufferUnit()))
+  val inst        = Input(Vec(cpuConfig.decoderNum, new IfIdData()))
   val info = Input(new Bundle {
     val empty        = Bool()
     val almost_empty = Bool()
@@ -20,9 +20,9 @@ class DecodeUnitInstFifo(implicit val cpuConfig: CpuConfig) extends Bundle {
 }
 
 class DataForwardToDecodeUnit extends Bundle {
-  val exe      = new RegWrite()
+  val exe     = new RegWrite()
   val is_load = Bool()
-  val mem      = new RegWrite()
+  val mem     = new RegWrite()
 }
 
 class DecoderBranchPredictorUnit extends Bundle {
@@ -74,7 +74,7 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   for (i <- 0 until (cpuConfig.decoderNum)) {
     decoder(i).io.in.inst      := inst(i)
     issue.decodeInst(i)        := info(i)
-    issue.execute(i).is_load  := io.forward(i).is_load
+    issue.execute(i).is_load   := io.forward(i).is_load
     issue.execute(i).reg_waddr := io.forward(i).exe.waddr
     io.regfile(i).src1.raddr   := info(i).src1_raddr
     io.regfile(i).src2.raddr   := info(i).src2_raddr

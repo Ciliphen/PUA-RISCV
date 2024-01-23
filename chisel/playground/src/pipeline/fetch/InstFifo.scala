@@ -4,8 +4,9 @@ import chisel3._
 import chisel3.util._
 import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
+import cpu.pipeline.decode.DecodeUnitInstFifo
 
-class BufferUnit extends Bundle {
+class IfIdData extends Bundle {
   val bpuConfig    = new BranchPredictorConfig()
   val inst         = UInt(XLEN.W)
   val pht_index    = UInt(bpuConfig.phtDepth.W)
@@ -18,18 +19,14 @@ class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val do_flush = Input(Bool())
 
-    val ren  = Input(Vec(cpuConfig.decoderNum, Bool()))
-    val read = Output(Vec(cpuConfig.decoderNum, new BufferUnit()))
-
     val wen   = Input(Vec(cpuConfig.instFetchNum, Bool()))
-    val write = Input(Vec(cpuConfig.instFetchNum, new BufferUnit()))
+    val write = Input(Vec(cpuConfig.instFetchNum, new IfIdData()))
+    val full  = Output(Bool())
 
-    val empty        = Output(Bool())
-    val almost_empty = Output(Bool())
-    val full         = Output(Bool())
+    val decoderUint = Flipped(new DecodeUnitInstFifo())
   })
   // fifo buffer
-  val buffer = RegInit(VecInit(Seq.fill(cpuConfig.instFifoDepth)(0.U.asTypeOf(new BufferUnit()))))
+  val buffer = RegInit(VecInit(Seq.fill(cpuConfig.instFifoDepth)(0.U.asTypeOf(new IfIdData()))))
 
   // fifo ptr
   val enq_ptr = RegInit(0.U(log2Ceil(cpuConfig.instFifoDepth).W))
@@ -38,31 +35,37 @@ class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {
 
   // config.instFifoDepth - 1 is the last element, config.instFifoDepth - 2 is the last second element
   // the second last element's valid decide whether the fifo is full
-  io.full         := count >= (cpuConfig.instFifoDepth - cpuConfig.instFetchNum).U // TODO:这里的等于号还可以优化
-  io.empty        := count === 0.U
-  io.almost_empty := count === 1.U
+
+  val full         = count >= (cpuConfig.instFifoDepth - cpuConfig.instFetchNum).U
+  val empty        = count === 0.U
+  val almost_empty = count === 1.U
+
+  io.full                          := full
+  io.decoderUint.info.empty        := empty
+  io.decoderUint.info.almost_empty := almost_empty
 
   // * deq * //
-  io.read(0) := MuxCase(
+  io.decoderUint.inst(0) := MuxCase(
     buffer(deq_ptr),
     Seq(
-      io.empty        -> 0.U.asTypeOf(new BufferUnit()),
-      io.almost_empty -> buffer(deq_ptr)
+      empty        -> 0.U.asTypeOf(new IfIdData()),
+      almost_empty -> buffer(deq_ptr)
     )
   )
-  io.read(1) := MuxCase(
+
+  io.decoderUint.inst(1) := MuxCase(
     buffer(deq_ptr + 1.U),
     Seq(
-      (io.empty || io.almost_empty) -> 0.U.asTypeOf(new BufferUnit())
+      (empty || almost_empty) -> 0.U.asTypeOf(new IfIdData())
     )
   )
 
   val deq_num = MuxCase(
     0.U,
     Seq(
-      (io.empty) -> 0.U,
-      io.ren(1)  -> 2.U,
-      io.ren(0)  -> 1.U
+      (empty)                       -> 0.U,
+      io.decoderUint.allow_to_go(1) -> 2.U,
+      io.decoderUint.allow_to_go(0) -> 1.U
     )
   )
 
