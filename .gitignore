@@ -5,3 +5,4 @@ user/sim/testbench.v
 *.~vsdx
 *.pdf
 ~*.xlsx
+~*.docx
