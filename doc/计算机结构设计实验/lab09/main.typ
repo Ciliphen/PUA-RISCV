@@ -356,7 +356,7 @@ pc的输出将送到指令SRAM中用于获取指令，由于指令SRAM的地址�
       colspanx(5, inset:(x: 2em))[rs1], 
       colspanx(3)[000], 
       colspanx(5, inset:(x: 2em))[rd], 
-      colspanx(7, inset:(x: 1.5em))[0111011], [ADDW],
+      colspanx(7, inset:(x: 1.5em))[0111011], [SUBW],
 
       hlinex(end:32),
 
@@ -633,7 +633,7 @@ TODO：仿真结构
 + 根据本实验提供的五级流水线编程框架，在流水线 CPU 中添加以下指令：ADD、SUB、SLL、SLT、SLTU、XOR、SRL、SRA、OR、AND、ADDW、SUBW、SLLW、SRLW、SRLW、SRAW。
 + 通过本实验提供的所有仿真验证测试用例
 + 通过本实验提供的所有板级验证测试用例
-+ 撰写实验报告：撰写报告时要求叙述以下内容，以及你对本实验的思考与探索。
++ 撰写实验报告.撰写报告时要求叙述以下内容，以及你对本实验的思考与探索。
   #[
     #set enum(numbering: "a）")
     + 选择需要实现的指令中的一条，按照你自己的理解，逐步介绍其数据通路设计的思路以及实现过程
