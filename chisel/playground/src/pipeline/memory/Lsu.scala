@@ -27,7 +27,7 @@ class Lsu_DataMemory extends Bundle {
 class Lsu_MemoryUnit extends Bundle {
   val in = Input(new Bundle {
     val mem_en   = Bool()
-    val info     = new InstInfo()
+    val info     = new Info()
     val src_info = new SrcInfo()
     val ex       = new ExceptionInfo()
 

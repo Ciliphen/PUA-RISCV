@@ -7,7 +7,7 @@ import cpu.defines.Const._
 
 class Alu extends Module {
   val io = IO(new Bundle {
-    val info     = Input(new InstInfo())
+    val info     = Input(new Info())
     val src_info = Input(new SrcInfo())
     val result   = Output(UInt(XLEN.W))
   })

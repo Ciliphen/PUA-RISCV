@@ -11,7 +11,7 @@ class JumpCtrl(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val in = Input(new Bundle {
       val pc       = UInt(XLEN.W)
-      val info     = new InstInfo()
+      val info     = new Info()
       val src_info = new SrcInfo()
       val forward  = Vec(cpuConfig.commitNum, new DataForwardToDecodeUnit())
     })

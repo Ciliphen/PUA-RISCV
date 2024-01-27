@@ -54,7 +54,7 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
 
   io.csr.in.pc   := 0.U
   io.csr.in.ex   := 0.U.asTypeOf(new ExceptionInfo())
-  io.csr.in.info := 0.U.asTypeOf(new InstInfo())
+  io.csr.in.info := 0.U.asTypeOf(new Info())
 
   def selectInstField[T <: Data](select: Bool, fields: Seq[T]): T = {
     Mux1H(Seq(select -> fields(0), !select -> fields(1)))

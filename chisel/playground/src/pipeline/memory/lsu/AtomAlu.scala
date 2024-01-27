@@ -11,7 +11,7 @@ class AtomAlu extends Module {
     val in = Input(new Bundle {
       val rdata = Input(UInt(XLEN.W)) // load data
       val src2  = Input(UInt(XLEN.W)) // reg data
-      val info  = new InstInfo()
+      val info  = new Info()
     })
     val out = Output(new Bundle {
       val result = Output(UInt(XLEN.W))

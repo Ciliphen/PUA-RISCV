@@ -13,7 +13,7 @@ class Decoder extends Module with HasInstrType with HasCSRConst {
     })
     // outputs
     val out = Output(new Bundle {
-      val info = new InstInfo()
+      val info = new Info()
     })
   })
 

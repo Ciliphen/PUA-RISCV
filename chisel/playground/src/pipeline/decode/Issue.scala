@@ -15,7 +15,7 @@ class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
       val empty        = Bool()
       val almost_empty = Bool()
     })
-    val decodeInst = Input(Vec(cpuConfig.decoderNum, new InstInfo()))
+    val decodeInst = Input(Vec(cpuConfig.decoderNum, new Info()))
     val execute    = Input(Vec(cpuConfig.commitNum, new MemRead()))
     // 输出
     val inst1 = Output(new Bundle {

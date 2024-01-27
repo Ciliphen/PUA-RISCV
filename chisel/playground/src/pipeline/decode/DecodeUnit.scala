@@ -28,7 +28,7 @@ class DataForwardToDecodeUnit extends Bundle {
 class DecoderBranchPredictorUnit extends Bundle {
   val bpuConfig = new BranchPredictorConfig()
   val pc        = Output(UInt(XLEN.W))
-  val info      = Output(new InstInfo())
+  val info      = Output(new Info())
   val pht_index = Output(UInt(bpuConfig.phtDepth.W))
 
   val branch_inst      = Input(Bool())
@@ -61,7 +61,7 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
 
   val pc   = io.instFifo.inst.map(_.pc)
   val inst = io.instFifo.inst.map(_.inst)
-  val info = Wire(Vec(cpuConfig.decoderNum, new InstInfo()))
+  val info = Wire(Vec(cpuConfig.decoderNum, new Info()))
   val mode = io.csr.mode
 
   info          := decoder.map(_.io.out.info)

@@ -11,7 +11,7 @@ class CsrMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
     val pc   = UInt(XLEN.W)
     val ex   = new ExceptionInfo()
-    val info = new InstInfo()
+    val info = new Info()
 
     val lr_wen   = Bool()
     val lr_wbit  = Bool()
@@ -30,7 +30,7 @@ class CsrExecuteUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val in = Input(new Bundle {
     val valid    = Bool()
     val pc       = UInt(XLEN.W)
-    val info     = new InstInfo()
+    val info     = new Info()
     val src_info = new SrcInfo()
     val ex       = new ExceptionInfo()
   })

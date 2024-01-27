@@ -13,7 +13,7 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
       cpuConfig.decoderNum,
       new Bundle {
         val pc       = Input(UInt(XLEN.W))
-        val info     = Input(new InstInfo())
+        val info     = Input(new Info())
         val src_info = Input(new SrcInfo())
         val result = Output(new Bundle {
           val mdu = UInt(XLEN.W)
@@ -51,7 +51,7 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
   io.branch.target := branchCtrl.out.target
 
   for (i <- 0 until (cpuConfig.commitNum)) {
-    alu(i).io.info     := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).info, 0.U.asTypeOf(new InstInfo()))
+    alu(i).io.info     := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).info, 0.U.asTypeOf(new Info()))
     alu(i).io.src_info := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).src_info, 0.U.asTypeOf(new SrcInfo()))
   }
 
@@ -61,7 +61,7 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
   )
 
   mdu.info := MuxCase(
-    0.U.asTypeOf(new InstInfo()),
+    0.U.asTypeOf(new Info()),
     Seq(mdu_sel(0) -> io.inst(0).info, mdu_sel(1) -> io.inst(1).info)
   )
   mdu.src_info := MuxCase(

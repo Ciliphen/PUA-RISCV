@@ -8,7 +8,7 @@ import cpu.CpuConfig
 
 class MemWbData extends Bundle {
   val pc      = UInt(XLEN.W)
-  val info    = new InstInfo()
+  val info    = new Info()
   val rd_info = new RdInfo()
   val ex      = new ExceptionInfo()
 }

@@ -13,7 +13,7 @@ class LsExecute extends Module {
       val mem_en   = Bool()
       val mem_addr = UInt(XLEN.W)
       val wdata    = UInt(XLEN.W)
-      val info     = new InstInfo()
+      val info     = new Info()
     })
     val out = Output(new Bundle {
       val addr_misaligned = Bool()

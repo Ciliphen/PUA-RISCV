@@ -156,7 +156,7 @@ object MDUOpType {
 
   def isDiv(op:     UInt) = op(2)
   def isDivSign(op: UInt) = isDiv(op) && !op(0)
-  def isW(op:       UInt) = op(3)
+  def isWordOp(op:  UInt) = op(3)
 }
 
 // csr unit

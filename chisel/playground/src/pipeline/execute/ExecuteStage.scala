@@ -9,7 +9,7 @@ import cpu.CpuConfig
 
 class IdExeData extends Bundle {
   val pc       = UInt(XLEN.W)
-  val info     = new InstInfo()
+  val info     = new Info()
   val src_info = new SrcInfo()
   val ex       = new ExceptionInfo()
 }

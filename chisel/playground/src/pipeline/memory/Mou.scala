@@ -8,7 +8,7 @@ import cpu.defines.Const._
 class Mou extends Module {
   val io = IO(new Bundle {
     val in = Input(new Bundle {
-      val info = new InstInfo()
+      val info = new Info()
       val pc   = UInt(XLEN.W)
     })
     val out = Output(new Bundle {

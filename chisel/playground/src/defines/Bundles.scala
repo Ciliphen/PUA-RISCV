@@ -29,7 +29,7 @@ class RdInfo extends Bundle {
   val wdata = Vec(FuType.num, UInt(XLEN.W))
 }
 
-class InstInfo extends Bundle {
+class Info extends Bundle {
   val valid      = Bool()
   val inst_legal = Bool()
   val src1_ren   = Bool()

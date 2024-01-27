@@ -8,7 +8,7 @@ import cpu.CpuConfig
 
 class ExeMemData extends Bundle {
   val pc       = UInt(XLEN.W)
-  val info     = new InstInfo()
+  val info     = new Info()
   val rd_info  = new RdInfo()
   val src_info = new SrcInfo()
   val ex       = new ExceptionInfo()

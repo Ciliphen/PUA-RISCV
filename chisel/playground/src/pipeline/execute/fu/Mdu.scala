@@ -8,7 +8,7 @@ import cpu.CpuConfig
 
 class Mdu(implicit cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val info        = Input(new InstInfo())
+    val info        = Input(new Info())
     val src_info    = Input(new SrcInfo())
     val allow_to_go = Input(Bool())
 
@@ -22,7 +22,7 @@ class Mdu(implicit cpuConfig: CpuConfig) extends Module {
   val valid  = io.info.valid
   val op     = io.info.op
   val is_div = MDUOpType.isDiv(op)
-  val is_w   = MDUOpType.isW(op)
+  val is_w   = MDUOpType.isWordOp(op)
 
   val src1 = io.src_info.src1_data
   val src2 = io.src_info.src2_data

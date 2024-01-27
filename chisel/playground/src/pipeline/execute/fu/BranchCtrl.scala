@@ -9,7 +9,7 @@ class BranchCtrl extends Module {
   val io = IO(new Bundle {
     val in = new Bundle {
       val pc            = Input(UInt(XLEN.W))
-      val info          = Input(new InstInfo())
+      val info          = Input(new Info())
       val src_info      = Input(new SrcInfo())
       val pred_branch   = Input(Bool())
       val jump_regiser  = Input(Bool())
