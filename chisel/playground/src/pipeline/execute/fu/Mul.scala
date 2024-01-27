@@ -21,7 +21,7 @@ class Mul(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
     val src1        = Input(UInt((XLEN + 1).W))
     val src2        = Input(UInt((XLEN + 1).W))
-    val start       = Input(Bool())
+    val en          = Input(Bool())
     val allow_to_go = Input(Bool())
 
     val ready  = Output(Bool())
@@ -36,13 +36,13 @@ class Mul(implicit val cpuConfig: CpuConfig) extends Module {
     cnt := MuxCase(
       cnt,
       Seq(
-        (io.start && !io.ready) -> (cnt + 1.U),
-        io.allow_to_go          -> 0.U
+        (io.en && !io.ready) -> (cnt + 1.U),
+        io.allow_to_go       -> 0.U
       )
     )
 
     signedMul.CLK := clock
-    signedMul.CE  := io.start
+    signedMul.CE  := io.en
 
     signedMul.A := io.src1
     signedMul.B := io.src2
@@ -53,13 +53,13 @@ class Mul(implicit val cpuConfig: CpuConfig) extends Module {
     cnt := MuxCase(
       cnt,
       Seq(
-        (io.start && !io.ready) -> (cnt + 1.U),
-        io.allow_to_go          -> 0.U
+        (io.en && !io.ready) -> (cnt + 1.U),
+        io.allow_to_go       -> 0.U
       )
     )
 
     val signed = RegInit(0.U((2 * XLEN).W))
-    when(io.start) {
+    when(io.en) {
       signed := (io.src1.asSInt * io.src2.asSInt).asUInt
     }
     io.result := signed

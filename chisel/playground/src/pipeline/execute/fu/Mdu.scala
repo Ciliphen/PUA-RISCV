@@ -38,7 +38,7 @@ class Mdu(implicit cpuConfig: CpuConfig) extends Module {
 
   mul.src1        := LookupTree(op(1, 0), srcMulConvertTable.map(p => (p._1, p._2._1(src1))))
   mul.src2        := LookupTree(op(1, 0), srcMulConvertTable.map(p => (p._1, p._2._2(src2))))
-  mul.start       := valid && !is_div
+  mul.en          := valid && !is_div
   mul.allow_to_go := io.allow_to_go
 
   val srcDivConvertFunc = (x: UInt) =>
@@ -46,7 +46,7 @@ class Mdu(implicit cpuConfig: CpuConfig) extends Module {
   div.src1        := srcDivConvertFunc(src1)
   div.src2        := srcDivConvertFunc(src2)
   div.signed      := MDUOpType.isDivSign(op)
-  div.start       := valid && is_div
+  div.en          := valid && is_div
   div.allow_to_go := io.allow_to_go
 
   val mul_result = Mux(op(1, 0) === MDUOpType.mul, mul.result(XLEN - 1, 0), mul.result(2 * XLEN - 1, XLEN))

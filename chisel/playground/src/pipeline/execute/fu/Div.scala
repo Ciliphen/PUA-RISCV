@@ -45,7 +45,7 @@ class Div(implicit cpuConfig: CpuConfig) extends Module {
     val src1        = Input(UInt(XLEN.W))
     val src2        = Input(UInt(XLEN.W))
     val signed      = Input(Bool())
-    val start       = Input(Bool())
+    val en          = Input(Bool())
     val allow_to_go = Input(Bool())
 
     val ready  = Output(Bool())
@@ -100,11 +100,11 @@ class Div(implicit cpuConfig: CpuConfig) extends Module {
       unsignedDiv_done := false.B
     }
     // 被除数和除数的valid信号
-    signedDiv.s_axis_dividend_tvalid := io.start && !signedDiv_sent(0) && io.signed
-    signedDiv.s_axis_divisor_tvalid  := io.start && !signedDiv_sent(1) && io.signed
+    signedDiv.s_axis_dividend_tvalid := io.en && !signedDiv_sent(0) && io.signed
+    signedDiv.s_axis_divisor_tvalid  := io.en && !signedDiv_sent(1) && io.signed
 
-    unsignedDiv.s_axis_dividend_tvalid := io.start && !unsignedDiv_sent(0) && !io.signed
-    unsignedDiv.s_axis_divisor_tvalid  := io.start && !unsignedDiv_sent(1) && !io.signed
+    unsignedDiv.s_axis_dividend_tvalid := io.en && !unsignedDiv_sent(0) && !io.signed
+    unsignedDiv.s_axis_divisor_tvalid  := io.en && !unsignedDiv_sent(1) && !io.signed
 
     // 被除数和除数的值
     signedDiv.s_axis_dividend_tdata := io.src1
@@ -128,8 +128,8 @@ class Div(implicit cpuConfig: CpuConfig) extends Module {
     cnt := MuxCase(
       cnt,
       Seq(
-        (io.start && !io.ready) -> (cnt + 1.U),
-        io.allow_to_go          -> 0.U
+        (io.en && !io.ready) -> (cnt + 1.U),
+        io.allow_to_go       -> 0.U
       )
     )
 
@@ -150,7 +150,7 @@ class Div(implicit cpuConfig: CpuConfig) extends Module {
     val quotient  = RegInit(0.S(XLEN.W))
     val remainder = RegInit(0.S(XLEN.W))
 
-    when(io.start) {
+    when(io.en) {
       quotient  := Mux(quotient_signed, (-quotient_abs).asSInt, quotient_abs.asSInt)
       remainder := Mux(remainder_signed, (-remainder_abs).asSInt, remainder_abs.asSInt)
       when(io.src2 === 0.U) {
