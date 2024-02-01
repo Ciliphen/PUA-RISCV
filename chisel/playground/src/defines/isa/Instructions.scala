@@ -28,7 +28,7 @@ object FuType {
   def num     = 6
   def alu     = "b000".U // arithmetic logic unit
   def lsu     = "b001".U // load store unit
-  def mdu     = "b010".U // mul div unit
+  def mdu     = "b010".U // multiplication division unit
   def csr     = "b011".U // control status register
   def mou     = "b100".U // memory order unit
   def bru     = "b101".U // branch unit
