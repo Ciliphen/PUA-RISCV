@@ -80,7 +80,7 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
 
   val mem_addr = Seq.tabulate(cpuConfig.commitNum)(i =>
     Mux(
-      LSUOpType.isAMO(io.inst(i).info.op) || LSUOpType.isLR(io.inst(i).info.op),
+      LSUOpType.isAtom(io.inst(i).info.op),
       io.inst(i).src_info.src1_data,
       io.inst(i).src_info.src1_data + io.inst(i).info.imm
     )
