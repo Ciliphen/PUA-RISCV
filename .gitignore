@@ -6,3 +6,5 @@ user/sim/testbench.v
 *.pdf
 ~*.xlsx
 ~*.docx
+~*.dotx
+*.~vsd
