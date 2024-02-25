@@ -85,9 +85,10 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   decodeUnit.executeStage <> executeStage.decodeUnit
 
   for (i <- 0 until (cpuConfig.commitNum)) {
-    executeStage.ctrl.clear(i) := ctrl.memoryUnit.flush ||
-    ctrl.executeUnit.do_flush && ctrl.executeUnit.allow_to_go ||
-    !decodeUnit.instFifo.allow_to_go(i) && ctrl.executeUnit.allow_to_go
+    // 流水线清空或者暂停时，需要清空缓存级的数据，也就是插入气泡
+    executeStage.ctrl.clear(i) :=
+      ctrl.memoryUnit.do_flush || ctrl.executeUnit.do_flush ||
+      !decodeUnit.instFifo.allow_to_go(i) && ctrl.executeUnit.allow_to_go
 
     executeStage.ctrl.allow_to_go(i) := decodeUnit.instFifo.allow_to_go(i)
   }
