@@ -1,6 +1,6 @@
 BUILD_DIR = ./build
-DIFF_DIR = ./difftest/core
-DIFF_WORK_DIR = ./difftest/test/test_workbench/sim
+DIFF_DIR = ../difftest/core
+DIFF_WORK_DIR = ../difftest/test/test_workbench/sim
 
 export PATH := $(PATH):$(abspath ./utils)
 
