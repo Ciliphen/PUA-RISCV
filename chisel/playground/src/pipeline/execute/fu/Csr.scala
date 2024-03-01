@@ -103,7 +103,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mtval      = RegInit(UInt(XLEN.W), 0.U) // 异常值寄存器
   val mipWire    = WireInit(0.U.asTypeOf(new Interrupt))
   val mipReg     = RegInit(UInt(XLEN.W), 0.U)
-  val mipFixMask = "h77f".U(64.W)
+  val mipFixMask = "hAAA".U(64.W)
   val mip        = mipWire.asUInt | mipReg // 中断挂起寄存器
 
   // Machine Memory Protection
@@ -204,7 +204,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Mhartid, mhartid, 0.U, MaskedRegMap.Unwritable),
     // Machine Trap Setup
     MaskedRegMap(Mstatus, mstatus, mstatus_wmask),
-    MaskedRegMap(Misa, misa), // MXL，EXT目前不支持可变
+    MaskedRegMap(Misa, misa, 0.U, MaskedRegMap.Unwritable), // MXL，EXT目前不支持可变
     MaskedRegMap(Medeleg, medeleg, "hbbff".U(XLEN.W)),
     MaskedRegMap(Mideleg, mideleg, "h222".U(XLEN.W)),
     MaskedRegMap(Mie, mie),
@@ -269,7 +269,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val raise_interrupt = mem_ex.interrupt.asUInt.orR
   val raise_exc_int   = raise_exception || raise_interrupt
   // 不带前缀的信号为exe阶段的信号
-  val valid = io.executeUnit.in.valid && !io.memoryUnit.out.flush // mem发生flush时，轻刷掉exe的信号
+  val valid = io.executeUnit.in.valid && !io.memoryUnit.out.flush // mem发生flush时，清刷掉exe的信号
   val info  = io.executeUnit.in.info
   val op    = io.executeUnit.in.info.op
   val fusel = io.executeUnit.in.info.fusel
