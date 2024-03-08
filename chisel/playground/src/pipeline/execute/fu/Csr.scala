@@ -370,7 +370,9 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   when(isMret) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
-    // mstatusNew.mpp.m := ModeU
+    when(mstatusOld.mpp =/= ModeM){
+      mstatusNew.mprv := false.B
+    }
     mstatusNew.ie.m  := mstatusOld.pie.m
     mode             := mstatusOld.mpp
     mstatusNew.pie.m := true.B
@@ -383,7 +385,9 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   when(isSret) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
-    // mstatusNew.mpp.m := ModeU
+    when(mstatusOld.spp =/= ModeM){
+      mstatusNew.mprv := false.B
+    }
     mstatusNew.ie.s  := mstatusOld.pie.s
     mode             := Cat(0.U(1.W), mstatusOld.spp)
     mstatusNew.pie.s := true.B
