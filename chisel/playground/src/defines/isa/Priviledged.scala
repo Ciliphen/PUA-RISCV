@@ -22,7 +22,6 @@ object Priviledged extends HasInstrType with CoreParameter {
     EBREAK -> List(InstrI, FuType.csr, CSROpType.jmp),
     MRET   -> List(InstrI, FuType.csr, CSROpType.jmp),
     FENCE  -> List(InstrS, FuType.mou, MOUOpType.fence), // nop    InstrS -> !wen
-    WFI    -> List(InstrI, FuType.alu, ALUOpType.add) // nop
-    // FENCE          -> List(InstrB, FuType.mou, MOUOpType.fencei)
+    WFI    -> List(InstrI, FuType.alu, ALUOpType.add) // nop    rd = x0
   ) ++ (if (cpuConfig.hasSMode) table_s else Array.empty)
 }

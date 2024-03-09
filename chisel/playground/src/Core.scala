@@ -66,13 +66,14 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   instFifo.decoderUint <> decodeUnit.instFifo
 
   for (i <- 0 until cpuConfig.instFetchNum) {
-    instFifo.write(i).pht_index    := bpu.instBuffer.pht_index(i)
-    bpu.instBuffer.pc(i)           := instFifo.write(i).pc
-    instFifo.wen(i)                := io.inst.inst_valid(i)
-    instFifo.write(i).pc           := io.inst.addr(0) + (i * 4).U
-    instFifo.write(i).inst         := io.inst.inst(i)
-    instFifo.write(i).access_fault := io.inst.access_fault
-    instFifo.write(i).page_fault   := io.inst.page_fault
+    instFifo.write(i).pht_index       := bpu.instBuffer.pht_index(i)
+    bpu.instBuffer.pc(i)              := instFifo.write(i).pc
+    instFifo.wen(i)                   := io.inst.inst_valid(i)
+    instFifo.write(i).pc              := io.inst.addr(0) + (i * 4).U
+    instFifo.write(i).inst            := io.inst.inst(i)
+    instFifo.write(i).access_fault    := io.inst.access_fault
+    instFifo.write(i).page_fault      := io.inst.page_fault
+    instFifo.write(i).addr_misaligned := io.inst.addr_misaligned
   }
 
   decodeUnit.regfile <> regfile.read

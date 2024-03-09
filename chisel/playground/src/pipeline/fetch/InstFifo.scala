@@ -7,12 +7,13 @@ import cpu.{BranchPredictorConfig, CpuConfig}
 import cpu.pipeline.decode.DecodeUnitInstFifo
 
 class IfIdData extends Bundle {
-  val bpuConfig    = new BranchPredictorConfig()
-  val inst         = UInt(XLEN.W)
-  val pht_index    = UInt(bpuConfig.phtDepth.W)
-  val access_fault = Bool()
-  val page_fault   = Bool()
-  val pc           = UInt(XLEN.W)
+  val bpuConfig       = new BranchPredictorConfig()
+  val inst            = UInt(XLEN.W)
+  val pht_index       = UInt(bpuConfig.phtDepth.W)
+  val addr_misaligned = Bool()
+  val access_fault    = Bool()
+  val page_fault      = Bool()
+  val pc              = UInt(XLEN.W)
 }
 
 class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {

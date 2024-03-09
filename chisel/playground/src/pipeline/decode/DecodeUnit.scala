@@ -129,7 +129,7 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
     io.executeStage.inst(i).ex.exception(illegalInstr)     := !info(i).inst_legal
     io.executeStage.inst(i).ex.exception(instrAccessFault) := io.instFifo.inst(i).access_fault
     io.executeStage.inst(i).ex.exception(instrPageFault)   := io.instFifo.inst(i).page_fault
-    io.executeStage.inst(i).ex.exception(instrAddrMisaligned) := pc(i)(log2Ceil(INST_WID / 8) - 1, 0).orR ||
+    io.executeStage.inst(i).ex.exception(instrAddrMisaligned) := io.instFifo.inst(i).addr_misaligned ||
     io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
     io.executeStage.inst(i).ex.exception(breakPoint) := info(i).inst(31, 20) === privEbreak &&
     info(i).op === CSROpType.jmp && info(i).fusel === FuType.csr
