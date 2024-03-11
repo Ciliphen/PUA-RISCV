@@ -279,18 +279,19 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   wdata := LookupTree(
     op,
     List(
-      CSROpType.wrt  -> src1,
-      CSROpType.set  -> (rdata | src1),
-      CSROpType.clr  -> (rdata & ~src1),
-      CSROpType.wrti -> csri,
-      CSROpType.seti -> (rdata | csri),
-      CSROpType.clri -> (rdata & ~csri)
+      CSROpType.csrrw  -> src1,
+      CSROpType.csrrs  -> (rdata | src1),
+      CSROpType.csrrc  -> (rdata & ~src1),
+      CSROpType.csrrwi -> csri,
+      CSROpType.csrrsi -> (rdata | csri),
+      CSROpType.csrrci -> (rdata & ~csri)
     )
   )
 
-  val satp_legal     = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
-  val write          = (valid && op =/= CSROpType.jmp) && (addr =/= Satp.U || satp_legal)
-  val only_read      = VecInit(CSROpType.set, CSROpType.seti, CSROpType.clr, CSROpType.clri).contains(op) && src1 === 0.U
+  val satp_legal = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
+  val write      = (valid && CSROpType.isCSROp(op)) && (addr =/= Satp.U || satp_legal)
+  val only_read =
+    VecInit(CSROpType.csrrs, CSROpType.csrrsi, CSROpType.csrrc, CSROpType.csrrci).contains(op) && src1 === 0.U
   val illegal_mode   = mode < addr(9, 8)
   val illegal_write  = write && (addr(11, 10) === "b11".U) && !only_read
   val illegal_access = illegal_mode || illegal_write
@@ -308,10 +309,9 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   // CSR inst decode
   val ret    = Wire(Bool())
-  val isMret = mem_inst_info.ret(RetType.mret) && mem_valid
-  val isSret = mem_inst_info.ret(RetType.sret) && mem_valid
-  val isUret = mem_inst_info.ret(RetType.uret) && mem_valid
-  ret := isMret || isSret || isUret
+  val isMret = IsMret(mem_inst_info) && mem_valid
+  val isSret = IsSret(mem_inst_info) && mem_valid
+  ret := isMret || isSret
 
   val exceptionNO = ExcPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.exception(i), i.U, sum))
   val interruptNO = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
@@ -370,7 +370,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   when(isMret) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
-    when(mstatusOld.mpp =/= ModeM){
+    when(mstatusOld.mpp =/= ModeM) {
       mstatusNew.mprv := false.B
     }
     mstatusNew.ie.m  := mstatusOld.pie.m
@@ -385,7 +385,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   when(isSret) {
     val mstatusOld = WireInit(mstatus.asTypeOf(new Mstatus))
     val mstatusNew = WireInit(mstatus.asTypeOf(new Mstatus))
-    when(mstatusOld.spp =/= ModeM){
+    when(mstatusOld.spp =/= ModeM) {
       mstatusNew.mprv := false.B
     }
     mstatusNew.ie.s  := mstatusOld.pie.s

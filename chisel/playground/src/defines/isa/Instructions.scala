@@ -161,20 +161,19 @@ object MDUOpType {
 
 // csr unit
 object CSROpType {
-  def jmp  = "b000".U
-  def wrt  = "b001".U
-  def set  = "b010".U
-  def clr  = "b011".U
-  def wrti = "b101".U
-  def seti = "b110".U
-  def clri = "b111".U
-}
+  def csrrw  = "b0001".U
+  def csrrs  = "b0010".U
+  def csrrc  = "b0011".U
+  def csrrwi = "b0101".U
+  def csrrsi = "b0110".U
+  def csrrci = "b0111".U
 
-object RetType {
-  def uret = 0.U
-  def sret = 1.U
-  def mret = 2.U
-  def num  = 3
+  def ecall  = "b1000".U
+  def ebreak = "b1001".U
+  def mret   = "b1010".U
+  def sret   = "b1011".U
+
+  def isCSROp(op: UInt) = !op(3)
 }
 
 trait HasCSRConst {
@@ -262,7 +261,6 @@ trait HasCSRConst {
   def privEbreak = 0x001.U
   def privMret   = 0x302.U
   def privSret   = 0x102.U
-  def privUret   = 0x002.U
 
   def ModeM = 0x3.U
   def ModeH = 0x2.U

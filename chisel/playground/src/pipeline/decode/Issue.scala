@@ -58,12 +58,12 @@ class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     // 写satp指令会导致流水线清空
     val write_satp = VecInit(
       Seq.tabulate(cpuConfig.commitNum)(i =>
-        inst(i).fusel === FuType.csr && inst(i).op =/= CSROpType.jmp && inst(i).inst(31, 20) === Satp.U
+        inst(i).fusel === FuType.csr && CSROpType.isCSROp(inst(i).op) && inst(i).inst(31, 20) === Satp.U
       )
     ).asUInt.orR
 
     // uret、sret、mret指令会导致流水线清空
-    val ret = inst(0).ret.asUInt.orR || inst(1).ret.asUInt.orR
+    val ret = HasRet(inst(0)) || HasRet(inst(1))
 
     // 这些csr相关指令会导致流水线清空
     val is_some_csr_inst = write_satp || ret

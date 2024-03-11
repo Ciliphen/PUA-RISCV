@@ -54,7 +54,7 @@ object Const extends Constants with AXIConst with HasExceptionNO
 
 object Instructions extends HasInstrType with CoreParameter {
   def NOP           = 0x00000013.U
-  val DecodeDefault = List(InstrN, FuType.csr, CSROpType.jmp)
+  val DecodeDefault = List(InstrN, FuType.alu, ALUOpType.add)
   def DecodeTable = RVIInstr.table ++
     (if (cpuConfig.hasMExtension) RVMInstr.table else Array.empty) ++
     (if (cpuConfig.hasAExtension) RVAInstr.table else Array.empty) ++

@@ -13,14 +13,14 @@ object Priviledged extends HasInstrType with CoreParameter {
   def WFI        = BitPat("b0001000_00101_00000_000_00000_1110011")
 
   val table_s = Array(
-    SRET       -> List(InstrI, FuType.csr, CSROpType.jmp),
+    SRET       -> List(InstrI, FuType.csr, CSROpType.sret),
     SFANCE_VMA -> List(InstrR, FuType.mou, MOUOpType.sfence_vma)
   )
 
   val table = Array(
-    ECALL  -> List(InstrI, FuType.csr, CSROpType.jmp),
-    EBREAK -> List(InstrI, FuType.csr, CSROpType.jmp),
-    MRET   -> List(InstrI, FuType.csr, CSROpType.jmp),
+    ECALL  -> List(InstrI, FuType.csr, CSROpType.ecall),
+    EBREAK -> List(InstrI, FuType.csr, CSROpType.ebreak),
+    MRET   -> List(InstrI, FuType.csr, CSROpType.mret),
     FENCE  -> List(InstrS, FuType.mou, MOUOpType.fence), // nop    InstrS -> !wen
     WFI    -> List(InstrI, FuType.alu, ALUOpType.add) // nop    rd = x0
   ) ++ (if (cpuConfig.hasSMode) table_s else Array.empty)

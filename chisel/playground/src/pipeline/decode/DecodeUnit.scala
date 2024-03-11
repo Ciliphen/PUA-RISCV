@@ -131,14 +131,14 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
     io.executeStage.inst(i).ex.exception(instrPageFault)   := io.instFifo.inst(i).page_fault
     io.executeStage.inst(i).ex.exception(instrAddrMisaligned) := io.instFifo.inst(i).addr_misaligned ||
     io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
-    io.executeStage.inst(i).ex.exception(breakPoint) := info(i).inst(31, 20) === privEbreak &&
-    info(i).op === CSROpType.jmp && info(i).fusel === FuType.csr
-    io.executeStage.inst(i).ex.exception(ecallM) := info(i).inst(31, 20) === privEcall &&
-    info(i).op === CSROpType.jmp && mode === ModeM && info(i).fusel === FuType.csr
-    io.executeStage.inst(i).ex.exception(ecallS) := info(i).inst(31, 20) === privEcall &&
-    info(i).op === CSROpType.jmp && mode === ModeS && info(i).fusel === FuType.csr
-    io.executeStage.inst(i).ex.exception(ecallU) := info(i).inst(31, 20) === privEcall &&
-    info(i).op === CSROpType.jmp && mode === ModeU && info(i).fusel === FuType.csr
+    io.executeStage.inst(i).ex.exception(breakPoint) :=
+      info(i).op === CSROpType.ebreak && info(i).fusel === FuType.csr
+    io.executeStage.inst(i).ex.exception(ecallM) :=
+      info(i).op === CSROpType.ecall && mode === ModeM && info(i).fusel === FuType.csr
+    io.executeStage.inst(i).ex.exception(ecallS) :=
+      info(i).op === CSROpType.ecall && mode === ModeS && info(i).fusel === FuType.csr
+    io.executeStage.inst(i).ex.exception(ecallU) :=
+      info(i).op === CSROpType.ecall && mode === ModeU && info(i).fusel === FuType.csr
     io.executeStage.inst(i).ex.tval.map(_             := DontCare)
     io.executeStage.inst(i).ex.tval(instrPageFault)   := pc(i)
     io.executeStage.inst(i).ex.tval(instrAccessFault) := pc(i)

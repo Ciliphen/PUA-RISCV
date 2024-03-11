@@ -9,6 +9,24 @@ object HasExcInt {
   }
 }
 
+object IsMret {
+  def apply(info: Info) = {
+    info.fusel === FuType.csr && info.op === CSROpType.mret
+  }
+}
+
+object IsSret {
+  def apply(info: Info) = {
+    info.fusel === FuType.csr && info.op === CSROpType.sret
+  }
+}
+
+object HasRet {
+  def apply(info: Info) = {
+    IsMret(info) || IsSret(info)
+  }
+}
+
 object SignedExtend {
   def apply(a: UInt, len: Int) = {
     val aLen    = a.getWidth

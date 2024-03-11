@@ -58,7 +58,4 @@ class Decoder extends Module with HasInstrType with HasCSRConst {
       InstrJ  -> SignedExtend(Cat(inst(31), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W)), XLEN)
     )
   )
-  io.out.info.ret(RetType.uret) := inst(31, 20) === privUret && fuOpType === CSROpType.jmp && fuType === FuType.csr
-  io.out.info.ret(RetType.sret) := inst(31, 20) === privSret && fuOpType === CSROpType.jmp && fuType === FuType.csr
-  io.out.info.ret(RetType.mret) := inst(31, 20) === privMret && fuOpType === CSROpType.jmp && fuType === FuType.csr
 }
