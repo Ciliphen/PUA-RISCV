@@ -11,10 +11,9 @@ trait HasInstrType {
   def InstrB  = "b0001".U
   def InstrU  = "b0110".U
   def InstrJ  = "b0111".U
-  def InstrA  = "b1110".U
   def InstrSA = "b1111".U // Atom Inst: SC
 
-  def isrfWen(instrType: UInt): Bool = instrType(2)
+  def isRegWen(instrType: UInt): Bool = instrType(2)
 }
 
 object SrcType {
@@ -37,16 +36,6 @@ object FuType {
 
 object FuOpType {
   def apply() = UInt(7.W)
-}
-
-// BTB
-object BTBtype {
-  def B = "b00".U // branch
-  def J = "b01".U // jump
-  def I = "b10".U // indirect
-  def R = "b11".U // return
-
-  def apply() = UInt(2.W)
 }
 
 // ALU
@@ -122,12 +111,6 @@ object LSUOpType { //TODO: refactor LSU fuop
   def isLR(func:    UInt): Bool = func === lr
   def isSC(func:    UInt): Bool = func === sc
   def isAMO(func:   UInt): Bool = isAtom(func) && !isLR(func) && !isSC(func)
-
-  def needMemRead(func:  UInt): Bool = isLoad(func) || isAMO(func) || isLR(func)
-  def needMemWrite(func: UInt): Bool = isStore(func) || isAMO(func) || isSC(func)
-
-  def atomW = "010".U
-  def atomD = "011".U
 }
 
 // memory order unit
@@ -256,11 +239,6 @@ trait HasCSRConst {
   val Tselect = 0x7a0
   val Tdata1  = 0x7a1
   // Debug Mode Registers (not implemented)
-
-  def privEcall  = 0x000.U
-  def privEbreak = 0x001.U
-  def privMret   = 0x302.U
-  def privSret   = 0x102.U
 
   def ModeM = 0x3.U
   def ModeH = 0x2.U

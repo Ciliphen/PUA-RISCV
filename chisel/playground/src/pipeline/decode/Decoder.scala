@@ -45,8 +45,8 @@ class Decoder extends Module with HasInstrType with HasCSRConst {
   io.out.info.src2_raddr := Mux(io.out.info.src2_ren, rt, 0.U)
   io.out.info.fusel      := fuType
   io.out.info.op         := fuOpType
-  io.out.info.reg_wen    := isrfWen(instrType)
-  io.out.info.reg_waddr  := Mux(isrfWen(instrType), rd, 0.U)
+  io.out.info.reg_wen    := isRegWen(instrType)
+  io.out.info.reg_waddr  := Mux(isRegWen(instrType), rd, 0.U)
   io.out.info.imm := LookupTree(
     instrType,
     Seq(
