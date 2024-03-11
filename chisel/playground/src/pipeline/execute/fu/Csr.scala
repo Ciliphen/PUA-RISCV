@@ -265,8 +265,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mem_valid     = mem_inst_info.valid
   val mem_addr      = mem_inst(31, 20)
 
-  val raise_exception = mem_ex.exception.asUInt.orR
-  val raise_interrupt = mem_ex.interrupt.asUInt.orR
+  val raise_exception = mem_ex.exception.asUInt.orR && mem_valid
+  val raise_interrupt = mem_ex.interrupt.asUInt.orR && mem_valid
   val raise_exc_int   = raise_exception || raise_interrupt
   // 不带前缀的信号为exe阶段的信号
   val valid = io.executeUnit.in.valid && !io.memoryUnit.out.flush // mem发生flush时，清刷掉exe的信号
