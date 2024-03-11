@@ -271,9 +271,9 @@ trait HasCSRConst {
 }
 
 trait HasExceptionNO {
-  def instrAddrMisaligned = 0
-  def instrAccessFault    = 1
-  def illegalInstr        = 2
+  def instAddrMisaligned  = 0
+  def instAccessFault     = 1
+  def illegalInst         = 2
   def breakPoint          = 3
   def loadAddrMisaligned  = 4
   def loadAccessFault     = 5
@@ -282,16 +282,16 @@ trait HasExceptionNO {
   def ecallU              = 8
   def ecallS              = 9
   def ecallM              = 11
-  def instrPageFault      = 12
+  def instPageFault       = 12
   def loadPageFault       = 13
   def storePageFault      = 15
 
   val ExcPriority = Seq(
     breakPoint, // TODO: different BP has different priority
-    instrPageFault,
-    instrAccessFault,
-    illegalInstr,
-    instrAddrMisaligned,
+    instPageFault,
+    instAccessFault,
+    illegalInst,
+    instAddrMisaligned,
     ecallM,
     ecallS,
     ecallU,

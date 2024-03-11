@@ -403,9 +403,9 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   io.tlb.mstatus        := mstatus
   io.decodeUnit.mode    := mode
   io.executeUnit.out.ex := io.executeUnit.in.ex
-  io.executeUnit.out.ex.exception(illegalInstr) :=
-    (illegal_addr || illegal_access) && write | io.executeUnit.in.ex.exception(illegalInstr)
-  io.executeUnit.out.ex.tval(illegalInstr) := io.executeUnit.in.info.inst
+  io.executeUnit.out.ex.exception(illegalInst) :=
+    (illegal_addr || illegal_access) && write | io.executeUnit.in.ex.exception(illegalInst)
+  io.executeUnit.out.ex.tval(illegalInst) := io.executeUnit.in.info.inst
   io.executeUnit.out.rdata                 := rdata
   io.executeUnit.out.flush                 := write_satp
   io.executeUnit.out.target                := io.executeUnit.in.pc + 4.U

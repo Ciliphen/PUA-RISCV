@@ -126,10 +126,10 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
     )
     (0 until (INT_WID)).foreach(j => io.executeStage.inst(i).ex.interrupt(j) := io.csr.interrupt(j))
     io.executeStage.inst(i).ex.exception.map(_             := false.B)
-    io.executeStage.inst(i).ex.exception(illegalInstr)     := !info(i).inst_legal
-    io.executeStage.inst(i).ex.exception(instrAccessFault) := io.instFifo.inst(i).access_fault
-    io.executeStage.inst(i).ex.exception(instrPageFault)   := io.instFifo.inst(i).page_fault
-    io.executeStage.inst(i).ex.exception(instrAddrMisaligned) := io.instFifo.inst(i).addr_misaligned ||
+    io.executeStage.inst(i).ex.exception(illegalInst)     := !info(i).inst_legal
+    io.executeStage.inst(i).ex.exception(instAccessFault) := io.instFifo.inst(i).access_fault
+    io.executeStage.inst(i).ex.exception(instPageFault)   := io.instFifo.inst(i).page_fault
+    io.executeStage.inst(i).ex.exception(instAddrMisaligned) := io.instFifo.inst(i).addr_misaligned ||
     io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch
     io.executeStage.inst(i).ex.exception(breakPoint) :=
       info(i).op === CSROpType.ebreak && info(i).fusel === FuType.csr
@@ -140,10 +140,10 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
     io.executeStage.inst(i).ex.exception(ecallU) :=
       info(i).op === CSROpType.ecall && mode === ModeU && info(i).fusel === FuType.csr
     io.executeStage.inst(i).ex.tval.map(_             := DontCare)
-    io.executeStage.inst(i).ex.tval(instrPageFault)   := pc(i)
-    io.executeStage.inst(i).ex.tval(instrAccessFault) := pc(i)
-    io.executeStage.inst(i).ex.tval(illegalInstr)     := info(i).inst
-    io.executeStage.inst(i).ex.tval(instrAddrMisaligned) := Mux(
+    io.executeStage.inst(i).ex.tval(instPageFault)   := pc(i)
+    io.executeStage.inst(i).ex.tval(instAccessFault) := pc(i)
+    io.executeStage.inst(i).ex.tval(illegalInst)     := info(i).inst
+    io.executeStage.inst(i).ex.tval(instAddrMisaligned) := Mux(
       io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR && io.fetchUnit.branch,
       io.fetchUnit.target,
       pc(i)

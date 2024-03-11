@@ -103,12 +103,12 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
         )
       )
     )
-    io.memoryStage.inst(i).ex.exception(instrAddrMisaligned) :=
-      io.executeStage.inst(i).ex.exception(instrAddrMisaligned) ||
+    io.memoryStage.inst(i).ex.exception(instAddrMisaligned) :=
+      io.executeStage.inst(i).ex.exception(instAddrMisaligned) ||
       io.fetchUnit.flush && io.fetchUnit.target(log2Ceil(INST_WID / 8) - 1, 0).orR
-    io.memoryStage.inst(i).ex.tval(instrAddrMisaligned) := Mux(
-      io.executeStage.inst(i).ex.exception(instrAddrMisaligned),
-      io.executeStage.inst(i).ex.tval(instrAddrMisaligned),
+    io.memoryStage.inst(i).ex.tval(instAddrMisaligned) := Mux(
+      io.executeStage.inst(i).ex.exception(instAddrMisaligned),
+      io.executeStage.inst(i).ex.tval(instAddrMisaligned),
       io.fetchUnit.target
     )
 
