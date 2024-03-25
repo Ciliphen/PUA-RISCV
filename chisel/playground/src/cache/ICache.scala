@@ -287,7 +287,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         rdata_in_wait(0).inst  := Mux(ar.addr(2), io.axi.r.bits.data(63, 32), io.axi.r.bits.data(31, 0))
         rdata_in_wait(0).valid := true.B
         rready                 := false.B
-        access_fault           := io.axi.r.bits.resp =/= RESP_OKEY.U
+        access_fault           := io.axi.r.bits.resp =/= RESP_OKAY.U
         state                  := s_wait
       }
     }

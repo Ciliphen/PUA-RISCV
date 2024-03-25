@@ -383,7 +383,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       when(io.axi.r.fire) {
         rready       := false.B
         saved_rdata  := io.axi.r.bits.data
-        access_fault := io.axi.r.bits.resp =/= RESP_OKEY.U
+        access_fault := io.axi.r.bits.resp =/= RESP_OKAY.U
         state        := s_wait
       }
     }
@@ -405,7 +405,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         }
         when(io.axi.b.valid) {
           // TODO: 增加此处的acc_err错误处理
-          // acc_err := io.axi.b.bits.resp =/= RESP_OKEY.U
+          // acc_err := io.axi.b.bits.resp =/= RESP_OKAY.U
           dirty(dirty_index)(dirty_way) := false.B // 写回完成，清除脏位
           fence                         := false.B
         }
@@ -454,7 +454,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
             }
             when(io.axi.b.valid) {
               // TODO: 增加此处的acc_err错误处理
-              // acc_err := io.axi.b.bits.resp =/= RESP_OKEY.U
+              // acc_err := io.axi.b.bits.resp =/= RESP_OKAY.U
               replace_dirty := false.B // 写回完成，清除脏位
             }
           } //上面都是写回部分的代码

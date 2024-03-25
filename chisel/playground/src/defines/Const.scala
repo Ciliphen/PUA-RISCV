@@ -33,10 +33,7 @@ trait AXIConst extends Constants {
   val BURST_WRAP     = 2
   val BURST_RESERVED = 3
 
-  val RESP_OKEY   = 0
-  val RESP_EXOKEY = 1
-  val RESP_SLVERR = 2
-  val RESP_DECERR = 3
+  val RESP_OKAY = 0
 
   val AXI_ID_WID    = 4
   val AXI_ADDR_WID  = PADDR_WID // 32
