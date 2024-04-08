@@ -1,10 +1,9 @@
-package cpu.pipeline.fetch
+package cpu.pipeline
 
 import chisel3._
 import chisel3.util._
 import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
-import cpu.pipeline.decode.DecodeUnitInstFifo
 
 class IfIdData extends Bundle {
   val bpuConfig       = new BranchPredictorConfig()

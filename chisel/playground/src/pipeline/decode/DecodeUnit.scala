@@ -1,4 +1,4 @@
-package cpu.pipeline.decode
+package cpu.pipeline
 
 import chisel3._
 import chisel3.util._
@@ -6,9 +6,6 @@ import chisel3.util.experimental.BoringUtils
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
-import cpu.pipeline.execute.DecodeUnitExecuteUnit
-import cpu.pipeline.fetch.IfIdData
-import cpu.pipeline.execute
 
 class DecodeUnitInstFifo(implicit val cpuConfig: CpuConfig) extends Bundle {
   val allow_to_go = Output(Vec(cpuConfig.decoderNum, Bool()))
@@ -43,7 +40,6 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
     val instFifo = new DecodeUnitInstFifo()
     val regfile  = Vec(cpuConfig.decoderNum, new Src12Read())
     val forward  = Input(Vec(cpuConfig.commitNum, new DataForwardToDecodeUnit()))
-    val csr      = Input(new execute.CsrDecodeUnit())
     // 输出
     val fetchUnit = new Bundle {
       val branch = Output(Bool())
@@ -59,10 +55,14 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   val forwardCtrl = Module(new ForwardCtrl()).io
   val issue       = Module(new Issue()).io
 
-  val pc   = io.instFifo.inst.map(_.pc)
-  val inst = io.instFifo.inst.map(_.inst)
-  val info = Wire(Vec(cpuConfig.decoderNum, new Info()))
-  val mode = io.csr.mode
+  val pc        = io.instFifo.inst.map(_.pc)
+  val inst      = io.instFifo.inst.map(_.inst)
+  val info      = Wire(Vec(cpuConfig.decoderNum, new Info()))
+  val mode      = Wire(Priv())
+  val interrupt = Wire(UInt(INT_WID.W))
+
+  BoringUtils.addSink(mode, "mode")
+  BoringUtils.addSink(interrupt, "interrupt")
 
   info          := decoder.map(_.io.out.info)
   info(0).valid := !io.instFifo.info.empty
@@ -124,8 +124,8 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
       forwardCtrl.out.inst(i).src2.rdata,
       info(i).imm
     )
-    (0 until (INT_WID)).foreach(j => io.executeStage.inst(i).ex.interrupt(j) := io.csr.interrupt(j))
-    io.executeStage.inst(i).ex.exception.map(_             := false.B)
+    (0 until (INT_WID)).foreach(j => io.executeStage.inst(i).ex.interrupt(j) := interrupt(j))
+    io.executeStage.inst(i).ex.exception.map(_            := false.B)
     io.executeStage.inst(i).ex.exception(illegalInst)     := !info(i).inst_legal
     io.executeStage.inst(i).ex.exception(instAccessFault) := io.instFifo.inst(i).access_fault
     io.executeStage.inst(i).ex.exception(instPageFault)   := io.instFifo.inst(i).page_fault
@@ -139,7 +139,7 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
       info(i).op === CSROpType.ecall && mode === ModeS && info(i).fusel === FuType.csr
     io.executeStage.inst(i).ex.exception(ecallU) :=
       info(i).op === CSROpType.ecall && mode === ModeU && info(i).fusel === FuType.csr
-    io.executeStage.inst(i).ex.tval.map(_             := DontCare)
+    io.executeStage.inst(i).ex.tval.map(_            := DontCare)
     io.executeStage.inst(i).ex.tval(instPageFault)   := pc(i)
     io.executeStage.inst(i).ex.tval(instAccessFault) := pc(i)
     io.executeStage.inst(i).ex.tval(illegalInst)     := info(i).inst

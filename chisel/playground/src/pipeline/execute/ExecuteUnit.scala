@@ -1,13 +1,13 @@
-package cpu.pipeline.execute
+package cpu.pipeline
 
 import chisel3._
 import chisel3.util._
 import cpu.CpuConfig
 import cpu.defines._
 import cpu.defines.Const._
-import cpu.pipeline.decode.RegWrite
-import cpu.pipeline.memory.ExecuteUnitMemoryUnit
-import cpu.pipeline.fetch.ExecuteUnitBranchPredictor
+import cpu.pipeline.RegWrite
+import cpu.pipeline.ExecuteUnitMemoryUnit
+import cpu.pipeline.ExecuteUnitBranchPredictor
 
 class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {

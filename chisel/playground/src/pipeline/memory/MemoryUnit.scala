@@ -1,13 +1,10 @@
-package cpu.pipeline.memory
+package cpu.pipeline
 
 import chisel3._
 import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
-import cpu.pipeline.decode.RegWrite
-import cpu.pipeline.execute.CsrMemoryUnit
-import cpu.pipeline.writeback.MemoryUnitWriteBackUnit
 
 class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {

@@ -6,7 +6,7 @@ import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
 import icache.mmu.{Tlb_DCache, Tlb_ICache}
-import cpu.pipeline.memory.Mou
+import cpu.pipeline.Mou
 
 class ExceptionInfo extends Bundle {
   val exception = Vec(EXC_WID, Bool())

@@ -5,7 +5,7 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.CacheConfig
-import cpu.pipeline.execute.CsrTlb
+import cpu.pipeline.CsrTlb
 import cpu.CpuConfig
 
 object AccessType {

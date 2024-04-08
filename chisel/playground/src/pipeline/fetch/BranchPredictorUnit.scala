@@ -1,16 +1,13 @@
-package cpu.pipeline.fetch
+package cpu.pipeline
 
 import chisel3._
 import chisel3.util._
 import cpu.defines.Const._
 import cpu._
-import cpu.pipeline.decode.Src12Read
 import cpu.defines.BRUOpType
 import cpu.defines.FuOpType
 import cpu.defines.FuType
 import cpu.defines.SignedExtend
-import cpu.pipeline.decode.DecoderBranchPredictorUnit
-import pipeline.decode.{DecoderBranchPredictorUnit, Src12Read}
 
 class ExecuteUnitBranchPredictor extends Bundle {
   val bpuConfig        = new BranchPredictorConfig()

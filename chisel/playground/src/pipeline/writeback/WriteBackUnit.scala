@@ -1,10 +1,9 @@
-package cpu.pipeline.writeback
+package cpu.pipeline
 
 import chisel3._
 import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
-import cpu.pipeline.decode.RegWrite
 import cpu.CpuConfig
 
 class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {

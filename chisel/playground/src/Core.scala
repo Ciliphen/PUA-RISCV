@@ -6,11 +6,7 @@ import chisel3.internal.DontCareBinding
 
 import defines._
 import defines.Const._
-import pipeline.fetch._
-import pipeline.decode._
-import pipeline.execute._
-import pipeline.memory._
-import pipeline.writeback._
+import pipeline._
 import ctrl._
 import icache.mmu.Tlb
 
@@ -82,7 +78,6 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
     decodeUnit.forward(i).is_load := executeUnit.decodeUnit.forward(i).is_load // exe级是load指令
     decodeUnit.forward(i).mem     := memoryUnit.decodeUnit(i)
   }
-  decodeUnit.csr <> csr.decodeUnit
   decodeUnit.executeStage <> executeStage.decodeUnit
 
   for (i <- 0 until (cpuConfig.commitNum)) {

@@ -1,4 +1,4 @@
-package cpu.pipeline.execute
+package cpu.pipeline
 
 import chisel3._
 import chisel3.util._
@@ -42,11 +42,6 @@ class CsrExecuteUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   })
 }
 
-class CsrDecodeUnit extends Bundle {
-  val mode      = Output(Priv())
-  val interrupt = Output(UInt(INT_WID.W))
-}
-
 class CsrTlb extends Bundle {
   val satp    = Output(UInt(XLEN.W))
   val mstatus = Output(UInt(XLEN.W))
@@ -57,7 +52,6 @@ class CsrTlb extends Bundle {
 class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val io = IO(new Bundle {
     val ext_int     = Input(new ExtInterrupt())
-    val decodeUnit  = new CsrDecodeUnit()
     val executeUnit = new CsrExecuteUnit()
     val memoryUnit  = new CsrMemoryUnit()
     val tlb         = new CsrTlb()
@@ -247,15 +241,19 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mstatusBundle = mstatus.asTypeOf(new Mstatus())
 
   val ideleg = (mideleg & mip_raise_interrupt.asUInt)
-  def priviledgedEnableDetect(x: Bool): Bool = Mux(
+  def privilegedEnableDetect(x: Bool): Bool = Mux(
     x,
     ((mode === ModeS) && mstatusBundle.ie.s) || (mode < ModeS),
     ((mode === ModeM) && mstatusBundle.ie.m) || (mode < ModeM)
   )
 
   val interrupt_enable = Wire(Vec(INT_WID, Bool()))
-  interrupt_enable.zip(ideleg.asBools).map { case (x, y) => x := priviledgedEnableDetect(y) }
-  io.decodeUnit.interrupt := mie(INT_WID - 1, 0) & mip_raise_interrupt.asUInt & interrupt_enable.asUInt
+  interrupt_enable.zip(ideleg.asBools).map { case (x, y) => x := privilegedEnableDetect(y) }
+  val interrupt = Wire(UInt(INT_WID.W))
+  interrupt := mie(INT_WID - 1, 0) & mip_raise_interrupt.asUInt & interrupt_enable.asUInt
+
+  BoringUtils.addSource(interrupt, "interrupt")
+  BoringUtils.addSource(mode, "mode")
 
   // 优先使用inst0的信息
   val mem_pc        = io.memoryUnit.in.pc
@@ -401,14 +399,13 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   io.tlb.dmode          := Mux(mstatusBundle.mprv, mstatusBundle.mpp, mode)
   io.tlb.satp           := satp
   io.tlb.mstatus        := mstatus
-  io.decodeUnit.mode    := mode
   io.executeUnit.out.ex := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInst) :=
     (illegal_addr || illegal_access) && write | io.executeUnit.in.ex.exception(illegalInst)
   io.executeUnit.out.ex.tval(illegalInst) := io.executeUnit.in.info.inst
-  io.executeUnit.out.rdata                 := rdata
-  io.executeUnit.out.flush                 := write_satp
-  io.executeUnit.out.target                := io.executeUnit.in.pc + 4.U
-  io.memoryUnit.out.flush                  := raise_exc_int || ret
-  io.memoryUnit.out.target                 := Mux(raise_exc_int, trap_target, ret_target)
+  io.executeUnit.out.rdata                := rdata
+  io.executeUnit.out.flush                := write_satp
+  io.executeUnit.out.target               := io.executeUnit.in.pc + 4.U
+  io.memoryUnit.out.flush                 := raise_exc_int || ret
+  io.memoryUnit.out.target                := Mux(raise_exc_int, trap_target, ret_target)
 }
