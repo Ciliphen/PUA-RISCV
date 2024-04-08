@@ -13,6 +13,7 @@
 !build.sc
 !README.md
 !playground/doc/*
+!utils/*
 build/
 
 # mill
