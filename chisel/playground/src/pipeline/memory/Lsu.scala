@@ -31,9 +31,6 @@ class Lsu_MemoryUnit extends Bundle {
     val src_info = new SrcInfo()
     val ex       = new ExceptionInfo()
 
-    val lr      = Bool()
-    val lr_addr = UInt(XLEN.W)
-
     val allow_to_go = Bool()
   })
   val out = Output(new Bundle {
@@ -42,10 +39,6 @@ class Lsu_MemoryUnit extends Bundle {
     val ex    = new ExceptionInfo()
     // 用于指示dcache完成一次请求
     val complete_single_request = Bool()
-
-    val lr_wen   = Bool()
-    val lr_wbit  = Bool()
-    val lr_waddr = UInt(XLEN.W)
   })
 }
 
@@ -76,13 +69,19 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   val atom_d = funct3(0)
 
   // Atom LR/SC Control Bits
-  val lr      = WireInit(Bool(), false.B)
-  val lr_addr = WireInit(UInt(XLEN.W), DontCare)
-  io.memoryUnit.out.lr_wen   := io.memoryUnit.out.ready && (lr_req || sc_req)
-  io.memoryUnit.out.lr_wbit  := lr_req
-  io.memoryUnit.out.lr_waddr := src1
-  lr                         := io.memoryUnit.in.lr
-  lr_addr                    := io.memoryUnit.in.lr_addr
+  val lr       = Wire(Bool())
+  val lr_addr  = Wire(UInt(XLEN.W))
+  val lr_wen   = Wire(Bool())
+  val lr_wbit  = Wire(Bool())
+  val lr_waddr = Wire(UInt(XLEN.W))
+  lr_wen   := io.memoryUnit.out.ready && (lr_req || sc_req)
+  lr_wbit  := lr_req
+  lr_waddr := src1
+  BoringUtils.addSink(lr, "lr")
+  BoringUtils.addSink(lr_addr, "lr_addr")
+  BoringUtils.addSource(lr_wen, "lr_wen")
+  BoringUtils.addSource(lr_wbit, "lr_wbit")
+  BoringUtils.addSource(lr_waddr, "lr_waddr")
 
   val s_idle :: s_sc :: s_amo_a :: s_amo_s :: Nil = Enum(4)
 

@@ -12,17 +12,10 @@ class CsrMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
     val pc   = UInt(XLEN.W)
     val ex   = new ExceptionInfo()
     val info = new Info()
-
-    val lr_wen   = Bool()
-    val lr_wbit  = Bool()
-    val lr_waddr = UInt(XLEN.W)
   })
   val out = Output(new Bundle {
     val flush  = Bool()
     val target = UInt(XLEN.W)
-
-    val lr      = Bool()
-    val lr_addr = UInt(XLEN.W)
   })
 }
 
@@ -147,14 +140,17 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val wdata = Wire(UInt(XLEN.W))
 
   // Atom LR/SC Control Bits
-  val lr_wen   = io.memoryUnit.in.lr_wen
-  val lr_wbit  = io.memoryUnit.in.lr_wbit
-  val lr_waddr = io.memoryUnit.in.lr_waddr
-  val lr       = RegInit(Bool(), false.B)
-  val lr_addr  = RegInit(UInt(XLEN.W), 0.U)
+  val lr_wen   = Wire(Bool())
+  val lr_wbit  = Wire(Bool())
+  val lr_waddr = Wire(UInt(XLEN.W))
+  BoringUtils.addSink(lr_wen, "lr_wen")
+  BoringUtils.addSink(lr_wbit, "lr_wbit")
+  BoringUtils.addSink(lr_waddr, "lr_waddr")
 
-  io.memoryUnit.out.lr      := lr
-  io.memoryUnit.out.lr_addr := lr_addr
+  val lr      = RegInit(Bool(), false.B)
+  val lr_addr = RegInit(UInt(XLEN.W), 0.U)
+  BoringUtils.addSource(lr, "lr")
+  BoringUtils.addSource(lr_addr, "lr_addr")
 
   when(lr_wen) {
     lr      := lr_wbit

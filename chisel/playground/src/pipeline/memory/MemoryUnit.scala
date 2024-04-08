@@ -5,6 +5,7 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
+import chisel3.util.experimental.BoringUtils
 
 class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
@@ -62,12 +63,6 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
     io.csr.in.ex   := selectInstField(csr_sel, io.writeBackStage.inst.map(_.ex))
     io.csr.in.info := selectInstField(csr_sel, io.memoryStage.inst.map(_.info))
   }
-
-  io.csr.in.lr_wen          := lsu.memoryUnit.out.lr_wen && io.ctrl.allow_to_go
-  io.csr.in.lr_wbit         := lsu.memoryUnit.out.lr_wbit
-  io.csr.in.lr_waddr        := lsu.memoryUnit.out.lr_waddr
-  lsu.memoryUnit.in.lr      := io.csr.out.lr
-  lsu.memoryUnit.in.lr_addr := io.csr.out.lr_addr
 
   for (i <- 0 until cpuConfig.commitNum) {
     io.decodeUnit(i).wen   := io.writeBackStage.inst(i).info.reg_wen
