@@ -61,7 +61,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mhartid   = RegInit(UInt(XLEN.W), 0.U) // 硬件线程ID
 
   // Machine Trap Setup
-  val mstatus_init = Wire(new Mstatus())
+  val mstatus_wmask = "h00000000007e19aa".U(64.W)
+  val mstatus_init  = Wire(new Mstatus())
   mstatus_init     := 0.U.asTypeOf(new Mstatus())
   mstatus_init.sxl := 2.U
   mstatus_init.uxl := 2.U
@@ -163,12 +164,6 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     val mstatusNew = Cat(mstatusOld.fs === "b11".U, mstatus(XLEN - 2, 0))
     mstatusNew
   }
-
-  val mstatus_wmask = Mux(
-    VecInit(ModeM, ModeS, ModeU).contains(wdata.asTypeOf(new Mstatus).mpp),
-    "h00000000007e19aa".U(64.W),
-    "h00000000007e01aa".U(64.W)
-  )
 
   // CSR reg map
   val mapping = Map(
@@ -282,8 +277,10 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     )
   )
 
-  val satp_legal = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
-  val write      = (valid && CSROpType.isCSROp(op)) && (addr =/= Satp.U || satp_legal)
+  val mstatus_legal = VecInit(ModeM, ModeS, ModeU).contains(wdata.asTypeOf(new Mstatus).mpp)
+  val satp_legal    = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
+  val write =
+    (valid && CSROpType.isCSROp(op)) && (addr =/= Satp.U || satp_legal) && (addr =/= Mstatus.U || mstatus_legal)
   val only_read =
     VecInit(CSROpType.csrrs, CSROpType.csrrsi, CSROpType.csrrc, CSROpType.csrrci).contains(op) && src1 === 0.U
   val illegal_mode   = mode < addr(9, 8)
