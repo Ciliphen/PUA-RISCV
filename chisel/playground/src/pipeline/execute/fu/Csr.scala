@@ -219,13 +219,13 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mode = RegInit(Priv.m) // 当前特权模式
 
   // interrupts
-  val mtip = io.ext_int.ti
-  val meip = io.ext_int.ei
-  val msip = io.ext_int.si
+  val mtip = io.ext_int.mti
+  val meip = io.ext_int.mei
+  val msip = io.ext_int.msi
   mipWire.t.m := mtip
   mipWire.e.m := meip
   mipWire.s.m := msip
-  val seip                = meip
+  val seip                = io.ext_int.sei
   val mip_raise_interrupt = WireInit(mip.asTypeOf(new Interrupt()))
   mip_raise_interrupt.e.s := mip.asTypeOf(new Interrupt).e.s | seip
 

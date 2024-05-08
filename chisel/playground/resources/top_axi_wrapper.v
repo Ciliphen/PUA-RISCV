@@ -5,6 +5,7 @@ module top_axi_wrapper(
     input       MEI, // to PLIC
     input       MSI, // to CLINT
     input       MTI, // to CLINT
+    input       SEI, // to PLIC
     // aw
     output [3:0]MAXI_awid,
     output[31:0]MAXI_awaddr,
@@ -50,9 +51,10 @@ PuaCpu core(
     .clock                    (clock),
     .reset                    (reset),
     // Interrupts     
-    .io_ext_int_ei            (MEI), // to PLIC
-    .io_ext_int_si            (MSI), // to CLINT
-    .io_ext_int_ti            (MTI), // to CLINT
+    .io_ext_int_mei           (MEI), // to PLIC
+    .io_ext_int_msi           (MSI), // to CLINT
+    .io_ext_int_mti           (MTI), // to CLINT
+    .io_ext_int_sei           (SEI), // to PLIC
     // aw 
     .io_axi_aw_bits_id        (MAXI_awid),
     .io_axi_aw_bits_addr      (MAXI_awaddr),

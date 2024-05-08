@@ -15,9 +15,10 @@ class ExceptionInfo extends Bundle {
 }
 
 class ExtInterrupt extends Bundle {
-  val ei = Bool()
-  val ti = Bool()
-  val si = Bool()
+  val mei = Bool()
+  val mti = Bool()
+  val msi = Bool()
+  val sei = Bool()
 }
 
 class SrcInfo extends Bundle {
