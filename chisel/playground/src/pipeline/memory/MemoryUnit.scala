@@ -92,6 +92,10 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   io.ctrl.sfence_vma.valid    := mou.out.sfence_vma
   io.ctrl.sfence_vma.src_info := io.memoryStage.inst(0).src_info
 
-  io.fetchUnit.flush  := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.flush)
+  val flush = Wire(Bool())
+  flush               := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.flush)
+  io.fetchUnit.flush  := flush
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.target, mou.out.target)
+
+  BoringUtils.addSource(flush, "mem_flush")
 }

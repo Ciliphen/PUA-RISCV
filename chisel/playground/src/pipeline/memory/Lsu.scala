@@ -74,7 +74,7 @@ class Lsu(implicit val cpuConfig: CpuConfig) extends Module {
   val lr_wen   = Wire(Bool())
   val lr_wbit  = Wire(Bool())
   val lr_waddr = Wire(UInt(XLEN.W))
-  lr_wen   := io.memoryUnit.out.ready && (lr_req || sc_req)
+  lr_wen   := io.memoryUnit.in.allow_to_go && (lr_req || sc_req)
   lr_wbit  := lr_req
   lr_waddr := src1
   BoringUtils.addSink(lr, "lr")
