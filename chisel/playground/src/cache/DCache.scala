@@ -769,15 +769,15 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     }
   }
 
-  println("----------------------------------------")
-  println("DCache: ")
-  println("nindex: " + nindex)
-  println("nbank: " + nbank)
-  println("bitsPerBank: " + bitsPerBank)
-  println("bankOffsetWidth: " + bankOffsetWidth)
-  println("bankIndexWidth: " + bankIndexWidth)
-  println("tagWidth: " + tagWidth)
-  println("indexWidth: " + indexWidth)
-  println("offsetWidth: " + offsetWidth)
-  println("----------------------------------------")
+  // println("----------------------------------------")
+  // println("DCache: ")
+  // println("nindex: " + nindex)
+  // println("nbank: " + nbank)
+  // println("bitsPerBank: " + bitsPerBank)
+  // println("bankOffsetWidth: " + bankOffsetWidth)
+  // println("bankIndexWidth: " + bankIndexWidth)
+  // println("tagWidth: " + tagWidth)
+  // println("indexWidth: " + indexWidth)
+  // println("offsetWidth: " + offsetWidth)
+  // println("----------------------------------------")
 }

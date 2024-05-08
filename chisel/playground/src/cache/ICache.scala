@@ -354,14 +354,14 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     state := s_fence
   }
 
-  println("----------------------------------------")
-  println("ICache: ")
-  println("nindex: " + nindex)
-  println("nbank: " + nbank)
-  println("bankOffsetWidth: " + bankOffsetWidth)
-  println("bytesPerBank: " + bytesPerBank)
-  println("tagWidth: " + tagWidth)
-  println("indexWidth: " + indexWidth)
-  println("offsetWidth: " + offsetWidth)
-  println("----------------------------------------")
+  // println("----------------------------------------")
+  // println("ICache: ")
+  // println("nindex: " + nindex)
+  // println("nbank: " + nbank)
+  // println("bankOffsetWidth: " + bankOffsetWidth)
+  // println("bytesPerBank: " + bytesPerBank)
+  // println("tagWidth: " + tagWidth)
+  // println("indexWidth: " + indexWidth)
+  // println("offsetWidth: " + offsetWidth)
+  // println("----------------------------------------")
 }

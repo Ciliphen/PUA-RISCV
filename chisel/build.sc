@@ -7,6 +7,8 @@ import mill.scalalib.TestModule.ScalaTest
 import mill.bsp._
 
 object playground extends ScalaModule with ScalafmtModule { m =>
+  val useChisel5            = false
+  val useChisel6            = true
   override def scalaVersion = "2.13.10"
   override def scalacOptions = Seq(
     "-language:reflectiveCalls",
@@ -15,15 +17,23 @@ object playground extends ScalaModule with ScalafmtModule { m =>
     "-Xcheckinit"
   )
   override def ivyDeps = Agg(
-    ivy"org.chipsalliance::chisel:5.0.0"
+    if (useChisel5) ivy"org.chipsalliance::chisel:5.0.0"
+    else if (useChisel6) ivy"org.chipsalliance::chisel:6.1.0"
+    else
+      ivy"edu.berkeley.cs::chisel3:3.6.0"
   )
   override def scalacPluginIvyDeps = Agg(
-    ivy"org.chipsalliance:::chisel-plugin:5.0.0"
+    if (useChisel5) ivy"org.chipsalliance:::chisel-plugin:5.0.0"
+    else if (useChisel6) ivy"org.chipsalliance:::chisel-plugin:6.1.0"
+    else
+      ivy"edu.berkeley.cs:::chisel3-plugin:3.6.0"
   )
   object test extends ScalaTests with ScalaTest {
     override def ivyDeps = m.ivyDeps() ++ Agg(
       ivy"com.lihaoyi::utest:0.8.1",
-      ivy"edu.berkeley.cs::chiseltest:5.0.0"
+      if (useChisel5 || useChisel6) ivy"edu.berkeley.cs::chiseltest:5.0.0"
+      else
+        ivy"edu.berkeley.cs::chiseltest:0.6.0"
     )
   }
   def repositoriesTask = T.task {
