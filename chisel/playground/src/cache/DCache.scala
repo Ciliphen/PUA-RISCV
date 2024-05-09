@@ -335,14 +335,14 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
                 state := s_wait
               }
             }
-          }.elsewhen(!writeFifo_busy) {
+          }.otherwise {
             ar.addr := io.cpu.tlb.paddr
             ar.len  := 0.U
             ar.size := io.cpu.rlen
             arvalid := true.B
             state   := s_uncached
             rready  := true.B
-          } // when store buffer busy, read will stop at s_idle but stall pipeline.
+          }
         }.otherwise {
           when(!cache_hit) {
             state := s_replace

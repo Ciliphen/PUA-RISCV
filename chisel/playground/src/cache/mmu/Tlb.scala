@@ -417,11 +417,11 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   val imasktag = maskTag(itlb.rmask, itlb.ppn, ivpn)
   val dmasktag = maskTag(dtlb.rmask, dtlb.ppn, dvpn)
 
-  io.icache.uncached := AddressSpace.isMMIO(io.icache.vaddr)
+  io.icache.uncached := AddressSpace.isMMIO(io.icache.paddr)
   io.icache.ptag     := Mux(ivm_enabled, imasktag, ivpn)
   io.icache.paddr    := Cat(io.icache.ptag, io.icache.vaddr(pageOffsetLen - 1, 0))
 
-  io.dcache.uncached := AddressSpace.isMMIO(io.dcache.vaddr)
+  io.dcache.uncached := AddressSpace.isMMIO(io.dcache.paddr)
   io.dcache.ptag     := Mux(dvm_enabled, dmasktag, dvpn)
   io.dcache.paddr    := Cat(io.dcache.ptag, io.dcache.vaddr(pageOffsetLen - 1, 0))
 

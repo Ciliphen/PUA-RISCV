@@ -222,12 +222,12 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mtip = io.ext_int.mti
   val meip = io.ext_int.mei
   val msip = io.ext_int.msi
+  val seip = io.ext_int.sei
   mipWire.t.m := mtip
   mipWire.e.m := meip
   mipWire.s.m := msip
-  val seip                = io.ext_int.sei
+  mipWire.e.s := seip
   val mip_raise_interrupt = WireInit(mip.asTypeOf(new Interrupt()))
-  mip_raise_interrupt.e.s := mip.asTypeOf(new Interrupt).e.s | seip
 
   val mstatusBundle = mstatus.asTypeOf(new Mstatus())
 
