@@ -320,6 +320,14 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
       when(dl2_hit_vec.asUInt.orR) {
         dmmu_state := search_l1
         dtlb       := tlbl2(PriorityEncoder(dl2_hit_vec))
+        when(immu_state === search_l2) {
+          // 若immu和dmmu都处于search_l2状态，而dmmu命中了
+          // 此时dmmu不会请求ptw，而immu会请求ptw
+          // 此时dcache的state为tlb_refill，会由于immu的请求进入别的状态
+          // 这样就和数据访存优先处理的理念相违背
+          // 因此将当拍的immu的req置0，防止修改dcache的state
+          req_ptw(0) := false.B
+        }
       }.otherwise {
         req_ptw(1) := true.B
         when(!choose_icache && io.dcache.ptw.vpn.ready) {
