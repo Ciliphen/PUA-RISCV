@@ -5,6 +5,7 @@ import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
 import cpu.CpuConfig
+import chisel3.util.experimental.BoringUtils
 
 class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
@@ -13,6 +14,11 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
     val regfile        = Output(Vec(cpuConfig.commitNum, new RegWrite()))
     val debug          = new DEBUG()
   })
+
+  // 用于csr中minstret寄存器的更新
+  val commit_num = Wire(UInt(2.W))
+  commit_num := PopCount(io.writeBackStage.inst.map(_.info.valid && io.ctrl.allow_to_go))
+  BoringUtils.addSource(commit_num.asUInt, "commit")
 
   io.regfile(0).wen :=
     io.writeBackStage.inst(0).info.valid &&

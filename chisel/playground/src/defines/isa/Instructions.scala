@@ -233,6 +233,8 @@ trait HasCSRConst {
   // Machine Counter/Timers
   // Currently, NutCore uses perfcnt csr set instead of standard Machine Counter/Timers
   // 0xB80 - 0x89F are also used as perfcnt csr
+  val Mcycle   = 0xb00
+  val Minstret = 0xb02
 
   // Machine Counter Setup (not implemented)
   // Debug/Trace Registers (shared with Debug Mode) (simply implemented)

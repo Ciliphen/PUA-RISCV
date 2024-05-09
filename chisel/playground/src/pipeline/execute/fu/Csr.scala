@@ -61,7 +61,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mhartid   = RegInit(UInt(XLEN.W), 0.U) // 硬件线程ID
 
   // Machine Trap Setup
-  val mstatus_wmask = "h00000000007e19aa".U(64.W)
+  val mstatusWmask = "h00000000007e19aa".U(64.W)
   val mstatus_init  = Wire(new Mstatus())
   mstatus_init     := 0.U.asTypeOf(new Mstatus())
   mstatus_init.sxl := 2.U
@@ -111,6 +111,10 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   mcycle := mcycle + 1.U
   val minstret = RegInit(UInt(XLEN.W), 0.U) // 指令计数器
 
+  val commit_num = Wire(UInt(2.W))
+  BoringUtils.addSink(commit_num, "commit")
+  minstret := minstret + commit_num
+
   // Supervisor Trap Setup
   // sstatus 状态寄存器，源自mstatus
   val sstatusWmask = "h00000000000c0122".U(XLEN.W)
@@ -136,6 +140,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   // Debug/Trace Registers (shared with Debug Mode)
   val tselect = RegInit(1.U(XLEN.W)) // 跟踪寄存器选择寄存器
   val tdata1  = RegInit(UInt(XLEN.W), 0.U) // 跟踪寄存器数据1寄存器
+
+  val counterWmask = WireInit(UInt(XLEN.W), ((1.U << 0.U) | (1.U << 2.U)))
 
   val rdata = Wire(UInt(XLEN.W))
   val wdata = Wire(UInt(XLEN.W))
@@ -173,7 +179,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Sstatus, mstatus, sstatusWmask, mstatusUpdateSideEffect, sstatusRmask),
     MaskedRegMap(Sie, mie, sieMask, MaskedRegMap.NoSideEffect, sieMask),
     MaskedRegMap(Stvec, stvec),
-    MaskedRegMap(Scounteren, scounteren),
+    MaskedRegMap(Scounteren, scounteren, counterWmask),
     // Supervisor Trap Handling
     MaskedRegMap(Sscratch, sscratch),
     MaskedRegMap(Sepc, sepc),
@@ -188,13 +194,13 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Mimpid, mimpid, 0.U, MaskedRegMap.Unwritable),
     MaskedRegMap(Mhartid, mhartid, 0.U, MaskedRegMap.Unwritable),
     // Machine Trap Setup
-    MaskedRegMap(Mstatus, mstatus, mstatus_wmask),
+    MaskedRegMap(Mstatus, mstatus, mstatusWmask),
     MaskedRegMap(Misa, misa, 0.U, MaskedRegMap.Unwritable), // MXL，EXT目前不支持可变
     MaskedRegMap(Medeleg, medeleg, "hbbff".U(XLEN.W)),
     MaskedRegMap(Mideleg, mideleg, "h222".U(XLEN.W)),
     MaskedRegMap(Mie, mie),
     MaskedRegMap(Mtvec, mtvec),
-    MaskedRegMap(Mcounteren, mcounteren),
+    MaskedRegMap(Mcounteren, mcounteren, counterWmask),
     // Machine Trap Handling
     MaskedRegMap(Mscratch, mscratch),
     MaskedRegMap(Mepc, mepc),
@@ -211,6 +217,9 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     // MaskedRegMap(PmpaddrBase + 2, pmpaddr2, pmpaddrWmask),
     // MaskedRegMap(PmpaddrBase + 3, pmpaddr3, pmpaddrWmask)
 
+    // Machine Counter/Timers
+    MaskedRegMap(Mcycle, mcycle),
+    MaskedRegMap(Minstret, minstret),
     // Debug/Trace Registers (shared with Debug Mode)
     MaskedRegMap(Tselect, tselect, 0.U, MaskedRegMap.Unwritable), // 用于通过 risc-v test
     MaskedRegMap(Tdata1, tdata1, 0.U, MaskedRegMap.Unwritable)
