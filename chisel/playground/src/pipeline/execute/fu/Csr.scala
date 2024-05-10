@@ -325,10 +325,16 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   MaskedRegMap.generate(ipMapping, addr, rdataDummy, wen, wdata)
 
   // CSR inst decode
-  val ret    = Wire(Bool())
-  val isMret = IsMret(mem_inst_info) && mem_valid
-  val isSret = IsSret(mem_inst_info) && mem_valid
+  // ret指令在exe阶段执行
+  val ret           = Wire(Bool())
+  val isMretInst    = IsMret(info) && valid
+  val isMretIllegal = mode < ModeM
+  val isMret        = isMretInst && !isMretIllegal
+  val isSretInst    = IsSret(info) && valid
+  val isSretIllegal = mode < ModeS || mstatusBundle.tsr
+  val isSret        = isSretInst && !isSretIllegal
   ret := isMret || isSret
+  val retIllegal = isMretInst && isMretIllegal || isSretInst && isSretIllegal
 
   val exceptionNO = ExcPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.exception(i), i.U, sum))
   val interruptNO = IntPriority.foldRight(0.U)((i: Int, sum: UInt) => Mux(mem_ex.interrupt(i), i.U, sum))
@@ -420,13 +426,15 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   io.tlb.mstatus        := mstatus
   io.executeUnit.out.ex := io.executeUnit.in.ex
   io.executeUnit.out.ex.exception(illegalInst) :=
-    (illegal_addr || illegal_access) && write | io.executeUnit.in.ex.exception(illegalInst)
+    (illegal_addr || illegal_access) && write |
+      retIllegal |
+      io.executeUnit.in.ex.exception(illegalInst)
   io.executeUnit.out.ex.tval(illegalInst) := io.executeUnit.in.info.inst
   io.executeUnit.out.rdata                := rdata
-  io.executeUnit.out.flush                := write_satp
-  io.executeUnit.out.target               := io.executeUnit.in.pc + 4.U
-  io.memoryUnit.out.flush                 := raise_exc_int || ret
-  io.memoryUnit.out.target                := Mux(raise_exc_int, trap_target, ret_target)
+  io.executeUnit.out.flush                := write_satp || ret
+  io.executeUnit.out.target               := Mux(ret, ret_target, io.executeUnit.in.pc + 4.U)
+  io.memoryUnit.out.flush                 := raise_exc_int
+  io.memoryUnit.out.target                := trap_target
 
   // for debug
   io.memoryUnit.out.debug.mcycle    := mcycle
