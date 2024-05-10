@@ -325,6 +325,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
     is(s_fence) {
       // 等待dcache完成写回操作，且等待axi总线完成读取操作，因为icache发生状态转移时可能正在读取数据
       when(!io.cpu.dcache_stall && !io.axi.r.valid) {
+        io.cpu.icache_stall := false.B
         state := s_idle
       }
     }
@@ -352,6 +353,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   when(io.cpu.fence_i) {
     valid := 0.U.asTypeOf(valid) // fence.i指令需要icache，等同于将所有valid位置0
     state := s_fence
+    arvalid := false.B
   }
 
   // println("----------------------------------------")

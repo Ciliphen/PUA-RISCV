@@ -111,7 +111,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   // Machine Counter/Timers
   val mcycle = RegInit(UInt(XLEN.W), 0.U) // 时钟周期计数器
   mcycle := mcycle + 1.U
-  val minstret = RegInit(UInt(XLEN.W), 0.U) // 指令计数器
+  val minstret = RegInit(UInt(XLEN.W), 0.U) // 指令计数器 // TODO:存在更新不准确的问题
 
   val commit_num = Wire(UInt(2.W))
   BoringUtils.addSink(commit_num, "commit")
