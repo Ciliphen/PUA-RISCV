@@ -3,7 +3,7 @@ package cpu.defines
 import chisel3._
 import chisel3.util._
 
-object Priviledged extends HasInstrType with CoreParameter {
+object Privileged extends HasInstrType with CoreParameter {
   def ECALL      = BitPat("b000000000000_00000_000_00000_1110011")
   def EBREAK     = BitPat("b000000000001_00000_000_00000_1110011")
   def MRET       = BitPat("b001100000010_00000_000_00000_1110011")

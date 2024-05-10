@@ -55,7 +55,7 @@ object Instructions extends HasInstrType with CoreParameter {
   def DecodeTable = RVIInstr.table ++
     (if (cpuConfig.hasMExtension) RVMInstr.table else Array.empty) ++
     (if (cpuConfig.hasAExtension) RVAInstr.table else Array.empty) ++
-    Priviledged.table ++
+    Privileged.table ++
     RVZicsrInstr.table ++
     RVZifenceiInstr.table
 }
