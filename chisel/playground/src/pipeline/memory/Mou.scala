@@ -31,16 +31,16 @@ class Mou extends Module {
   // sfence.vma非法的条件为：
   // 1. 当前模式为S模式，且tvm为1
   // 2. 当前模式为U模式
-  val sfence_vma_illegal = tvm && mode === Priv.s || mode < Priv.s
-  val sfence_vma         = valid && io.in.info.op === MOUOpType.sfence_vma && !sfence_vma_illegal
+  val sfence_vma_illegal = (tvm && mode === Priv.s || mode < Priv.s)
+  val sfence_vma         = valid && io.in.info.op === MOUOpType.sfence_vma
 
   io.out.flush      := valid
   io.out.fence_i    := fence_i
-  io.out.sfence_vma := sfence_vma
+  io.out.sfence_vma := sfence_vma && !sfence_vma_illegal
   io.out.target     := io.in.pc + 4.U
 
   io.out.ex                        := DontCare
-  io.out.ex.exception(illegalInst) := sfence_vma_illegal
+  io.out.ex.exception(illegalInst) := sfence_vma && sfence_vma_illegal
   io.out.ex.tval(illegalInst)      := io.in.info.inst
 
 }
