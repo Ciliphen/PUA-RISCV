@@ -242,6 +242,9 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   val mstatusBundle = mstatus.asTypeOf(new Mstatus())
 
+  val tvm = mstatusBundle.tvm
+  BoringUtils.addSource(tvm, "tvm")
+
   val ideleg = (mideleg & mip_raise_interrupt.asUInt)
   def privilegedEnableDetect(x: Bool): Bool = Mux(
     x,

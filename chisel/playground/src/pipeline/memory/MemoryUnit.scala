@@ -24,8 +24,12 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   val lsu = Module(new Lsu()).io
   val mou = Module(new Mou()).io
 
-  mou.in.info := io.memoryStage.inst(0).info
-  mou.in.pc   := io.memoryStage.inst(0).pc
+  val inst0_mou = io.memoryStage.inst(0).info.valid &&
+    io.memoryStage.inst(0).info.fusel === FuType.mou &&
+    !HasExcInt(io.memoryStage.inst(0).ex)
+
+  mou.in.info := Mux(inst0_mou, io.memoryStage.inst(0).info, 0.U.asTypeOf(new Info()))
+  mou.in.pc   := Mux(inst0_mou, io.memoryStage.inst(0).pc, 0.U)
 
   def selectInstField[T <: Data](select: Vec[Bool], fields: Seq[T]): T = {
     require(select.length == fields.length)
@@ -79,6 +83,14 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
       io.memoryStage.inst(i).ex
     )
   }
+
+  io.writeBackStage.inst(0).ex := MuxCase(
+    io.memoryStage.inst(0).ex,
+    Seq(
+      lsu_sel(0) -> lsu.memoryUnit.out.ex,
+      inst0_mou  -> mou.out.ex
+    )
+  )
 
   io.writeBackStage.inst(1).info.valid := io.memoryStage.inst(1).info.valid &&
     !(io.fetchUnit.flush && csr_sel) // 指令0导致flush时，不应该提交指令1
