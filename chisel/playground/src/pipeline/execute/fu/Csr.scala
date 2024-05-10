@@ -294,20 +294,29 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     )
   )
 
-  val mstatus_legal = VecInit(ModeM, ModeS, ModeU).contains(wdata.asTypeOf(new Mstatus).mpp)
-  val satp_legal    = (wdata.asTypeOf(new Satp()).mode === 0.U) || (wdata.asTypeOf(new Satp()).mode === 8.U)
-  val write =
-    (valid && CSROpType.isCSROp(op)) && (addr =/= Satp.U || satp_legal) && (addr =/= Mstatus.U || mstatus_legal)
+  // 非法访问satp的情况：
+  // 1. 写入satp的模式位不是0、8
+  // 2. tvm为1时，任何读写satp的操作
+  val satp_illegal = addr === Satp.U &&
+    (!VecInit(0.U, 8.U).contains(wdata.asTypeOf(new Satp()).mode) || tvm && (addr === Satp.U))
+  // 非法访问mstatus的情况：
+  // 1. 写入mstatus的mpp不是M、S、U
+  val mstatus_illegal = addr === Mstatus.U &&
+    !VecInit(ModeM, ModeS, ModeU).contains(wdata.asTypeOf(new Mstatus).mpp)
+
+  val write = (valid && CSROpType.isCSROp(op))
   val only_read =
     VecInit(CSROpType.csrrs, CSROpType.csrrsi, CSROpType.csrrc, CSROpType.csrrci).contains(op) && src1 === 0.U
-  val illegal_mode   = mode < addr(9, 8)
-  val illegal_write  = write && (addr(11, 10) === "b11".U) && !only_read
-  val illegal_access = illegal_mode || illegal_write
+  val illegal_mode  = mode < addr(9, 8)
+  val illegal_write = write && (addr(11, 10) === "b11".U) && !only_read
+  // 特殊位设置导致的非法访问
+  val illegal_some   = satp_illegal || mstatus_illegal
+  val illegal_access = illegal_mode || illegal_write || illegal_some
   val wen            = write && !illegal_access
 
   MaskedRegMap.generate(mapping, addr, rdata, wen, wdata)
   val illegal_addr = MaskedRegMap.isIllegalAddr(mapping, addr)
-  val write_satp   = (addr === Satp.U) && write
+  val write_satp   = (addr === Satp.U) && wen
   val ipMapping = Map(
     MaskedRegMap(Mip, mipReg, mipFixMask),
     MaskedRegMap(Sip, mipReg, sipMask, MaskedRegMap.NoSideEffect, sipMask)
