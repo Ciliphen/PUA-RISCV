@@ -43,8 +43,12 @@ module top_axi_wrapper(
     // debug
     output      debug_commit,
     output[63:0]debug_pc,
-    output[4:0] debug_reg_num,
-    output[63:0]debug_wdata
+    output[4:0] debug_rf_wnum,
+    output[63:0]debug_rf_wdata,
+    // debug csr
+    output      debug_csr_interrupt,
+    output[63:0]debug_csr_mcycle,
+    output[63:0]debug_csr_mip
 );
 
 PuaCpu core(
@@ -90,10 +94,14 @@ PuaCpu core(
     .io_axi_r_valid           (MAXI_rvalid),
     .io_axi_r_ready           (MAXI_rready),
     // debug
-    .io_debug_wb_pc           (debug_pc),
-    .io_debug_wb_rf_wen       (debug_commit),
-    .io_debug_wb_rf_wnum      (debug_reg_num),
-    .io_debug_wb_rf_wdata     (debug_wdata)
+    .io_debug_pc              (debug_pc),
+    .io_debug_commit          (debug_commit),
+    .io_debug_rf_wnum         (debug_rf_wnum),
+    .io_debug_rf_wdata        (debug_rf_wdata),
+    // debug csr
+    .io_debug_csr_mcycle      (debug_csr_mcycle),
+    .io_debug_csr_mip         (debug_csr_mip),
+    .io_debug_csr_interrupt   (debug_csr_interrupt)
 );
 
 endmodule

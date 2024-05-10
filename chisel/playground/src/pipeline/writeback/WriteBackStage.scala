@@ -14,7 +14,8 @@ class MemWbData extends Bundle {
 }
 
 class MemoryUnitWriteBackUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
-  val inst = Vec(cpuConfig.commitNum, new MemWbData())
+  val inst  = Vec(cpuConfig.commitNum, new MemWbData())
+  val debug = new CSR_DEBUG()
 }
 class WriteBackStage(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
@@ -26,15 +27,19 @@ class WriteBackStage(implicit val cpuConfig: CpuConfig) extends Module {
     val writeBackUnit = Output(new MemoryUnitWriteBackUnit())
   })
 
-  val inst = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new MemWbData())))
+  val inst  = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new MemWbData())))
+  val debug = RegInit(0.U.asTypeOf(new CSR_DEBUG()))
 
   for (i <- 0 until (cpuConfig.commitNum)) {
     when(io.ctrl.clear) {
       inst(i) := 0.U.asTypeOf(new MemWbData())
+      debug   := 0.U.asTypeOf(new CSR_DEBUG())
     }.elsewhen(io.ctrl.allow_to_go) {
       inst(i) := io.memoryUnit.inst(i)
+      debug   := io.memoryUnit.debug
     }
   }
 
-  io.writeBackUnit.inst := inst
+  io.writeBackUnit.inst  := inst
+  io.writeBackUnit.debug := debug
 }

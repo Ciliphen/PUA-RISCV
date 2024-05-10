@@ -21,10 +21,10 @@ class CommitBuffer(
   val empty      = ptr_match && !maybe_full
   val full       = ptr_match && maybe_full
   val do_enq     = Wire(Vec(2, Bool()))
-  val do_deq     = WireDefault(io.deq.wb_rf_wen.orR)
+  val do_deq     = WireDefault(io.deq.commit.orR)
 
   for { i <- 0 until 2 } {
-    do_enq(i) := io.enq(i).wb_rf_wen.orR
+    do_enq(i) := io.enq(i).commit.orR
   }
 
   val next_enq_ptr = MuxCase(
@@ -66,13 +66,13 @@ class CommitBuffer(
   }
 
   when(do_deq) {
-    ram(deq_ptr).wb_rf_wen := 0.U
+    ram(deq_ptr).commit := 0.U
   }
 
   when(empty) {
     do_deq           := false.B
     io.deq           := DontCare
-    io.deq.wb_rf_wen := 0.U
+    io.deq.commit := 0.U
   }.otherwise {
     io.deq := ram(deq_ptr)
   }

@@ -16,6 +16,8 @@ class CsrMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val out = Output(new Bundle {
     val flush  = Bool()
     val target = UInt(XLEN.W)
+
+    val debug = new CSR_DEBUG()
   })
 }
 
@@ -62,7 +64,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
 
   // Machine Trap Setup
   val mstatusWmask = "h00000000007e19aa".U(64.W)
-  val mstatus_init  = Wire(new Mstatus())
+  val mstatus_init = Wire(new Mstatus())
   mstatus_init     := 0.U.asTypeOf(new Mstatus())
   mstatus_init.sxl := 2.U
   mstatus_init.uxl := 2.U
@@ -413,4 +415,9 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   io.executeUnit.out.target               := io.executeUnit.in.pc + 4.U
   io.memoryUnit.out.flush                 := raise_exc_int || ret
   io.memoryUnit.out.target                := Mux(raise_exc_int, trap_target, ret_target)
+
+  // for debug
+  io.memoryUnit.out.debug.mcycle    := mcycle
+  io.memoryUnit.out.debug.mip       := mip
+  io.memoryUnit.out.debug.interrupt := raise_interrupt
 }

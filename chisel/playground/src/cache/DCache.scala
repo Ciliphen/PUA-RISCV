@@ -218,7 +218,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   bank_raddr := Mux(state === s_fence, dirty_index, Mux(use_next_addr, exe_index, replace_index))
   val tag_raddr = Mux(state === s_fence, dirty_index, tag_rindex)
 
-  val wstrb = Wire(Vec(nindex, (Vec(nway, UInt(AXI_STRB_WID.W)))))
+  val wstrb = Wire(Vec(nbank, (Vec(nway, UInt(AXI_STRB_WID.W)))))
   wstrb                         := 0.U.asTypeOf(wstrb)
   wstrb(bank_index)(select_way) := io.cpu.wstrb
 

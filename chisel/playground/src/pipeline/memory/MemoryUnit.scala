@@ -98,4 +98,6 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.target, mou.out.target)
 
   BoringUtils.addSource(flush, "mem_flush")
+
+  io.writeBackStage.debug := io.csr.out.debug
 }

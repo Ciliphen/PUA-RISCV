@@ -226,8 +226,15 @@ class AXI extends Bundle {
 }
 
 class DEBUG extends Bundle {
-  val wb_pc       = Output(UInt(XLEN.W))
-  val wb_rf_wen   = Output(Bool())
-  val wb_rf_wnum  = Output(UInt(REG_ADDR_WID.W))
-  val wb_rf_wdata = Output(UInt(XLEN.W))
+  val pc       = Output(UInt(XLEN.W))
+  val commit   = Output(Bool())
+  val rf_wnum  = Output(UInt(REG_ADDR_WID.W))
+  val rf_wdata = Output(UInt(XLEN.W))
+  val csr         = Output(new CSR_DEBUG())
+}
+
+class CSR_DEBUG extends Bundle {
+  val mcycle    = UInt(XLEN.W)
+  val mip       = UInt(XLEN.W)
+  val interrupt = Bool()
 }
