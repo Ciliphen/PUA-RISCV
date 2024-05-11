@@ -10,3 +10,4 @@ user/sim/testbench.v
 *.~vsd
 
 .vscode/
+.VSCodeCounter/
