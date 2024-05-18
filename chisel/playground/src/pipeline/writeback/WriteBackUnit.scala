@@ -46,7 +46,7 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
       buffer.enq(i).rf_wnum  := io.regfile(i).waddr
       buffer.enq(i).rf_wdata := io.regfile(i).wdata
     }
-    buffer.flush         := io.ctrl.do_flush
+    buffer.flush      := io.ctrl.do_flush
     io.debug.pc       := buffer.deq.pc
     io.debug.commit   := buffer.deq.commit
     io.debug.rf_wnum  := buffer.deq.rf_wnum
@@ -79,4 +79,22 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
   }
 
   io.debug.csr := io.writeBackStage.debug
+  val icache_req      = Wire(Bool())
+  val dcache_req      = Wire(Bool())
+  val icache_hit      = Wire(Bool())
+  val dcache_hit      = Wire(Bool())
+  val bru_pred_branch = Wire(Bool())
+  val bru_pred_fail   = Wire(Bool())
+  BoringUtils.addSink(icache_req, "icache_req")
+  BoringUtils.addSink(dcache_req, "dcache_req")
+  BoringUtils.addSink(icache_hit, "icache_hit")
+  BoringUtils.addSink(dcache_hit, "dcache_hit")
+  BoringUtils.addSink(bru_pred_branch, "bru_pred_branch")
+  BoringUtils.addSink(bru_pred_fail, "bru_pred_fail")
+  io.debug.perf.icache_req      := icache_req
+  io.debug.perf.dcache_req      := dcache_req
+  io.debug.perf.icache_hit      := icache_hit
+  io.debug.perf.dcache_hit      := dcache_hit
+  io.debug.perf.bru_pred_branch := bru_pred_branch
+  io.debug.perf.bru_pred_fail   := bru_pred_fail
 }

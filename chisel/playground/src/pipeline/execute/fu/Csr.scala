@@ -439,5 +439,6 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   // for debug
   io.memoryUnit.out.debug.mcycle    := mcycle
   io.memoryUnit.out.debug.mip       := mip
+  io.memoryUnit.out.debug.minstret  := minstret
   io.memoryUnit.out.debug.interrupt := raise_interrupt
 }

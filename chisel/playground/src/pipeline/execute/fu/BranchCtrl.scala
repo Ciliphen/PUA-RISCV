@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import cpu.defines._
 import cpu.defines.Const._
+import chisel3.util.experimental.BoringUtils
 
 class BranchCtrl extends Module {
   val io = IO(new Bundle {
@@ -46,4 +47,7 @@ class BranchCtrl extends Module {
       (io.in.jump_regiser)                 -> ((src1 + src2) & ~1.U(XLEN.W))
     )
   )
+
+  BoringUtils.addSource(io.in.pred_branch, "bru_pred_branch")
+  BoringUtils.addSource(io.out.pred_fail, "bru_pred_fail")
 }

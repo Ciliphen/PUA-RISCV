@@ -230,11 +230,22 @@ class DEBUG extends Bundle {
   val commit   = Output(Bool())
   val rf_wnum  = Output(UInt(REG_ADDR_WID.W))
   val rf_wdata = Output(UInt(XLEN.W))
-  val csr         = Output(new CSR_DEBUG())
+  val csr      = Output(new CSR_DEBUG())
+  val perf     = Output(new PERF_DEBUG())
 }
 
 class CSR_DEBUG extends Bundle {
   val mcycle    = UInt(XLEN.W)
   val mip       = UInt(XLEN.W)
+  val minstret  = UInt(XLEN.W)
   val interrupt = Bool()
+}
+
+class PERF_DEBUG extends Bundle {
+  val icache_req      = Bool()
+  val icache_hit      = Bool()
+  val dcache_req      = Bool()
+  val dcache_hit      = Bool()
+  val bru_pred_branch = Bool()
+  val bru_pred_fail   = Bool()
 }

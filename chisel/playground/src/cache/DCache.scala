@@ -8,6 +8,7 @@ import cpu.defines._
 import cpu.CpuConfig
 import cpu.defines.Const._
 import icache.mmu.AccessType
+import chisel3.util.experimental.BoringUtils
 
 /*
   整个宽度为PADDR_WID的地址
@@ -768,6 +769,14 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       }
     }
   }
+
+  // debug
+  val dcache_req = Wire(Bool())
+  val dcache_hit = Wire(Bool())
+  dcache_req := io.cpu.en
+  dcache_hit := cache_hit && dcache_req
+  BoringUtils.addSource(dcache_req, "dcache_req")
+  BoringUtils.addSource(dcache_hit, "dcache_hit")
 
   // println("----------------------------------------")
   // println("DCache: ")

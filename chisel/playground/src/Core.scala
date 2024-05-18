@@ -9,6 +9,7 @@ import defines.Const._
 import pipeline._
 import ctrl._
 import icache.mmu.Tlb
+import chisel3.util.experimental.BoringUtils
 
 class Core(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {

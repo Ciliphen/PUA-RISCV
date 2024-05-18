@@ -7,6 +7,7 @@ import cpu.CacheConfig
 import cpu.defines._
 import cpu.CpuConfig
 import cpu.defines.Const._
+import chisel3.util.experimental.BoringUtils
 
 /*
   整个宽度为PADDR_WID的地址
@@ -326,7 +327,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       // 等待dcache完成写回操作，且等待axi总线完成读取操作，因为icache发生状态转移时可能正在读取数据
       when(!io.cpu.dcache_stall && !io.axi.r.valid) {
         io.cpu.icache_stall := false.B
-        state := s_idle
+        state               := s_idle
       }
     }
     is(s_tlb_refill) {
@@ -351,10 +352,18 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   // * fence * //
   // 不论icache在什么状态，fence指令优先度最高，会强制将icache状态转移为s_fence
   when(io.cpu.fence_i) {
-    valid := 0.U.asTypeOf(valid) // fence.i指令需要icache，等同于将所有valid位置0
-    state := s_fence
+    valid   := 0.U.asTypeOf(valid) // fence.i指令需要icache，等同于将所有valid位置0
+    state   := s_fence
     arvalid := false.B
   }
+
+  // debug
+  val icache_req = Wire(Bool())
+  val icache_hit = Wire(Bool())
+  icache_req := io.cpu.req
+  icache_hit := cache_hit && icache_req
+  BoringUtils.addSource(icache_req, "icache_req")
+  BoringUtils.addSource(icache_hit, "icache_hit")
 
   // println("----------------------------------------")
   // println("ICache: ")
