@@ -79,6 +79,7 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
   }
 
   io.debug.csr := io.writeBackStage.debug
+  io.debug.csr.interrupt := io.writeBackStage.inst(0).ex.interrupt.asUInt.orR
   val icache_req      = Wire(Bool())
   val dcache_req      = Wire(Bool())
   val icache_hit      = Wire(Bool())

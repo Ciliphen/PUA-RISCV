@@ -111,5 +111,5 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
 
   BoringUtils.addSource(flush, "mem_flush")
 
-  io.writeBackStage.debug := io.csr.out.debug
+  io.writeBackStage.debug := io.memoryStage.debug
 }

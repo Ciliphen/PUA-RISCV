@@ -16,6 +16,7 @@ class ExeMemData extends Bundle {
 
 class ExecuteUnitMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val inst = Vec(cpuConfig.commitNum, new ExeMemData())
+  val debug = new CSR_DEBUG()
 }
 
 class MemoryStage(implicit val cpuConfig: CpuConfig) extends Module {
@@ -28,14 +29,18 @@ class MemoryStage(implicit val cpuConfig: CpuConfig) extends Module {
     val memoryUnit  = Output(new ExecuteUnitMemoryUnit())
   })
   val inst = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new ExeMemData())))
+  val debug = RegInit(0.U.asTypeOf(new CSR_DEBUG()))
 
   for (i <- 0 until (cpuConfig.commitNum)) {
     when(io.ctrl.clear) {
       inst(i) := 0.U.asTypeOf(new ExeMemData())
+      debug := 0.U.asTypeOf(new CSR_DEBUG())
     }.elsewhen(io.ctrl.allow_to_go) {
       inst(i) := io.executeUnit.inst(i)
+      debug := io.executeUnit.debug
     }
   }
 
   io.memoryUnit.inst := inst
+  io.memoryUnit.debug := debug
 }

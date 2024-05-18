@@ -16,8 +16,6 @@ class CsrMemoryUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
   val out = Output(new Bundle {
     val flush  = Bool()
     val target = UInt(XLEN.W)
-
-    val debug = new CSR_DEBUG()
   })
 }
 
@@ -34,6 +32,8 @@ class CsrExecuteUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
     val ex     = new ExceptionInfo()
     val flush  = Bool()
     val target = UInt(XLEN.W)
+
+    val debug = new CSR_DEBUG()
   })
 }
 
@@ -437,8 +437,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   io.memoryUnit.out.target                := trap_target
 
   // for debug
-  io.memoryUnit.out.debug.mcycle    := mcycle
-  io.memoryUnit.out.debug.mip       := mip
-  io.memoryUnit.out.debug.minstret  := minstret
-  io.memoryUnit.out.debug.interrupt := raise_interrupt
+  io.executeUnit.out.debug.mcycle    := mcycle
+  io.executeUnit.out.debug.mip       := mip
+  io.executeUnit.out.debug.minstret  := minstret
+  io.executeUnit.out.debug.interrupt := DontCare
 }

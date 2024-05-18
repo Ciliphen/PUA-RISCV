@@ -117,4 +117,7 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
     io.decodeUnit.forward(i).exe.wdata := io.memoryStage.inst(i).rd_info.wdata(io.memoryStage.inst(i).info.fusel)
     io.decodeUnit.forward(i).is_load   := io.ctrl.inst(i).is_load
   }
+
+  // debug
+  io.memoryStage.debug := io.csr.out.debug
 }
