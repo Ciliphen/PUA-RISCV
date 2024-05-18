@@ -80,22 +80,10 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
 
   io.debug.csr := io.writeBackStage.debug
   io.debug.csr.interrupt := io.writeBackStage.inst(0).ex.interrupt.asUInt.orR
-  val icache_req      = Wire(Bool())
-  val dcache_req      = Wire(Bool())
-  val icache_hit      = Wire(Bool())
-  val dcache_hit      = Wire(Bool())
-  val bru_pred_branch = Wire(Bool())
-  val bru_pred_fail   = Wire(Bool())
-  BoringUtils.addSink(icache_req, "icache_req")
-  BoringUtils.addSink(dcache_req, "dcache_req")
-  BoringUtils.addSink(icache_hit, "icache_hit")
-  BoringUtils.addSink(dcache_hit, "dcache_hit")
-  BoringUtils.addSink(bru_pred_branch, "bru_pred_branch")
-  BoringUtils.addSink(bru_pred_fail, "bru_pred_fail")
-  io.debug.perf.icache_req      := icache_req
-  io.debug.perf.dcache_req      := dcache_req
-  io.debug.perf.icache_hit      := icache_hit
-  io.debug.perf.dcache_hit      := dcache_hit
-  io.debug.perf.bru_pred_branch := bru_pred_branch
-  io.debug.perf.bru_pred_fail   := bru_pred_fail
+  BoringUtils.addSink(io.debug.perf.icache_req, "icache_req")
+  BoringUtils.addSink(io.debug.perf.dcache_req, "dcache_req")
+  BoringUtils.addSink(io.debug.perf.icache_hit, "icache_hit")
+  BoringUtils.addSink(io.debug.perf.dcache_hit, "dcache_hit")
+  BoringUtils.addSink(io.debug.perf.bru_pred_branch, "bru_pred_branch")
+  BoringUtils.addSink(io.debug.perf.bru_pred_fail, "bru_pred_fail")
 }
