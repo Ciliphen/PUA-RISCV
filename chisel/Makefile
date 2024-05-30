@@ -1,6 +1,6 @@
 BUILD_DIR = ./build
 DIFF_DIR = ../difftest/core
-DIFF_WORK_DIR = ../difftest/test/sim
+DIFF_WORK_DIR = ../difftest/
 
 export PATH := $(PATH):$(abspath ./utils)
 
@@ -12,7 +12,16 @@ verilog:
 func:
 	$(MAKE) verilog
 	cp $(BUILD_DIR)/PuaCpu.v $(DIFF_DIR)
-	cd $(DIFF_WORK_DIR) && make func
+	$(MAKE) -C $(DIFF_WORK_DIR) func
+
+trace:
+	$(MAKE) verilog
+	cp $(BUILD_DIR)/PuaCpu.v $(DIFF_DIR)
+	$(MAKE) -C $(DIFF_WORK_DIR) trace
+	cp $(DIFF_WORK_DIR)/trace.txt .
+
+os:
+	$(MAKE) -C $(DIFF_WORK_DIR) os
 
 test:
 	@echo "make test"
@@ -39,7 +48,7 @@ checkformat:
 	mill -i __.checkFormat
 
 clean:
-	-rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)
 
 .PHONY: test verilog help compile bsp reformat checkformat clean
 
