@@ -128,7 +128,6 @@ class Cache_ICache(implicit val cpuConfig: CpuConfig) extends Bundle {
   val inst_valid      = Input(Vec(cpuConfig.instFetchNum, Bool()))
   val access_fault    = Input(Bool())
   val page_fault      = Input(Bool())
-  val addr_misaligned = Input(Bool())
   val icache_stall    = Input(Bool()) // icache_stall
 
   // tlb

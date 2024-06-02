@@ -217,36 +217,16 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
 
   val access_fault    = RegInit(false.B)
   val page_fault      = RegInit(false.B)
-  val addr_misaligned = RegInit(false.B)
-  // sv39的63-39位不与第38位相同，或者地址未对齐时，地址错
-  val addr_err =
-    io.cpu
-      .addr(use_next_addr)(XLEN - 1, VADDR_WID)
-      .asBools
-      .map(_ =/= io.cpu.addr(use_next_addr)(VADDR_WID - 1))
-      .reduce(_ || _) ||
-      io.cpu.addr(use_next_addr)(log2Ceil(INST_WID / 8) - 1, 0).orR
 
   io.cpu.access_fault    := access_fault //TODO：实现cached段中的访存response错误
   io.cpu.page_fault      := page_fault
-  io.cpu.addr_misaligned := addr_misaligned
 
   switch(state) {
     is(s_idle) {
       access_fault    := false.B // 在idle时清除access_fault
       page_fault      := false.B // 在idle时清除page_fault
-      addr_misaligned := false.B // 在idle时清除addr_misaligned
       when(io.cpu.req) {
-        when(addr_err) {
-          when(io.cpu.addr(use_next_addr)(log2Ceil(INST_WID / 8) - 1, 0).orR) {
-            addr_misaligned := true.B
-          }.otherwise {
-            access_fault := true.B
-          }
-          state                  := s_wait
-          rdata_in_wait(0).inst  := Instructions.NOP
-          rdata_in_wait(0).valid := true.B
-        }.elsewhen(!io.cpu.tlb.hit) {
+        when(!io.cpu.tlb.hit) {
           state := s_tlb_refill
         }.elsewhen(io.cpu.tlb.uncached) {
           state   := s_uncached
@@ -318,7 +298,6 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
       when(io.cpu.complete_single_request) {
         access_fault    := false.B // 清除access_fault
         page_fault      := false.B // 清除page_fault
-        addr_misaligned := false.B // 清除addr_misaligned
         state           := s_idle
         (0 until instFetchNum).foreach(i => rdata_in_wait(i).valid := false.B)
       }
