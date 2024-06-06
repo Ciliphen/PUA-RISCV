@@ -28,8 +28,9 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
     io.memoryStage.inst(0).info.fusel === FuType.mou &&
     !HasExcInt(io.memoryStage.inst(0).ex)
 
-  mou.in.info := Mux(inst0_mou, io.memoryStage.inst(0).info, 0.U.asTypeOf(new Info()))
-  mou.in.pc   := Mux(inst0_mou, io.memoryStage.inst(0).pc, 0.U)
+  mou.in.info       := io.memoryStage.inst(0).info
+  mou.in.info.valid := inst0_mou
+  mou.in.pc         := io.memoryStage.inst(0).pc
 
   def selectInstField[T <: Data](select: Vec[Bool], fields: Seq[T]): T = {
     require(select.length == fields.length)
@@ -51,21 +52,20 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   lsu.dataMemory <> io.dataMemory
   lsu.memoryUnit.in.allow_to_go := io.ctrl.allow_to_go
 
-  val csr_sel =
-    HasExcInt(io.writeBackStage.inst(0).ex) || !HasExcInt(io.writeBackStage.inst(1).ex)
-
-  io.csr.in.pc   := 0.U
-  io.csr.in.ex   := 0.U.asTypeOf(new ExceptionInfo())
-  io.csr.in.info := 0.U.asTypeOf(new Info())
-
   def selectInstField[T <: Data](select: Bool, fields: Seq[T]): T = {
     Mux1H(Seq(select -> fields(0), !select -> fields(1)))
   }
 
+  val csr_sel =
+    HasExcInt(io.writeBackStage.inst(0).ex) || !HasExcInt(io.writeBackStage.inst(1).ex)
+
+  io.csr.in.pc         := selectInstField(csr_sel, io.memoryStage.inst.map(_.pc))
+  io.csr.in.ex         := selectInstField(csr_sel, io.writeBackStage.inst.map(_.ex))
+  io.csr.in.info       := selectInstField(csr_sel, io.memoryStage.inst.map(_.info))
+  io.csr.in.info.valid := false.B
+
   when(io.ctrl.allow_to_go) {
-    io.csr.in.pc   := selectInstField(csr_sel, io.memoryStage.inst.map(_.pc))
-    io.csr.in.ex   := selectInstField(csr_sel, io.writeBackStage.inst.map(_.ex))
-    io.csr.in.info := selectInstField(csr_sel, io.memoryStage.inst.map(_.info))
+    io.csr.in.info.valid := selectInstField(csr_sel, io.memoryStage.inst.map(_.info.valid))
   }
 
   for (i <- 0 until cpuConfig.commitNum) {

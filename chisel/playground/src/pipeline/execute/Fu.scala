@@ -51,32 +51,30 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
   io.branch.target := branchCtrl.out.target
 
   for (i <- 0 until (cpuConfig.commitNum)) {
-    alu(i).io.info     := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).info, 0.U.asTypeOf(new Info()))
-    alu(i).io.src_info := Mux(io.inst(i).info.fusel === FuType.alu, io.inst(i).src_info, 0.U.asTypeOf(new SrcInfo()))
+    alu(i).io.info     := io.inst(i).info
+    alu(i).io.src_info := io.inst(i).src_info
   }
 
   val mdu_sel = VecInit(
-    io.inst(0).info.fusel === FuType.mdu,
-    io.inst(1).info.fusel === FuType.mdu
+    io.inst(0).info.fusel === FuType.mdu && io.inst(0).info.valid,
+    io.inst(1).info.fusel === FuType.mdu && io.inst(1).info.valid
   )
 
-  mdu.info := MuxCase(
-    0.U.asTypeOf(new Info()),
+  mdu.info := Mux1H(
     Seq(mdu_sel(0) -> io.inst(0).info, mdu_sel(1) -> io.inst(1).info)
   )
-  mdu.src_info := MuxCase(
-    0.U.asTypeOf(new SrcInfo()),
+  mdu.info.valid := mdu_sel(0) || mdu_sel(1)
+  mdu.src_info := Mux1H(
     Seq(mdu_sel(0) -> io.inst(0).src_info, mdu_sel(1) -> io.inst(1).src_info)
   )
   mdu.allow_to_go := io.ctrl.allow_to_go
 
   io.ctrl.stall := io.inst.map(_.info.fusel === FuType.mdu).reduce(_ || _) && !mdu.ready
 
-  io.inst(0).result.alu := alu(0).io.result
-  io.inst(0).result.mdu := mdu.result
-
-  io.inst(1).result.alu := alu(1).io.result
-  io.inst(1).result.mdu := mdu.result
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    io.inst(i).result.alu := alu(i).io.result
+    io.inst(i).result.mdu := mdu.result
+  }
 
   val mem_addr = Seq.tabulate(cpuConfig.commitNum)(i =>
     Mux(
