@@ -4,6 +4,7 @@ import chisel3._
 import chisel3.util._
 import cpu.defines.Const._
 import cpu.{BranchPredictorConfig, CpuConfig}
+import cpu.defines.CtrlSignal
 
 class IfIdData extends Bundle {
   val bpuConfig       = new BranchPredictorConfig()
@@ -17,7 +18,7 @@ class IfIdData extends Bundle {
 
 class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val do_flush = Input(Bool())
+    val ctrl = Input(new CtrlSignal())
 
     val wen   = Input(Vec(cpuConfig.instFetchNum, Bool()))
     val write = Input(Vec(cpuConfig.instFetchNum, new IfIdData()))
@@ -69,7 +70,7 @@ class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {
     )
   )
 
-  when(io.do_flush) {
+  when(io.ctrl.do_flush) {
     deq_ptr := 0.U
   }.otherwise {
     deq_ptr := deq_ptr + deq_num
@@ -84,7 +85,7 @@ class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {
     }
   }
 
-  when(io.do_flush) {
+  when(io.ctrl.do_flush) {
     enq_ptr := 0.U
   }.otherwise {
     enq_ptr := enq_ptr + enq_num
@@ -97,5 +98,5 @@ class InstFifo(implicit val cpuConfig: CpuConfig) extends Module {
     }
   }
 
-  count := Mux(io.do_flush, 0.U, count + enq_num + cpuConfig.instFifoDepth.U - deq_num)
+  count := Mux(io.ctrl.do_flush, 0.U, count + enq_num + cpuConfig.instFifoDepth.U - deq_num)
 }

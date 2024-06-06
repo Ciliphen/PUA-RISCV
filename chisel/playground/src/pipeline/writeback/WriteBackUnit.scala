@@ -17,19 +17,19 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
 
   // 用于csr中minstret寄存器的更新
   val commit_num = Wire(UInt(2.W))
-  commit_num := PopCount(io.writeBackStage.inst.map(_.info.valid && io.ctrl.allow_to_go))
+  commit_num := PopCount(io.writeBackStage.inst.map(_.info.valid && io.ctrl.ctrlSignal.allow_to_go))
   BoringUtils.addSource(commit_num.asUInt, "commit")
 
   io.regfile(0).wen :=
     io.writeBackStage.inst(0).info.valid &&
       io.writeBackStage.inst(0).info.reg_wen &&
-      io.ctrl.allow_to_go &&
+      io.ctrl.ctrlSignal.allow_to_go &&
       !(HasExcInt(io.writeBackStage.inst(0).ex))
 
   io.regfile(1).wen :=
     io.writeBackStage.inst(1).info.valid &&
       io.writeBackStage.inst(1).info.reg_wen &&
-      io.ctrl.allow_to_go &&
+      io.ctrl.ctrlSignal.allow_to_go &&
       !(HasExcInt(io.writeBackStage.inst(0).ex)) &&
       !(HasExcInt(io.writeBackStage.inst(1).ex))
 
@@ -42,11 +42,11 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
     val buffer = Module(new CommitBuffer()).io
     for (i <- 0 until (cpuConfig.commitNum)) {
       buffer.enq(i).pc       := io.writeBackStage.inst(i).pc
-      buffer.enq(i).commit   := io.writeBackStage.inst(i).info.valid && io.ctrl.allow_to_go
+      buffer.enq(i).commit   := io.writeBackStage.inst(i).info.valid && io.ctrl.ctrlSignal.allow_to_go
       buffer.enq(i).rf_wnum  := io.regfile(i).waddr
       buffer.enq(i).rf_wdata := io.regfile(i).wdata
     }
-    buffer.flush      := io.ctrl.do_flush
+    buffer.flush      := io.ctrl.ctrlSignal.do_flush
     io.debug.pc       := buffer.deq.pc
     io.debug.commit   := buffer.deq.commit
     io.debug.rf_wnum  := buffer.deq.rf_wnum
@@ -56,15 +56,15 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
       clock.asBool,
       io.writeBackStage.inst(0).pc,
       Mux(
-        !(io.writeBackStage.inst(1).info.valid && io.ctrl.allow_to_go),
+        !(io.writeBackStage.inst(1).info.valid && io.ctrl.ctrlSignal.allow_to_go),
         0.U,
         io.writeBackStage.inst(1).pc
       )
     )
     io.debug.commit := Mux(
       clock.asBool,
-      io.writeBackStage.inst(0).info.valid && io.ctrl.allow_to_go,
-      io.writeBackStage.inst(1).info.valid && io.ctrl.allow_to_go
+      io.writeBackStage.inst(0).info.valid && io.ctrl.ctrlSignal.allow_to_go,
+      io.writeBackStage.inst(1).info.valid && io.ctrl.ctrlSignal.allow_to_go
     )
     io.debug.rf_wnum := Mux(
       clock.asBool,
@@ -78,7 +78,7 @@ class WriteBackUnit(implicit val cpuConfig: CpuConfig) extends Module {
     )
   }
 
-  io.debug.csr := io.writeBackStage.debug
+  io.debug.csr           := io.writeBackStage.debug
   io.debug.csr.interrupt := io.writeBackStage.inst(0).ex.interrupt.asUInt.orR
   BoringUtils.addSink(io.debug.perf.icache_req, "icache_req")
   BoringUtils.addSink(io.debug.perf.dcache_req, "dcache_req")

@@ -19,10 +19,7 @@ class MemoryUnitWriteBackUnit(implicit val cpuConfig: CpuConfig) extends Bundle 
 }
 class WriteBackStage(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val ctrl = Input(new Bundle {
-      val allow_to_go = Bool()
-      val clear       = Bool()
-    })
+    val ctrl          = Input(new CtrlSignal())
     val memoryUnit    = Input(new MemoryUnitWriteBackUnit())
     val writeBackUnit = Output(new MemoryUnitWriteBackUnit())
   })
@@ -31,8 +28,8 @@ class WriteBackStage(implicit val cpuConfig: CpuConfig) extends Module {
   val debug = RegInit(0.U.asTypeOf(new CSR_DEBUG()))
 
   for (i <- 0 until (cpuConfig.commitNum)) {
-    when(io.ctrl.clear) {
-      inst(i).info.valid := false.B
+    when(io.ctrl.do_flush) {
+      inst(i).info.valid   := false.B
       inst(i).info.reg_wen := false.B
     }.elsewhen(io.ctrl.allow_to_go) {
       inst(i) := io.memoryUnit.inst(i)

@@ -26,17 +26,17 @@ class Ctrl(implicit val cpuConfig: CpuConfig) extends Module {
   val longest_stall =
     io.executeUnit.fu.stall || io.cacheCtrl.iCache_stall || io.memoryUnit.mem_stall
 
-  io.fetchUnit.allow_to_go     := !io.cacheCtrl.iCache_stall
-  io.decodeUnit.allow_to_go    := !(lw_stall || longest_stall)
-  io.executeUnit.allow_to_go   := !longest_stall
-  io.memoryUnit.allow_to_go    := !longest_stall
-  io.writeBackUnit.allow_to_go := !longest_stall
+  io.fetchUnit.ctrlSignal.allow_to_go     := !io.cacheCtrl.iCache_stall
+  io.decodeUnit.ctrlSignal.allow_to_go    := !(lw_stall || longest_stall)
+  io.executeUnit.ctrlSignal.allow_to_go   := !longest_stall
+  io.memoryUnit.ctrlSignal.allow_to_go    := !longest_stall
+  io.writeBackUnit.ctrlSignal.allow_to_go := !longest_stall
 
-  io.fetchUnit.do_flush     := false.B
-  io.decodeUnit.do_flush    := io.memoryUnit.flush || io.executeUnit.flush || io.decodeUnit.branch
-  io.executeUnit.do_flush   := io.memoryUnit.flush || io.executeUnit.flush
-  io.memoryUnit.do_flush    := io.memoryUnit.flush
-  io.writeBackUnit.do_flush := false.B
+  io.fetchUnit.ctrlSignal.do_flush     := io.memoryUnit.flush || io.executeUnit.flush || io.decodeUnit.branch
+  io.decodeUnit.ctrlSignal.do_flush    := io.memoryUnit.flush || io.executeUnit.flush
+  io.executeUnit.ctrlSignal.do_flush   := io.memoryUnit.flush
+  io.memoryUnit.ctrlSignal.do_flush    := false.B
+  io.writeBackUnit.ctrlSignal.do_flush := false.B
 
-  io.executeUnit.fu.allow_to_go := io.memoryUnit.allow_to_go
+  io.executeUnit.fu.allow_to_go := io.memoryUnit.ctrlSignal.allow_to_go
 }

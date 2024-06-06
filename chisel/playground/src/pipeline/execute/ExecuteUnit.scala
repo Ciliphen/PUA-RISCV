@@ -36,7 +36,7 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
     }
   })
 
-  val valid = io.executeStage.inst.map(_.info.valid && io.ctrl.allow_to_go)
+  val valid = io.executeStage.inst.map(_.info.valid && io.ctrl.ctrlSignal.allow_to_go)
   val fusel = io.executeStage.inst.map(_.info.fusel)
 
   io.ctrl.flush := io.fetchUnit.flush
@@ -82,7 +82,7 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
   io.bpu.branch           := fu.branch.branch
   io.bpu.branch_inst      := io.executeStage.jump_branch_info.branch_inst
 
-  io.fetchUnit.flush  := valid(0) && io.ctrl.allow_to_go && (fu.branch.flush || io.csr.out.flush)
+  io.fetchUnit.flush  := valid(0) && io.ctrl.ctrlSignal.allow_to_go && (fu.branch.flush || io.csr.out.flush)
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.target, fu.branch.target)
 
   for (i <- 0 until (cpuConfig.commitNum)) {

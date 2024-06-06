@@ -45,6 +45,18 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   ctrl.writeBackUnit <> writeBackUnit.ctrl
   ctrl.cacheCtrl.iCache_stall := io.inst.icache_stall
 
+  instFifo.ctrl <> ctrl.fetchUnit.ctrlSignal
+  executeStage.ctrl.zip(decodeUnit.instFifo.allow_to_go).foreach { case (a, b) => a.allow_to_go := b }
+  // 执行级缓存清刷逻辑为：
+  // 1.译码级需要清刷
+  // 2.译码级数据未准备好，此时需要插入气泡
+  for (i <- 0 until (cpuConfig.commitNum)) {
+    executeStage.ctrl(i).do_flush := ctrl.decodeUnit.ctrlSignal.do_flush ||
+    !executeStage.ctrl(i).allow_to_go && ctrl.executeUnit.ctrlSignal.allow_to_go
+  }
+  memoryStage.ctrl <> ctrl.executeUnit.ctrlSignal
+  writeBackStage.ctrl <> ctrl.memoryUnit.ctrlSignal
+
   fetchUnit.memory <> memoryUnit.fetchUnit
   fetchUnit.execute <> executeUnit.fetchUnit
   fetchUnit.decode <> decodeUnit.fetchUnit
@@ -59,7 +71,6 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   bpu.decode <> decodeUnit.bpu
   bpu.execute <> executeUnit.bpu
 
-  instFifo.do_flush := ctrl.decodeUnit.do_flush
   instFifo.decoderUint <> decodeUnit.instFifo
 
   for (i <- 0 until cpuConfig.instFetchNum) {
@@ -84,20 +95,9 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   }
   decodeUnit.executeStage <> executeStage.decodeUnit
 
-  for (i <- 0 until (cpuConfig.commitNum)) {
-    // 流水线清空或者暂停时，需要清空缓存级的数据，也就是插入气泡
-    executeStage.ctrl.clear(i) :=
-      ctrl.memoryUnit.do_flush || ctrl.executeUnit.do_flush ||
-      !decodeUnit.instFifo.allow_to_go(i) && ctrl.executeUnit.allow_to_go
-
-    executeStage.ctrl.allow_to_go(i) := decodeUnit.instFifo.allow_to_go(i)
-  }
   executeUnit.executeStage <> executeStage.executeUnit
   executeUnit.csr <> csr.executeUnit
   executeUnit.memoryStage <> memoryStage.executeUnit
-
-  memoryStage.ctrl.allow_to_go := ctrl.memoryUnit.allow_to_go
-  memoryStage.ctrl.clear       := ctrl.memoryUnit.do_flush
 
   memoryUnit.memoryStage <> memoryStage.memoryUnit
   memoryUnit.csr <> csr.memoryUnit
@@ -118,11 +118,8 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   io.data.exe_addr                      := executeUnit.dataMemory.addr
 
   writeBackStage.memoryUnit <> memoryUnit.writeBackStage
-  writeBackStage.ctrl.allow_to_go := ctrl.writeBackUnit.allow_to_go
-  writeBackStage.ctrl.clear       := ctrl.writeBackUnit.do_flush
 
   writeBackUnit.writeBackStage <> writeBackStage.writeBackUnit
-  writeBackUnit.ctrl <> ctrl.writeBackUnit
   regfile.write <> writeBackUnit.regfile
 
   io.debug <> writeBackUnit.debug
@@ -134,6 +131,6 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
 
   io.inst.req := !instFifo.full && !reset.asBool
 
-  io.inst.complete_single_request := ctrl.fetchUnit.allow_to_go
-  io.data.complete_single_request := ctrl.memoryUnit.allow_to_go || ctrl.memoryUnit.complete_single_request
+  io.inst.complete_single_request := ctrl.fetchUnit.ctrlSignal.allow_to_go
+  io.data.complete_single_request := ctrl.memoryUnit.ctrlSignal.allow_to_go || ctrl.memoryUnit.complete_single_request
 }

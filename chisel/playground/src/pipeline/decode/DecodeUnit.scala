@@ -68,7 +68,7 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   info(0).valid := !io.instFifo.info.empty
   info(1).valid := !io.instFifo.info.almost_empty && !io.instFifo.info.empty
 
-  issue.allow_to_go          := io.ctrl.allow_to_go
+  issue.allow_to_go          := io.ctrl.ctrlSignal.allow_to_go
   issue.instFifo             := io.instFifo.info
   io.instFifo.allow_to_go(1) := issue.inst1.allow_to_go
   for (i <- 0 until (cpuConfig.decoderNum)) {
@@ -89,10 +89,10 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
 
   val inst0_branch = jumpCtrl.out.jump || io.bpu.branch
 
-  io.fetchUnit.branch := inst0_branch && io.ctrl.allow_to_go
+  io.fetchUnit.branch := inst0_branch && io.ctrl.ctrlSignal.allow_to_go
   io.fetchUnit.target := Mux(io.bpu.branch, io.bpu.target, jumpCtrl.out.jump_target)
 
-  io.instFifo.allow_to_go(0) := io.ctrl.allow_to_go
+  io.instFifo.allow_to_go(0) := io.ctrl.ctrlSignal.allow_to_go
   io.bpu.pc                  := pc(0)
   io.bpu.info                := info(0)
   io.bpu.pht_index           := io.instFifo.inst(0).pht_index
@@ -103,7 +103,7 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   io.ctrl.inst0.src2.raddr := info(0).src2_raddr
   io.ctrl.branch           := io.fetchUnit.branch
 
-  io.executeStage.jump_branch_info.jump_register     := jumpCtrl.out.jump_register
+  io.executeStage.jump_branch_info.jump_register    := jumpCtrl.out.jump_register
   io.executeStage.jump_branch_info.branch_inst      := io.bpu.branch_inst
   io.executeStage.jump_branch_info.pred_branch      := io.bpu.branch
   io.executeStage.jump_branch_info.branch_target    := io.bpu.target

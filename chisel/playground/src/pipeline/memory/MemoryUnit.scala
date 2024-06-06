@@ -50,7 +50,7 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   lsu.memoryUnit.in.src_info := selectInstField(lsu_sel, io.memoryStage.inst.map(_.src_info))
   lsu.memoryUnit.in.ex       := selectInstField(lsu_sel, io.memoryStage.inst.map(_.ex))
   lsu.dataMemory <> io.dataMemory
-  lsu.memoryUnit.in.allow_to_go := io.ctrl.allow_to_go
+  lsu.memoryUnit.in.allow_to_go := io.ctrl.ctrlSignal.allow_to_go
 
   def selectInstField[T <: Data](select: Bool, fields: Seq[T]): T = {
     Mux1H(Seq(select -> fields(0), !select -> fields(1)))
@@ -64,7 +64,7 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   io.csr.in.info       := selectInstField(csr_sel, io.memoryStage.inst.map(_.info))
   io.csr.in.info.valid := false.B
 
-  when(io.ctrl.allow_to_go) {
+  when(io.ctrl.ctrlSignal.allow_to_go) {
     io.csr.in.info.valid := selectInstField(csr_sel, io.memoryStage.inst.map(_.info.valid))
   }
 
@@ -105,7 +105,7 @@ class MemoryUnit(implicit val cpuConfig: CpuConfig) extends Module {
   io.ctrl.sfence_vma.src_info := io.memoryStage.inst(0).src_info
 
   val flush = Wire(Bool())
-  flush               := io.ctrl.allow_to_go && (io.csr.out.flush || mou.out.flush)
+  flush               := io.ctrl.ctrlSignal.allow_to_go && (io.csr.out.flush || mou.out.flush)
   io.fetchUnit.flush  := flush
   io.fetchUnit.target := Mux(io.csr.out.flush, io.csr.out.target, mou.out.target)
 

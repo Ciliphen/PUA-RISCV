@@ -29,22 +29,19 @@ class DecodeUnitExecuteUnit(implicit val cpuConfig: CpuConfig) extends Bundle {
 
 class ExecuteStage(implicit val cpuConfig: CpuConfig) extends Module {
   val io = IO(new Bundle {
-    val ctrl = Input(new Bundle {
-      val allow_to_go = Vec(cpuConfig.decoderNum, Bool())
-      val clear       = Vec(cpuConfig.decoderNum, Bool())
-    })
+    val ctrl        = Input(Vec(cpuConfig.commitNum, new CtrlSignal()))
     val decodeUnit  = Input(new DecodeUnitExecuteUnit())
     val executeUnit = Output(new DecodeUnitExecuteUnit())
   })
 
-  val inst = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new IdExeData())))
-  val jump_branch_info = RegEnable(io.decodeUnit.jump_branch_info, io.ctrl.allow_to_go(0))
+  val inst             = Seq.fill(cpuConfig.commitNum)(RegInit(0.U.asTypeOf(new IdExeData())))
+  val jump_branch_info = RegEnable(io.decodeUnit.jump_branch_info, io.ctrl(0).allow_to_go)
 
   for (i <- 0 until (cpuConfig.commitNum)) {
-    when(io.ctrl.clear(i)) {
+    when(io.ctrl(i).do_flush) {
       inst(i).info.valid   := false.B
       inst(i).info.reg_wen := false.B
-    }.elsewhen(io.ctrl.allow_to_go(i)) {
+    }.elsewhen(io.ctrl(i).allow_to_go) {
       inst(i) := io.decodeUnit.inst(i)
     }
   }

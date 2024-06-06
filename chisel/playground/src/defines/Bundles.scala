@@ -55,13 +55,17 @@ class SrcReadSignal extends Bundle {
   val raddr = UInt(REG_ADDR_WID.W)
 }
 
+class CtrlSignal extends Bundle {
+  val allow_to_go = Bool()
+  val do_flush    = Bool()
+}
+
 class CacheCtrl extends Bundle {
   val iCache_stall = Output(Bool())
 }
 
 class FetchUnitCtrl extends Bundle {
-  val allow_to_go = Input(Bool())
-  val do_flush    = Input(Bool())
+  val ctrlSignal = Input(new CtrlSignal())
 }
 
 class DecodeUnitCtrl extends Bundle {
@@ -71,8 +75,7 @@ class DecodeUnitCtrl extends Bundle {
   })
   val branch = Output(Bool())
 
-  val allow_to_go = Input(Bool())
-  val do_flush    = Input(Bool())
+  val ctrlSignal = Input(new CtrlSignal())
 }
 
 class ExecuteFuCtrl extends Bundle {
@@ -84,8 +87,7 @@ class ExecuteCtrl(implicit val cpuConfig: CpuConfig) extends Bundle {
   val inst  = Output(Vec(cpuConfig.commitNum, new MemRead()))
   val flush = Output(Bool())
 
-  val allow_to_go = Input(Bool())
-  val do_flush    = Input(Bool())
+  val ctrlSignal = Input(new CtrlSignal())
 
   val fu = new ExecuteFuCtrl()
 }
@@ -99,8 +101,7 @@ class MemoryCtrl extends Bundle {
   val flush     = Output(Bool())
   val mem_stall = Output(Bool())
 
-  val allow_to_go = Input(Bool())
-  val do_flush    = Input(Bool())
+  val ctrlSignal = Input(new CtrlSignal())
 
   // to cache
   val fence_i                 = Output(Bool())
@@ -110,8 +111,7 @@ class MemoryCtrl extends Bundle {
 }
 
 class WriteBackCtrl extends Bundle {
-  val allow_to_go = Input(Bool())
-  val do_flush    = Input(Bool())
+  val ctrlSignal = Input(new CtrlSignal())
 }
 
 // cpu to icache
@@ -124,11 +124,11 @@ class Cache_ICache(implicit val cpuConfig: CpuConfig) extends Bundle {
   val dcache_stall            = Output(Bool())
 
   // read inst result
-  val inst            = Input(Vec(cpuConfig.instFetchNum, UInt(XLEN.W)))
-  val inst_valid      = Input(Vec(cpuConfig.instFetchNum, Bool()))
-  val access_fault    = Input(Bool())
-  val page_fault      = Input(Bool())
-  val icache_stall    = Input(Bool()) // icache_stall
+  val inst         = Input(Vec(cpuConfig.instFetchNum, UInt(XLEN.W)))
+  val inst_valid   = Input(Vec(cpuConfig.instFetchNum, Bool()))
+  val access_fault = Input(Bool())
+  val page_fault   = Input(Bool())
+  val icache_stall = Input(Bool()) // icache_stall
 
   // tlb
   val tlb = new Tlb_ICache()
