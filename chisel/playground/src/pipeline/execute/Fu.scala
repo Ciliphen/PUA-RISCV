@@ -26,7 +26,7 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
     }
     val branch = new Bundle {
       val pred_branch   = Input(Bool())
-      val jump_regiser  = Input(Bool())
+      val jump_register = Input(Bool())
       val branch_target = Input(UInt(XLEN.W))
       val branch        = Output(Bool())
       val flush         = Output(Bool())
@@ -42,11 +42,11 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
   branchCtrl.in.info          := io.inst(0).info
   branchCtrl.in.src_info      := io.inst(0).src_info
   branchCtrl.in.pred_branch   := io.branch.pred_branch
-  branchCtrl.in.jump_regiser  := io.branch.jump_regiser
+  branchCtrl.in.jump_regiser  := io.branch.jump_register
   branchCtrl.in.branch_target := io.branch.branch_target
   io.branch.branch            := branchCtrl.out.branch
 
-  val branchCtrl_flush = (branchCtrl.out.pred_fail || io.branch.jump_regiser)
+  val branchCtrl_flush = (branchCtrl.out.pred_fail || io.branch.jump_register)
   io.branch.flush  := branchCtrl_flush
   io.branch.target := branchCtrl.out.target
 
@@ -69,7 +69,7 @@ class Fu(implicit val cpuConfig: CpuConfig) extends Module {
   )
   mdu.allow_to_go := io.ctrl.allow_to_go
 
-  io.ctrl.stall := io.inst.map(_.info.fusel === FuType.mdu).reduce(_ || _) && !mdu.ready
+  io.ctrl.stall := mdu_sel.reduce(_ || _) && !mdu.ready
 
   for (i <- 0 until (cpuConfig.commitNum)) {
     io.inst(i).result.alu := alu(i).io.result

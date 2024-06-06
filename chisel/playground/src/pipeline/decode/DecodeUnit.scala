@@ -103,7 +103,7 @@ class DecodeUnit(implicit val cpuConfig: CpuConfig) extends Module with HasExcep
   io.ctrl.inst0.src2.raddr := info(0).src2_raddr
   io.ctrl.branch           := io.fetchUnit.branch
 
-  io.executeStage.jump_branch_info.jump_regiser     := jumpCtrl.out.jump_register
+  io.executeStage.jump_branch_info.jump_register     := jumpCtrl.out.jump_register
   io.executeStage.jump_branch_info.branch_inst      := io.bpu.branch_inst
   io.executeStage.jump_branch_info.pred_branch      := io.bpu.branch
   io.executeStage.jump_branch_info.branch_target    := io.bpu.target

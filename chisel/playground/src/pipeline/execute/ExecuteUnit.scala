@@ -72,7 +72,7 @@ class ExecuteUnit(implicit val cpuConfig: CpuConfig) extends Module {
     fu.inst(i).src_info := io.executeStage.inst(i).src_info
   }
   fu.branch.pred_branch   := io.executeStage.jump_branch_info.pred_branch
-  fu.branch.jump_regiser  := io.executeStage.jump_branch_info.jump_regiser
+  fu.branch.jump_register := io.executeStage.jump_branch_info.jump_register
   fu.branch.branch_target := io.executeStage.jump_branch_info.branch_target
 
   io.dataMemory.addr := fu.dataMemory.addr

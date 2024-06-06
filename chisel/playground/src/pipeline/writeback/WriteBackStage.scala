@@ -32,8 +32,8 @@ class WriteBackStage(implicit val cpuConfig: CpuConfig) extends Module {
 
   for (i <- 0 until (cpuConfig.commitNum)) {
     when(io.ctrl.clear) {
-      inst(i) := 0.U.asTypeOf(new MemWbData())
-      debug   := 0.U.asTypeOf(new CSR_DEBUG())
+      inst(i).info.valid := false.B
+      inst(i).info.reg_wen := false.B
     }.elsewhen(io.ctrl.allow_to_go) {
       inst(i) := io.memoryUnit.inst(i)
       debug   := io.memoryUnit.debug

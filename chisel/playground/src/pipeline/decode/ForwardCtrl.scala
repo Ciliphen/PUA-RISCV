@@ -48,13 +48,13 @@ class ForwardCtrl(implicit val cpuConfig: CpuConfig) extends Module {
   for (i <- 0 until (cpuConfig.decoderNum)) {
     for (j <- 0 until (cpuConfig.commitNum)) {
       when(
-        io.in.forward(j).exe.wen && !io.in.forward(j).is_load &&
+        io.in.forward(j).exe.wen &&
           io.in.forward(j).exe.waddr === io.in.regfile(i).src1.raddr
       ) {
         io.out.inst(i).src1.rdata := io.in.forward(j).exe.wdata
       }
       when(
-        io.in.forward(j).exe.wen && !io.in.forward(j).is_load &&
+        io.in.forward(j).exe.wen &&
           io.in.forward(j).exe.waddr === io.in.regfile(i).src2.raddr
       ) {
         io.out.inst(i).src2.rdata := io.in.forward(j).exe.wdata
