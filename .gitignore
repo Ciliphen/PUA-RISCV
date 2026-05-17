@@ -11,3 +11,8 @@ user/sim/testbench.v
 
 .vscode/
 .VSCodeCounter/
+
+mill
+out/
+.metals/
+.vscode/
