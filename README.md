@@ -22,7 +22,7 @@ PUA-CPU 的 MIPS 线详见 [PUA-MIPS](https://github.com/Clo91eaf/PUA-MIPS)
 
 ```bash
 git clone git@github.com:Ciliphen/PUA-RISCV.git
-cd riscv-lab
+cd PUA-RISCV
 git submodule update --init --recursive
 ```
 
