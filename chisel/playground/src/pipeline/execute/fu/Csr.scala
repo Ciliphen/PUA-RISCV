@@ -317,6 +317,29 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   MaskedRegMap.generate(mapping, addr, rdata, wen, wdata)
   val illegal_addr = MaskedRegMap.isIllegalAddr(mapping, addr)
   val write_satp   = (addr === Satp.U) && wen
+val flush_on_csr_write = wen && !only_read && VecInit(
+    Sstatus.U,
+    Sie.U,
+    Stvec.U,
+    Scounteren.U,
+    Sscratch.U,
+    Sepc.U,
+    Scause.U,
+    Stval.U,
+    Sip.U,
+    Satp.U,
+    Mstatus.U,
+    Medeleg.U,
+    Mideleg.U,
+    Mie.U,
+    Mtvec.U,
+    Mcounteren.U,
+    Mscratch.U,
+    Mepc.U,
+    Mcause.U,
+    Mtval.U,
+    Mip.U
+  ).contains(addr)
   val ipMapping = Map(
     MaskedRegMap(Mip, mipReg, mipFixMask),
     MaskedRegMap(Sip, mipReg, sipMask, MaskedRegMap.NoSideEffect, sipMask)
@@ -431,7 +454,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
       io.executeUnit.in.ex.exception(illegalInst)
   io.executeUnit.out.ex.tval(illegalInst) := io.executeUnit.in.info.inst
   io.executeUnit.out.rdata                := rdata
-  io.executeUnit.out.flush                := write_satp || ret
+  io.executeUnit.out.flush                := flush_on_csr_write || ret || write_satp
   io.executeUnit.out.target               := Mux(ret, ret_target, io.executeUnit.in.pc + 4.U)
   io.memoryUnit.out.flush                 := raise_exc_int
   io.memoryUnit.out.target                := trap_target

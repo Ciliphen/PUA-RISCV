@@ -55,21 +55,11 @@ class Issue(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     // mou指令会导致流水线清空
     val is_mou = inst.map(_.fusel === FuType.mou).reduce(_ || _)
 
-    // 写satp指令会导致流水线清空
-    val write_satp = VecInit(
-      Seq.tabulate(cpuConfig.commitNum)(i =>
-        inst(i).fusel === FuType.csr && CSROpType.isCSROp(inst(i).op) && inst(i).inst(31, 20) === Satp.U
-      )
-    ).asUInt.orR
-
-    // uret、sret、mret指令会导致流水线清空
-    val ret = HasRet(inst(0)) || HasRet(inst(1))
-
-    // 这些csr相关指令会导致流水线清空
-    val is_some_csr_inst = write_satp || ret
+    // CSR指令可能改变权限、地址翻译、中断和控制流状态，先统一单发射。
+    val is_csr = inst.map(_.fusel === FuType.csr).reduce(_ || _)
 
     // 下面的情况只进行单发射
-    val single_issue = is_mou || is_bru || is_some_csr_inst
+    val single_issue = is_mou || is_bru || is_csr
 
     // 指令1是否允许执行
     io.inst1.allow_to_go :=
