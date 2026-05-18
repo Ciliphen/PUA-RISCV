@@ -551,6 +551,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
         state      := s_wait
       }.otherwise {
         when(io.cpu.tlb.hit) {
+          io.cpu.tlb.ptw.vpn.ready := !ptw_working && !io.cpu.en
           state := s_idle
         }
       }
