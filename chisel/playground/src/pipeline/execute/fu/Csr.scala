@@ -461,7 +461,15 @@ val flush_on_csr_write = wen && !only_read && VecInit(
 
   // for debug
   io.executeUnit.out.debug.mcycle    := mcycle
+io.executeUnit.out.debug.mode      := mode
   io.executeUnit.out.debug.mip       := mip
+io.executeUnit.out.debug.mie       := mie
+  io.executeUnit.out.debug.mideleg   := mideleg
+  io.executeUnit.out.debug.mstatus   := mstatus
+  io.executeUnit.out.debug.mcause    := mcause
+  io.executeUnit.out.debug.mepc      := mepc
+  io.executeUnit.out.debug.scause    := scause
+  io.executeUnit.out.debug.sepc      := sepc
   io.executeUnit.out.debug.minstret  := minstret
   io.executeUnit.out.debug.interrupt := DontCare
 }

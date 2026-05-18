@@ -10,6 +10,7 @@ class PuaCpu extends Module {
     val ext_int = Input(new ExtInterrupt())
     val axi     = new AXI()
     val debug   = new DEBUG()
+    val mmu_debug = Output(new MMU_DEBUG())
   })
   val core  = Module(new Core())
   val cache = Module(new Cache())
@@ -19,5 +20,10 @@ class PuaCpu extends Module {
 
   io.ext_int <> core.io.ext_int
   io.debug <> core.io.debug
+  io.mmu_debug := cache.io.debug
+  io.mmu_debug.immu_state := core.io.mmu_debug.immu_state
+  io.mmu_debug.dmmu_state := core.io.mmu_debug.dmmu_state
+  io.mmu_debug.req_ptw := core.io.mmu_debug.req_ptw
+  io.mmu_debug.choose_icache := core.io.mmu_debug.choose_icache
   io.axi <> cache.io.axi
 }

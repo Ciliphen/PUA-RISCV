@@ -17,6 +17,7 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
     val inst    = new Cache_ICache()
     val data    = new Cache_DCache()
     val debug   = new DEBUG()
+    val mmu_debug = Output(new MMU_DEBUG())
   })
 
   val ctrl           = Module(new Ctrl()).io
@@ -38,6 +39,7 @@ class Core(implicit val cpuConfig: CpuConfig) extends Module {
   tlb.dcache <> io.data.tlb
   tlb.csr <> csr.tlb
   tlb.sfence_vma <> memoryUnit.ctrl.sfence_vma
+  io.mmu_debug := tlb.debug
 
   ctrl.decodeUnit <> decodeUnit.ctrl
   ctrl.executeUnit <> executeUnit.ctrl

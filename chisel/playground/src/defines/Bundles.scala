@@ -233,9 +233,39 @@ class DEBUG extends Bundle {
   val perf     = Output(new PERF_DEBUG())
 }
 
+class MMU_DEBUG extends Bundle {
+  val icache_state       = UInt(3.W)
+  val dcache_state       = UInt(3.W)
+  val ptw_state          = UInt(3.W)
+  val ptw_working        = Bool()
+  val immu_state         = UInt(2.W)
+  val dmmu_state         = UInt(2.W)
+  val req_ptw            = UInt(2.W)
+  val choose_icache      = Bool()
+  val ptw_vpn_valid      = Bool()
+  val ptw_vpn_ready      = Bool()
+  val ptw_pte_valid      = Bool()
+  val icache_tlb_hit     = Bool()
+  val icache_page_fault  = Bool()
+  val icache_access_fault = Bool()
+  val dcache_tlb_hit     = Bool()
+  val dcache_page_fault  = Bool()
+  val dcache_access_fault = Bool()
+  val icache_stall       = Bool()
+  val dcache_ready       = Bool()
+}
+
 class CSR_DEBUG extends Bundle {
   val mcycle    = UInt(XLEN.W)
+  val mode      = UInt(XLEN.W)
   val mip       = UInt(XLEN.W)
+  val mie       = UInt(XLEN.W)
+  val mideleg   = UInt(XLEN.W)
+  val mstatus   = UInt(XLEN.W)
+  val mcause    = UInt(XLEN.W)
+  val mepc      = UInt(XLEN.W)
+  val scause    = UInt(XLEN.W)
+  val sepc      = UInt(XLEN.W)
   val minstret  = UInt(XLEN.W)
   val interrupt = Bool()
 }

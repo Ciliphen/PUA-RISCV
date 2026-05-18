@@ -73,6 +73,7 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val io = IO(new Bundle {
     val cpu = Flipped(new Cache_ICache())
     val axi = new ICache_AXIInterface()
+    val debug = Output(new MMU_DEBUG())
   })
   require(isPow2(instFetchNum), "ninst must be power of 2")
   require(instFetchNum == bytesPerBank / 4, "instFetchNum must equal to instperbank")
@@ -343,6 +344,13 @@ class ICache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   icache_hit := cache_hit && icache_req
   BoringUtils.addSource(icache_req, "icache_req")
   BoringUtils.addSource(icache_hit, "icache_hit")
+
+  io.debug := 0.U.asTypeOf(new MMU_DEBUG())
+  io.debug.icache_state := state
+  io.debug.icache_stall := io.cpu.icache_stall
+  io.debug.icache_tlb_hit := io.cpu.tlb.hit
+  io.debug.icache_page_fault := io.cpu.tlb.page_fault
+  io.debug.icache_access_fault := io.cpu.tlb.access_fault
 
   // println("----------------------------------------")
   // println("ICache: ")

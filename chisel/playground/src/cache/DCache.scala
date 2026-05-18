@@ -84,6 +84,7 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   val io = IO(new Bundle {
     val cpu = Flipped(new Cache_DCache())
     val axi = new DCache_AXIInterface()
+    val debug = Output(new MMU_DEBUG())
   })
 
   // dcache的状态机
@@ -777,6 +778,18 @@ class DCache(cacheConfig: CacheConfig)(implicit cpuConfig: CpuConfig) extends Mo
   dcache_hit := cache_hit && dcache_req
   BoringUtils.addSource(dcache_req, "dcache_req")
   BoringUtils.addSource(dcache_hit, "dcache_hit")
+
+  io.debug := 0.U.asTypeOf(new MMU_DEBUG())
+  io.debug.dcache_state := state
+  io.debug.ptw_state := ptw_state
+  io.debug.ptw_working := ptw_working
+  io.debug.ptw_vpn_valid := io.cpu.tlb.ptw.vpn.valid
+  io.debug.ptw_vpn_ready := io.cpu.tlb.ptw.vpn.ready
+  io.debug.ptw_pte_valid := io.cpu.tlb.ptw.pte.valid
+  io.debug.dcache_tlb_hit := io.cpu.tlb.hit
+  io.debug.dcache_page_fault := io.cpu.tlb.page_fault
+  io.debug.dcache_access_fault := io.cpu.tlb.access_fault
+  io.debug.dcache_ready := io.cpu.dcache_ready
 
   // println("----------------------------------------")
   // println("DCache: ")

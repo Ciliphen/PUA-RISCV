@@ -53,6 +53,7 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
     val dcache     = new Tlb_DCache()
     val csr        = Flipped(new CsrTlb())
     val sfence_vma = Input(new MouTlb())
+    val debug      = Output(new MMU_DEBUG())
   })
 
   val satp    = io.csr.satp.asTypeOf(satpBundle)
@@ -432,5 +433,20 @@ class Tlb extends Module with HasTlbConst with HasCSRConst {
   io.dcache.uncached := AddressSpace.isMMIO(io.dcache.paddr)
   io.dcache.ptag     := Mux(dvm_enabled, dmasktag, dvpn)
   io.dcache.paddr    := Cat(io.dcache.ptag, io.dcache.vaddr(pageOffsetLen - 1, 0))
+
+  io.debug := 0.U.asTypeOf(new MMU_DEBUG())
+  io.debug.immu_state := immu_state
+  io.debug.dmmu_state := dmmu_state
+  io.debug.req_ptw := req_ptw.asUInt
+  io.debug.choose_icache := choose_icache
+  io.debug.ptw_vpn_valid := io.dcache.ptw.vpn.valid
+  io.debug.ptw_vpn_ready := io.dcache.ptw.vpn.ready
+  io.debug.ptw_pte_valid := io.dcache.ptw.pte.valid
+  io.debug.icache_tlb_hit := io.icache.hit
+  io.debug.icache_page_fault := io.icache.page_fault
+  io.debug.icache_access_fault := io.icache.access_fault
+  io.debug.dcache_tlb_hit := io.dcache.hit
+  io.debug.dcache_page_fault := io.dcache.page_fault
+  io.debug.dcache_access_fault := io.dcache.access_fault
 
 }
