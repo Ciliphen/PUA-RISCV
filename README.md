@@ -38,4 +38,14 @@ git submodule update --init --recursive
 
 - [x] 实现 RV64IMAZicsr_Zifencei 指令集
 - [x] 启动 OpenSBI
-- [ ] 支持 Linux（目前存在 bug，正在修复中...）
+- [x] 支持 Linux (内核版本5.2.11)
+
+## 🖼️ 启动展示
+
+### OpenSBI 启动
+
+![OpenSBI 启动截图](opensbi-boot.png)
+
+### Linux 启动
+
+![Linux 启动截图](linux-boot.png)

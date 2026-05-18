@@ -93,7 +93,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val mtval      = RegInit(UInt(XLEN.W), 0.U) // 异常值寄存器
   val mipWire    = WireInit(0.U.asTypeOf(new Interrupt))
   val mipReg     = RegInit(UInt(XLEN.W), 0.U)
-  val mipFixMask = "hAAA".U(64.W)
+  val mipFixMask = "h222".U(64.W)
   val mip        = mipWire.asUInt | mipReg // 中断挂起寄存器
 
   // Machine Memory Protection
@@ -134,7 +134,8 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   val scause   = RegInit(UInt(XLEN.W), 0.U) // 异常原因寄存器
   val stval    = RegInit(UInt(XLEN.W), 0.U) // 异常值寄存器
   // sip 中断挂起寄存器，源自mip
-  val sipMask = "h222".U(64.W) & mideleg
+  val sipRmask = "h222".U(64.W) & mideleg
+  val sipWmask = "h002".U(64.W) & mideleg // S-mode 写 sip 只能修改 SSIP
 
   // Supervisor Protection and Translation
   val satp = RegInit(UInt(XLEN.W), 0.U) // 页表基址寄存器
@@ -187,7 +188,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
     MaskedRegMap(Sepc, sepc),
     MaskedRegMap(Scause, scause),
     MaskedRegMap(Stval, stval),
-    MaskedRegMap(Sip, mip, sipMask, MaskedRegMap.Unwritable, sipMask),
+    MaskedRegMap(Sip, mip, 0.U, MaskedRegMap.Unwritable, sipRmask),
     // Supervisor Protection and Translation
     MaskedRegMap(Satp, satp),
     // Machine Information Registers
@@ -317,7 +318,7 @@ class Csr(implicit val cpuConfig: CpuConfig) extends Module with HasCSRConst {
   MaskedRegMap.generate(mapping, addr, rdata, wen, wdata)
   val illegal_addr = MaskedRegMap.isIllegalAddr(mapping, addr)
   val write_satp   = (addr === Satp.U) && wen
-val flush_on_csr_write = wen && !only_read && VecInit(
+  val flush_on_csr_write = wen && !only_read && VecInit(
     Sstatus.U,
     Sie.U,
     Stvec.U,
@@ -342,10 +343,22 @@ val flush_on_csr_write = wen && !only_read && VecInit(
   ).contains(addr)
   val ipMapping = Map(
     MaskedRegMap(Mip, mipReg, mipFixMask),
-    MaskedRegMap(Sip, mipReg, sipMask, MaskedRegMap.NoSideEffect, sipMask)
+    MaskedRegMap(Sip, mipReg, sipWmask, MaskedRegMap.NoSideEffect, sipRmask)
+  )
+  // mip/sip 读值包含外部中断线，但 CSRRS/CSRRC 写回软件 pending 位时只能使用 mipReg 作为旧值。
+  val ipWdata = LookupTree(
+    op,
+    List(
+      CSROpType.csrrw  -> src1,
+      CSROpType.csrrs  -> (mipReg | src1),
+      CSROpType.csrrc  -> (mipReg & ~src1),
+      CSROpType.csrrwi -> csri,
+      CSROpType.csrrsi -> (mipReg | csri),
+      CSROpType.csrrci -> (mipReg & ~csri)
+    )
   )
   val rdataDummy = Wire(UInt(XLEN.W))
-  MaskedRegMap.generate(ipMapping, addr, rdataDummy, wen, wdata)
+  MaskedRegMap.generate(ipMapping, addr, rdataDummy, wen, ipWdata)
 
   // CSR inst decode
   // ret指令在exe阶段执行
@@ -461,9 +474,9 @@ val flush_on_csr_write = wen && !only_read && VecInit(
 
   // for debug
   io.executeUnit.out.debug.mcycle    := mcycle
-io.executeUnit.out.debug.mode      := mode
+  io.executeUnit.out.debug.mode      := mode
   io.executeUnit.out.debug.mip       := mip
-io.executeUnit.out.debug.mie       := mie
+  io.executeUnit.out.debug.mie       := mie
   io.executeUnit.out.debug.mideleg   := mideleg
   io.executeUnit.out.debug.mstatus   := mstatus
   io.executeUnit.out.debug.mcause    := mcause
